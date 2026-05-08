@@ -68,3 +68,16 @@ php -S 127.0.0.1:8080 -t public
 ```
 
 Für produktiven Betrieb wird ein richtiger Webserver mit DocumentRoot auf `public/` empfohlen.
+
+## PHP-FPM/FastCGI und PHP-Limits
+
+ModulNest unterstützt moderne PHP-FPM-/FastCGI-Setups. Die ausgelieferte `public/.htaccess` enthält deshalb keine `php_value`- oder `php_flag`-Direktiven. Solche Direktiven funktionieren nur mit `mod_php` und können unter PHP-FPM/FastCGI einen HTTP-500-Fehler verursachen.
+
+Wenn Upload-, Speicher- oder Laufzeitlimits angepasst werden müssen, nutze bevorzugt:
+
+- das Hosting-Panel
+- `php.ini`
+- die PHP-FPM-Pool-Konfiguration
+- eine `.user.ini`, wenn dein Hoster das unterstützt
+
+Als Vorlage liegt `public/.user.ini.example` bei. Diese Datei ist nur ein Beispiel und wird nicht automatisch als aktive PHP-Konfiguration verwendet.

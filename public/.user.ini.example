@@ -1,0 +1,8 @@
+; Optional PHP limits for PHP-FPM/FastCGI hosting.
+; Copy this file to .user.ini only if your hosting environment supports it.
+; Prefer your hosting panel, php.ini or PHP-FPM pool configuration when available.
+
+upload_max_filesize=32M
+post_max_size=32M
+memory_limit=256M
+max_execution_time=120

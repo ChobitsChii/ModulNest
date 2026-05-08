@@ -17,7 +17,7 @@ KEEP_WORK=0
 usage() {
     cat <<EOF
 Usage: $SCRIPT_NAME [--public-target /srv/http/modulnest] [--output /pfad] [--metadata /pfad]
-                   [--version 0.5.0] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
+                   [--version 0.5.1] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
 
 Baut installierbare ModulNest-ZIP-Pakete aus einem bereits bereinigten Public-Export.
 
@@ -173,13 +173,13 @@ scan_package_tree() {
     local suspicious_files
     if [[ "$allow_vendor" == "1" ]]; then
         suspicious_files="$(find "$tree" -path "$tree/vendor" -prune -o -type f \( \
-            -name '.env' -o -path '*/.local/*' -o -path '*/var/cache/*' -o -path '*/var/log/*' -o \
+            -name '.env' -o -name '.user.ini' -o -path '*/.local/*' -o -path '*/var/cache/*' -o -path '*/var/log/*' -o \
             -iname '*.log' -o -iname '*.bak' -o -iname '*.backup' -o -iname '*.dump' -o -iname '*.sql.gz' -o \
             -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*backup*' -o -iname '*dump*' \
         \) -print)"
     else
         suspicious_files="$(find "$tree" -type f \( \
-            -name '.env' -o -path '*/.local/*' -o -path '*/var/cache/*' -o -path '*/var/log/*' -o \
+            -name '.env' -o -name '.user.ini' -o -path '*/.local/*' -o -path '*/var/cache/*' -o -path '*/var/log/*' -o \
             -iname '*.log' -o -iname '*.bak' -o -iname '*.backup' -o -iname '*.dump' -o -iname '*.sql.gz' -o \
             -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*backup*' -o -iname '*dump*' \
         \) -print)"

@@ -19,6 +19,8 @@ public/assets/sneak-preview/posters/*
 public/assets/fantasy-cards/cards/*
 !public/assets/fantasy-cards/.gitkeep
 !public/assets/fantasy-cards/cards/.gitkeep
+public/.user.ini
+!public/.user.ini.example
 
 *.log
 *.bak

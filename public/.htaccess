@@ -1,10 +1,5 @@
 RewriteEngine On
 
-# FantasyCards-Massenuploads brauchen mehrere größere Bilddateien pro Request.
-# Diese Werte gelten nur für Modulon über mod_php und bleiben unterhalb der App-eigenen Validierung.
-php_value upload_max_filesize 32M
-php_value post_max_size 128M
-
 # Falls eine echte Datei oder ein echtes Verzeichnis angefragt wird: direkt ausliefern.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d

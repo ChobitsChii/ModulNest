@@ -50,6 +50,12 @@ Aus `composer.json`:
   - enthält `vendor/`
   - benötigt keinen Composer auf dem Zielsystem
 
+## Webserver und PHP-Limits
+
+Der Webserver muss im Produktivbetrieb mit dem DocumentRoot/Webroot auf `public/` zeigen. ModulNest unterstützt PHP-FPM/FastCGI. Deshalb dürfen `php_value`- und `php_flag`-Direktiven nicht in `public/.htaccess` verwendet werden, weil sie unter PHP-FPM/FastCGI einen HTTP-500-Fehler auslösen können.
+
+PHP-Limits wie `upload_max_filesize`, `post_max_size`, `memory_limit` und `max_execution_time` sollen bei Bedarf über das Hosting-Panel, `php.ini`, die PHP-FPM-Pool-Konfiguration oder eine `.user.ini` gesetzt werden. `public/.user.ini.example` ist nur eine Vorlage mit Beispielwerten und enthält keine Secrets.
+
 ## Secrets und lokale Konfiguration
 
 - `MAIL_CREDENTIAL_KEY` wird für die Verschlüsselung gespeicherter Mail-Zugangsdaten verwendet.

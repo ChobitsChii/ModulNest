@@ -28,7 +28,7 @@ Für die Installer-Version gilt:
 - Minor-Versionen für neue Installer-Funktionen wie Pakettypen, Modulauswahl, AJAX-Prüfungen oder verbesserte Systemchecks.
 - Major-Versionen später für stabile oder inkompatible Änderungen am Installer-Verhalten.
 
-Der nächste Public-/Alpha-Stand ist `0.5.0`. Für diesen Stand werden App-Version und Bootstrap-Installer-Version bewusst beide auf `0.5.0` gesetzt.
+Der nächste Public-/Alpha-Stand ist `0.5.1`. Für diesen Stand werden App-Version und Bootstrap-Installer-Version bewusst beide auf `0.5.1` gesetzt.
 
 ## Zwei Modul-Auswahl-Ebenen
 
