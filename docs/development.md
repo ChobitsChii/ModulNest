@@ -8,4 +8,6 @@ Architekturentscheidungen, Funktionsumfang, Tests, Review, Releases und Veröffe
 
 Wo es sinnvoll und sicherer ist, nutzt ModulNest etablierte externe Libraries statt sicherheitskritische oder komplexe Funktionen unnötig selbst zu bauen. Das betrifft zum Beispiel Bereiche wie Authentifizierung, Zwei-Faktor-Funktionen, Mail, QR-Codes und WebAuthn.
 
+Eine Übersicht der verwendeten Libraries und Technologien steht in [Technologien und Abhängigkeiten](dependencies.md).
+
 Ziel bleibt ein wartbares, selbst hostbares Modulsystem mit klarer Trennung zwischen Core, optionalen Modulen und lokalen Installationsdaten.

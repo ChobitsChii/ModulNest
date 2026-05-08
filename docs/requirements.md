@@ -2,6 +2,8 @@
 
 Diese Datei beschreibt die globalen Anforderungen des aktuellen ModulNest-Stands. Einzelne Module sollen später eigene Requirements deklarieren können; aktuell sind einige Abhängigkeiten noch global in `composer.json` gebündelt.
 
+Eine lesbare Übersicht der verwendeten Libraries, Frameworks und externen Bausteine steht in [Technologien und Abhängigkeiten](dependencies.md).
+
 ## PHP
 
 - PHP `^8.3`

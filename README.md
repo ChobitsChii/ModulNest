@@ -16,6 +16,8 @@ Status: **Alpha**, Version `0.6.1`.
 - Bootstrap-Installer als einzelne `install.php`.
 - Source- und Bundled-Releases: mit oder ohne Composer auf dem Zielsystem.
 
+ModulNest nutzt bewusst etablierte Komponenten wie Composer/PSR-4, PDO, Bootstrap, DataTables sowie externe PHP-Libraries für 2FA, WebAuthn, QR-Codes und Mail. Details stehen in [Technologien & Abhängigkeiten](docs/dependencies.md).
+
 ## Installation
 
 Für die normale Installation brauchst du nur die Datei [`install.php`](install.php).
@@ -40,6 +42,7 @@ Manuelle Installation und Details stehen in der [Installationsdokumentation](doc
 - [Konfiguration](docs/configuration.md): wichtige `.env`-Werte, Datenbank, Sessions, 2FA und Mail-Schlüssel.
 - [Release & Export](docs/release.md): privater Entwicklungsstand, öffentlicher Export, Paketbau und Update-Metadaten.
 - [Anforderungen](docs/requirements.md): PHP-Version, Extensions und Composer-Abhängigkeiten.
+- [Technologien & Abhängigkeiten](docs/dependencies.md): verwendete Libraries, Frameworks und externe Bausteine.
 - [Module](docs/modules.md): native Module, optionale Module, Autodiscovery und Zugriffsebenen.
 - [Routen](docs/routes.md): wichtige öffentliche, Benutzer- und Admin-Routen.
 - [Datenbank](docs/database.md): Tabellenüberblick und Verweis auf das Schema.
