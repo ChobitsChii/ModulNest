@@ -12,13 +12,15 @@ $healthStatus = strtolower((string) ($healthSummary['status'] ?? 'ok'));
 $healthAlertClass = $healthStatus === 'error' ? 'alert-danger' : ($healthStatus === 'warning' ? 'alert-warning' : 'alert-success');
 $authData = is_array($auth ?? null) ? $auth : [];
 $isAdminUser = (bool) ($authData['is_admin'] ?? false);
+$productMeta = is_array($product_meta ?? null) ? $product_meta : [];
+$productName = (string) ($productMeta['product_name'] ?? $productMeta['public_product_name'] ?? 'ModulNest');
 ?>
 <?php if ($user === null): ?>
 <div class="row g-4 align-items-stretch">
     <div class="col-12 col-lg-8">
         <div class="card shadow-sm border-0 app-card h-100">
             <div class="card-body p-4 p-md-5">
-                <h1 class="h3 mb-3">Modulon verbindet deine Apps in einem Login.</h1>
+                <h1 class="h3 mb-3"><?= htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') ?> verbindet deine Apps in einem Login.</h1>
                 <p class="text-body-secondary mb-4">Verwalte Module zentral, steuere Berechtigungen pro Bereich und binde bestehende Legacy-Apps ohne Umbau ein.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="/login" class="btn btn-primary">Login</a>
@@ -32,7 +34,7 @@ $isAdminUser = (bool) ($authData['is_admin'] ?? false);
     <div class="col-12 col-lg-4">
         <div class="card shadow-sm border-0 app-card h-100">
             <div class="card-body p-4">
-                <h2 class="h6 text-uppercase text-body-secondary mb-3">Warum Modulon</h2>
+                <h2 class="h6 text-uppercase text-body-secondary mb-3">Warum <?= htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') ?></h2>
                 <div class="d-grid gap-2">
                     <div class="border rounded-2 p-2">
                         <strong class="d-block small">Ein Login</strong>
@@ -67,7 +69,31 @@ $isAdminUser = (bool) ($authData['is_admin'] ?? false);
 
 <div class="row g-3 mt-1">
     <div class="col-12">
-        <h2 class="h6 text-uppercase text-body-secondary mb-1">Öffentliche Module</h2>
+        <div class="card shadow-sm border-0 app-card">
+            <div class="card-body p-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-12 col-lg">
+                        <h2 class="h6 mb-2">Öffentliche Nutzung</h2>
+                        <p class="text-body-secondary mb-0">
+                            Diese <?= htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') ?>-Instanz darf als normaler Benutzer frei genutzt werden. Eine vollständige Demo für Admin-Funktionen ist noch in Arbeit. Wenn du <?= htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') ?> selbst betreiben möchtest, reicht die <code>install.php</code> aus dem GitHub-Repo.
+                        </p>
+                    </div>
+                    <div class="col-12 col-lg-auto">
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="https://github.com/ChobitsChii/ModulNest" class="btn btn-outline-secondary btn-sm" rel="noopener noreferrer">GitHub</a>
+                            <a href="https://github.com/ChobitsChii/ModulNest/blob/main/install.php" class="btn btn-primary btn-sm" rel="noopener noreferrer">install.php</a>
+                            <a href="https://github.com/ChobitsChii/ModulNest/releases/latest" class="btn btn-outline-secondary btn-sm" rel="noopener noreferrer">Neuester Release</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <h2 class="h6 text-uppercase text-body-secondary mb-1">Öffentlich nutzbar</h2>
     </div>
     <?php if ($availableModules === []): ?>
         <div class="col-12">

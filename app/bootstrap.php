@@ -99,6 +99,8 @@ $moduleContext = new ModuleContext(
     ],
     [
         'authConfig' => $authConfig,
+        'app_version' => (string) ($versionConfig['version'] ?? Env::get('APP_VERSION', '0.4.0')),
+        'app_channel' => (string) ($versionConfig['channel'] ?? Env::get('APP_CHANNEL', 'alpha')),
     ],
 );
 $nativeModules = NativeModuleLoader::createActiveModules($basePath, $moduleContext);

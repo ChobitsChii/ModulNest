@@ -4,7 +4,7 @@ set -Eeuo pipefail
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly DEFAULT_TARGET="/srv/http/modulnest"
 readonly CORE_MODULES=("Admin" "Auth" "Modules")
-readonly DEFAULT_OPTIONAL_MODULES=("Dashboard" "News" "Systeminfo" "User")
+readonly DEFAULT_OPTIONAL_MODULES=("Dashboard" "News" "Systeminfo" "Updates" "User")
 
 TARGET="$DEFAULT_TARGET"
 ASSUME_YES=0
@@ -259,7 +259,7 @@ APP_DEBUG=false
 APP_PRODUCT_NAME=ModulNest
 APP_CORE_NAME=Modulon
 APP_CORE_LABEL="Modulon Core"
-APP_VERSION=0.5.1
+APP_VERSION=0.6.0
 APP_CHANNEL=alpha
 PUBLIC_REGISTRATION_ENABLED=false
 
@@ -300,6 +300,7 @@ module_view_dir() {
         SneakPreview) printf 'sneak-preview' ;;
         Systeminfo) printf 'systeminfo' ;;
         Tools) printf 'tools' ;;
+        Updates) printf 'updates' ;;
         User) printf 'user' ;;
         Admin) printf 'admin' ;;
         Auth) printf 'auth' ;;
@@ -355,7 +356,7 @@ write_package_metadata() {
         $target = $argv[1];
         $core = array_values(array_filter(explode(",", $argv[2])));
         $selected = array_values(array_filter(explode(",", $argv[3])));
-        $version = "0.5.1";
+        $version = "0.6.0";
         if (is_file("app/Core/Env.php") && is_file("app/Config/version.php")) {
             require_once "app/Core/Env.php";
             $config = require "app/Config/version.php";

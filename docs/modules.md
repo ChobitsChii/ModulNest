@@ -22,6 +22,7 @@ Der aktuelle Public-Export enthält:
 - `Dashboard`: persönliche Widgets
 - `News`: öffentliche News und Admin-Verwaltung
 - `Systeminfo`: Systeminformationen und Systemcheck
+- `Updates`: Adminbereich für offizielle ModulNest-Updates aus `stable.json`
 - `User`: Profil, Sicherheit und Einstellungen
 
 Weitere private oder experimentelle Module können im Entwicklungsstand existieren, werden aber nur dann öffentlich exportiert, wenn sie beim Release-Build ausgewählt wurden.

@@ -1,20 +1,20 @@
 {
-    "latest": "0.5.1",
+    "latest": "0.6.0",
     "channel": "alpha",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.5.1/modulnest-source-0.5.1.zip",
-            "sha256": "d59b86af4ee3c23132e4faf10aefe6fb2d9600840de7f8759b4f75919fbdab46",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.6.0/modulnest-source-0.6.0.zip",
+            "sha256": "c73e8aeaddadf33e1ef20dd740eb78911789f64d9568bb63e2b6585ada31ad04",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.5.1/modulnest-bundled-0.5.1.zip",
-            "sha256": "81917c1dcb3d9ac8cacda97719aa09b769470232be69b5bbdfa84efeae8cc399",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.6.0/modulnest-bundled-0.6.0.zip",
+            "sha256": "4d1f9d7ffe3ab6bf21ceb774e26be0043376cee2e8d2e6b36b77225dcc286ed4",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.5.1",
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.6.0",
     "requires_migrations": true,
     "package_metadata": "modulnest-package.json",
     "modules": [
@@ -97,6 +97,20 @@
             "view_dir": "systeminfo"
         },
         {
+            "directory": "Updates",
+            "key": "updates",
+            "name": "Updates",
+            "route_prefix": "updates",
+            "access_level": "admin",
+            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": null
+        },
+        {
             "directory": "User",
             "key": "profil",
             "name": "Profil",
@@ -111,5 +125,5 @@
             "view_dir": "user"
         }
     ],
-    "generated_at": "2026-05-08T15:09:34+00:00"
+    "generated_at": "2026-05-08T17:04:17+00:00"
 }
