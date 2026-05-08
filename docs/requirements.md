@@ -1,6 +1,6 @@
 # ModulNest Anforderungen
 
-Diese Datei beschreibt die globalen Anforderungen des aktuellen ModulNest-/Modulon-Stands. Einzelne Module sollen später eigene Requirements deklarieren können; aktuell sind einige Abhängigkeiten noch global in `composer.json` gebündelt.
+Diese Datei beschreibt die globalen Anforderungen des aktuellen ModulNest-Stands. Einzelne Module sollen später eigene Requirements deklarieren können; aktuell sind einige Abhängigkeiten noch global in `composer.json` gebündelt.
 
 ## PHP
 
@@ -24,7 +24,7 @@ Aktuell bekannte globale Anforderungen:
 Hinweise:
 
 - `ext-iconv` steht bereits explizit in `composer.json`.
-- `pdo_mysql` wird für die Modulon-Datenbank benötigt.
+- `pdo_mysql` wird für die ModulNest-Datenbank benötigt.
 - `zip`/`ZipArchive` wird vom Bootstrap-Installer für Release-Pakete benötigt.
 - `fileinfo` wird für sichere Upload-/Dateityp-Prüfungen verwendet.
 

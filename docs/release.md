@@ -1,6 +1,6 @@
 # ModulNest Release-Prozess
 
-Modulon bleibt das private Arbeitsprojekt. ModulNest ist der öffentliche, bereinigte Export für Source-Reviews, GitHub und installierbare Release-Pakete.
+ModulNest ist der öffentliche, bereinigte Export für Source-Reviews, GitHub und installierbare Release-Pakete. Das private Arbeitsprojekt und der interne Core-/Arbeitsname heißen Modulon.
 
 ## Namen und Metadaten
 
@@ -129,7 +129,7 @@ Der Installer:
 - schreibt `var/install.lock`
 - versucht sich nach erfolgreicher Installation selbst zu löschen
 
-Die erste Version unterstützt noch keine Tabellenpräfixe, weil der aktuelle Modulon-Core SQL-Abfragen ohne Prefix ausführt. Das Feld ist im Installer sichtbar, muss aber leer bleiben.
+Die erste Version unterstützt noch keine Tabellenpräfixe, weil der aktuelle Core SQL-Abfragen ohne Prefix ausführt. Das Feld ist im Installer sichtbar, muss aber leer bleiben.
 
 Für den ersten öffentlichen Release wird ModulNest im Domain-/Subdomain-Root betrieben. Der Webserver muss auf das `public/`-Verzeichnis der Installation zeigen, z. B. Installation unter `/pfad/zu/modulnest` und DocumentRoot `/pfad/zu/modulnest/public`. Unterverzeichnis-Installationen werden aktuell noch nicht unterstützt.
 

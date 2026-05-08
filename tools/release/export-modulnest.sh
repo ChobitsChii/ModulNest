@@ -631,7 +631,8 @@ run_security_scan() {
 }
 
 write_summary() {
-    local summary="$TARGET/EXPORT_SUMMARY.md"
+    local summary="$TARGET/docs/export-summary.md"
+    mkdir -p "$(dirname "$summary")"
     {
         printf '# ModulNest Export Summary\n\n'
         printf -- '- Zielpfad: `%s`\n' "$TARGET"

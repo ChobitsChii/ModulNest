@@ -1,10 +1,10 @@
-# Modulon Technical Architecture
+# ModulNest Technical Architecture
 
-Dieses Dokument beschreibt den **aktuellen technischen Stand** von Modulon (Code-Stand April 2026) und ergänzt die README um interne Architekturdetails.
+Dieses Dokument beschreibt den **aktuellen technischen Stand** von ModulNest und ergänzt die README um interne Architekturdetails. Der interne Core-/Arbeitsname lautet Modulon.
 
 ## 1) Gesamtarchitektur
 
-Modulon ist ein serverseitig gerendertes PHP-System mit:
+ModulNest ist ein serverseitig gerendertes PHP-System mit:
 
 - einem zentralen **Front Controller**
 - einem schlanken **Core** (HTTP, Routing, Rendering, Session, ENV, DB)
@@ -130,7 +130,7 @@ Die `modules`-Tabelle steuert Modul-Metadaten:
 
 ---
 
-## 5) Routing in Modulon
+## 5) Routing in ModulNest
 
 Routen werden im Composition Root und in aktiven Modulen registriert:
 

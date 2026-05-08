@@ -1,292 +1,62 @@
-# Modulon
+# ModulNest
 
-Modulon ist ein modulares PHP-8.3+-System mit eigenem Core, Rollen-/Rechtemodell, erweitertem Auth-Stack (Session, Remember-Me, 2FA), Admin-Werkzeugen und nativen sowie Legacy-Modulen.
+ModulNest ist eine modulare, selbst hostbare PHP-Webplattform. Ziel ist es, mehrere kleine Web-Apps, Tools und Module unter einer Oberfläche, einem Login und einer Benutzerverwaltung zu bündeln.
 
-Aktueller Stand: `v0.5.0`
+Der interne Core-/Arbeitsname lautet Modulon. Für öffentliche Releases, Dokumentation und Installation ist der Produktname **ModulNest**.
 
-Der öffentliche Produktname für Releases ist **ModulNest**. Modulon bleibt der interne Core-/Arbeitsname und das private Entwicklungsrepo.
+Status: **Alpha**, Version `0.5.0`.
 
-Release-/Export-Hinweise für den öffentlichen ModulNest-Stand stehen in [`docs/release.md`](docs/release.md). Anforderungen stehen in [`docs/requirements.md`](docs/requirements.md).
+## Warum ModulNest?
 
-Für frische Zielsysteme ist ein erster Bootstrap-Installer als einzelne Datei vorbereitet: `install.php`.
-
-## Highlights
-
-- PHP 8.3+, Composer, PSR-4 (`Modulon\\`)
-- Front Controller (`public/index.php`) + Apache Rewrite
-- Core-Komponenten: `Request`, `Response`, `Router`, `Application`, `Session`, `Env`, `Database`, `View`
-- Auth:
-  - Login/Logout, interne Registrierung (global schaltbar)
-  - Session-Idle + absolute Laufzeit
-  - Remember-Me mit gehashten, rotierenden Tokens
-  - TOTP, WebAuthn/Passkeys, Recovery Codes
-- Admin:
-  - `/admin/modules` (Modulverwaltung)
-  - `/admin/users` (Benutzerverwaltung + Registrierungsschalter)
-  - `/admin/news` (News/Changelog-CRUD)
-- Module:
-  - DB-gesteuerte Modulfreischaltung + Zugriff (`public|user|admin`)
-  - native Modultyp (`native`) plus `legacy` und `placeholder` (Übergang)
-  - native Module registrieren Routen, Untermenüs und Adminbereiche selbst
-  - Auto-Discovery neuer nativer Modulordner in der Modulverwaltung
-  - Legacy-Module inkl. zentraler Overlay-Injection
-- native Module: `Dashboard`, `Mail`, `News`, `Profil`, `Systeminfo`, `Banking`
-- Mail-Modul (modernisiert): IMAP via `webklex/php-imap`, SMTP via `symfony/mailer`
-- Banking-Modul: native, usergebundene Umsätze, Monatsübersicht, wiederkehrende Regeln, CSV-Import und Legacy-Fallback unter `/banking-old`
-
-## Technische Doku
-
-- [Technische Architektur](docs/technical/TECH_ARCHITECTURE.md)
-- [Dashboard Foundation](docs/technical/DASHBOARD_FOUNDATION.md)
-
-## Projektstruktur (vereinfacht)
-
-```text
-app/
-  Config/
-  Core/
-  Database/
-    schema.sql
-  Modules/
-    Admin/
-      AdminController.php
-      AppSettingRepository.php
-    Auth/
-      AuthController.php
-      AuthService.php
-      UserRepository.php
-      ...
-    Modules/
-      ModuleRepository.php
-    News/
-      NewsController.php
-      NewsRepository.php
-    Banking/
-      BankingModule.php
-      BankingController.php
-      BankingTransactionRepository.php
-    Systeminfo/
-      SysteminfoController.php
-    User/
-      UserController.php
-  Views/
-    admin/
-    auth/
-    news/
-    systeminfo/
-    user/
-    partials/
-  Legacy/
-  bootstrap.php
-public/
-  .htaccess
-  index.php
-  assets/
-storage/
-```
+- Ein Login für mehrere Module und Tools.
+- Benutzer-, Rollen- und Rechteverwaltung.
+- Adminbereich für Module, Benutzer und Systemeinstellungen.
+- Native Module mit eigenen Routen, Menüs und Adminbereichen.
+- Legacy-App-Anbindung für bestehende PHP-Anwendungen.
+- Bootstrap-Installer als einzelne `install.php`.
+- Source- und Bundled-Releases: mit oder ohne Composer auf dem Zielsystem.
 
 ## Installation
 
-Für ModulNest-Releases gibt es zwei Paketarten:
+Für die normale Installation brauchst du nur die Datei [`install.php`](install.php).
 
-- `modulnest-source-VERSION.zip`: ohne `vendor/`, benötigt Composer
-- `modulnest-bundled-VERSION.zip`: mit `vendor/`, benötigt keinen Composer
+1. Lade `install.php` auf deinen Webspace.
+2. Öffne die Datei im Browser.
+3. Folge dem Installer.
 
-Der Bootstrap-Installer `install.php` erkennt die Möglichkeiten des Zielsystems und empfiehlt standardmäßig das Bundled-Paket. Im erweiterten Modus können Endnutzer einzelne im Release enthaltene optionale Module abwählen.
+Der Installer lädt das passende Release-Paket, prüft die Voraussetzungen, richtet Datenbank und erstes Admin-Konto ein und versucht sich nach erfolgreicher Installation selbst zu löschen.
 
-Für den ersten öffentlichen Release wird Betrieb im Domain-/Subdomain-Root erwartet. Der Webserver muss mit seinem Webroot/DocumentRoot direkt auf das `public/`-Verzeichnis der Installation zeigen. Unterverzeichnis-Installationen wie `/modulnest/public/` werden aktuell nicht unterstützt.
+Wichtig:
 
-Manuelle Modulon-Entwicklungsinstallation:
+- Der Webroot/DocumentRoot deiner Domain oder Subdomain muss auf das `public/`-Verzeichnis der Installation zeigen.
+- Unterverzeichnis-Installationen wie `/modulnest/public/` werden aktuell nicht unterstützt.
+- Für die meisten Nutzer ist das Bundled-Paket empfohlen, weil es kein Composer auf dem Zielserver benötigt.
 
-1. `composer install`
-2. `.env` konfigurieren (siehe `.env.example`)
-3. Schema einspielen:
-   ```bash
-   mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < app/Database/schema.sql
-   ```
-4. Lokal starten:
-   ```bash
-   php -S 127.0.0.1:8080 -t public
-   ```
+Manuelle Installation und Details stehen in der [Installationsdokumentation](docs/installation.md).
 
-## Browser-E2E-Tests (lokal)
+## Dokumentation
 
-Versionierte E2E-Tests liegen unter:
+- [Installation](docs/installation.md): Bootstrap-Installer, Webroot, Source/Bundled und manuelle Installation.
+- [Konfiguration](docs/configuration.md): wichtige `.env`-Werte, Datenbank, Sessions, 2FA und Mail-Schlüssel.
+- [Release & Export](docs/release.md): privater Entwicklungsstand, öffentlicher Export, Paketbau und Update-Metadaten.
+- [Anforderungen](docs/requirements.md): PHP-Version, Extensions und Composer-Abhängigkeiten.
+- [Module](docs/modules.md): native Module, optionale Module, Autodiscovery und Zugriffsebenen.
+- [Routen](docs/routes.md): wichtige öffentliche, Benutzer- und Admin-Routen.
+- [Datenbank](docs/database.md): Tabellenüberblick und Verweis auf das Schema.
+- [Tests](docs/testing.md): lokale Browser-E2E-Tests mit pytest und Playwright.
+- [Technische Architektur](docs/technical/tech-architecture.md): Core, Routing, Module und technische Details.
+- [Export-Zusammenfassung](docs/export-summary.md): letzter Public-Export und Review-Hinweise.
 
-- `tests/e2e`
+## Sicherheit
 
-Lokale (nicht versionierte) E2E-Artefakte liegen unter:
+- Produktiv nur über HTTPS betreiben.
+- `.env` niemals committen oder veröffentlichen.
+- Vor Updates Backups von Dateien und Datenbank erstellen.
+- `install.php` nach der Installation entfernen. Der Installer versucht das automatisch.
+- Secrets wie `MAIL_CREDENTIAL_KEY`, Datenbankpasswörter und API-Schlüssel dürfen nicht in Git landen.
 
-- `.local/e2e`
+## Lizenz
 
-Setup:
+ModulNest steht unter der [MIT License](LICENSE).
 
-```bash
-python -m venv .local/e2e/.venv
-.local/e2e/.venv/bin/python -m pip install -r tests/e2e/requirements.txt
-.local/e2e/.venv/bin/python -m playwright install chromium
-```
-
-Konfiguration (optional, nicht versioniert) in `.local/e2e/local.env`:
-
-```env
-MODULON_E2E_BASE_URL=http://127.0.0.1:8080
-MODULON_E2E_LOGIN=dein-testuser
-MODULON_E2E_PASSWORD=dein-testpasswort
-```
-
-Start:
-
-```bash
-./scripts/e2e.sh
-```
-
-Hinweis:
-- Wenn `MODULON_E2E_BASE_URL` auf `http://127.0.0.1:8080` oder `http://localhost:8080` steht und dort noch kein Server läuft,
-  startet `scripts/e2e.sh` automatisch einen temporären lokalen PHP-Server (`php -S ... -t public`) für den Testlauf.
-
-## Wichtige ENV-Werte
-
-```env
-DB_DRIVER=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=modulon
-DB_USER=root
-DB_PASS=
-
-PUBLIC_REGISTRATION_ENABLED=true
-APP_VERSION=0.5.0
-
-SESSION_IDLE_TIMEOUT=1800
-SESSION_ABSOLUTE_TIMEOUT=28800
-
-REMEMBER_COOKIE_NAME=modulon_remember
-REMEMBER_TOKEN_LIFETIME=1209600
-REMEMBER_COOKIE_SECURE=false
-REMEMBER_COOKIE_SAMESITE=Lax
-
-TOTP_ISSUER=Modulon
-WEBAUTHN_RP_NAME=Modulon
-WEBAUTHN_RP_ID=127.0.0.1
-```
-
-## Datenbanktabellen (Auszug)
-
-- `users`, `roles`, `permissions`, `user_role`, `role_permission`
-- `remember_tokens`
-- `modules`
-- `app_settings`
-- `webauthn_credentials`
-- `recovery_codes`
-- `news_entries`
-- `mail_accounts`, `mail_favorite_folders`, `mail_sender_whitelist`
-- `banking_accounts`, `banking_transactions`, `banking_recurring_rules`, `banking_import_batches`
-
-## Mail-Modul Voraussetzungen
-
-- `webklex/php-imap`
-- `symfony/mailer` + `symfony/mime`
-- PHP-Extension `iconv` erforderlich (u. a. für IMAP-Transportbibliothek)
-- PHP-Extension `imap` **nicht** erforderlich
-
-Hinweis:
-- fehlende Voraussetzungen werden im Systemcheck angezeigt
-- bei fehlendem `iconv` degradiert das Mail-Modul kontrolliert (Kontoverwaltung/SMTP bleiben nutzbar, IMAP-Funktionen sind deaktiviert)
-
-## Zugriffsebenen
-
-- `public`
-- `user`
-- `admin`
-
-Die Zugriffskontrolle läuft zentral im Access-Guard in `app/bootstrap.php`.
-
-## Wichtige Routen
-
-### Kern/Auth
-- `GET /`
-- `GET|POST /login`
-- `GET /login/2fa`
-- `POST /login/2fa/totp`
-- `POST /login/2fa/recovery`
-- `POST /webauthn/login/options`
-- `POST /webauthn/login/verify`
-- `GET|POST /internal/register`
-- `POST /logout`
-- `GET /profil`
-- `GET /profil/security`
-- `GET /profil/settings`
-- `POST /profil/update`
-- `POST /profil/password`
-- `POST /profil/settings`
-- kompatible Altpfade für Security bleiben unter `/account/security/*` verfügbar (UI-primär: `/profil/security`)
-
-### Dashboard (nativ)
-- `GET /dashboard`
-- `POST /dashboard/links/*`
-- `POST /dashboard/tasks/*`
-- `POST /dashboard/notes/*`
-
-### Mail (nativ)
-- `GET /mail`
-- `GET /mail/*`
-- `POST /mail/accounts`
-- `POST /mail/accounts/*`
-- `POST /mail/messages/*`
-
-### Banking (nativ)
-- `GET /banking`
-- `GET /banking/transactions`
-- `GET /banking/overview`
-- `GET|POST /banking/recurring`
-- `GET /banking/recurring/overview`
-- `GET|POST /banking/import`
-- `POST /banking/transactions/duplicates/delete`
-- Legacy-Fallback: `GET /banking-old/*`
-
-### Admin
-- `GET /admin` (Redirect)
-- `GET /admin/modules`
-- `GET /admin/modules/{id}/edit`
-- `GET /admin/users`
-- `GET /admin/users/{id}/edit`
-- `POST /admin/settings/registration/toggle`
-- `GET /admin/news`
-- `GET /admin/news/create`
-- `GET /admin/news/{id}/edit`
-- `GET /systeminfo` (nur Admin)
-
-### News-Modul (nativ)
-- `GET /news`
-- `GET /news/{slug}`
-
-## News-/Changelog-Modul
-
-- Public:
-  - kompakte oder erweiterte Übersicht:
-    - `/news?view=compact`
-    - `/news?view=expanded`
-  - Detailseite pro Eintrag: `/news/{slug}`
-- Admin:
-  - CRUD-nahe Verwaltung unter `/admin/news`
-- Statuslogik:
-  - `draft` => Entwurf
-  - `published` + `published_at` in Zukunft => Geplant
-  - `published` + `published_at <= CURRENT_TIMESTAMP` => Veröffentlicht
-
-## Legacy-Module und Overlay
-
-- Legacy-Module können auf `app/Legacy/...` gemappt werden.
-- Native Module werden über interne Controller gebunden (`handler = native`), Legacy-Module über den Legacy-Dispatcher.
-- Overlay wird serverseitig injiziert, nur wenn:
-  - Modul `enable_overlay=1`
-  - Modulon-User eingeloggt
-  - valide HTML-Antwort vorhanden
-- Overlay-Status wird pro Request aus der DB gelesen (kein veralteter Route-Capture-Wert).
-
-## Sicherheitshinweise
-
-- Produktiv nur mit HTTPS betreiben
-- `REMEMBER_COOKIE_SECURE=true` in Produktion setzen
-- Zugangsdaten nicht committen
+Nutzung, Forks und Änderungen sind erlaubt. Eine sichtbare Nennung des Projekts ist willkommen, aber nicht erforderlich. Copyright- und Lizenzhinweise müssen gemäß Lizenz erhalten bleiben.
