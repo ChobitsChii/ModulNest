@@ -259,8 +259,6 @@ APP_DEBUG=false
 APP_PRODUCT_NAME=ModulNest
 APP_CORE_NAME=Modulon
 APP_CORE_LABEL="Modulon Core"
-APP_VERSION=0.6.0
-APP_CHANNEL=alpha
 PUBLIC_REGISTRATION_ENABLED=false
 
 DB_DRIVER=mysql
@@ -356,7 +354,7 @@ write_package_metadata() {
         $target = $argv[1];
         $core = array_values(array_filter(explode(",", $argv[2])));
         $selected = array_values(array_filter(explode(",", $argv[3])));
-        $version = "0.6.0";
+        $version = "0.6.1";
         if (is_file("app/Core/Env.php") && is_file("app/Config/version.php")) {
             require_once "app/Core/Env.php";
             $config = require "app/Config/version.php";

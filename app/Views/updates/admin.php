@@ -15,7 +15,22 @@ $error = (string) ($error ?? '');
 $installedVersion = (string) ($status['installed_version'] ?? '');
 $channel = (string) ($status['channel'] ?? '');
 $feedUrl = (string) ($status['feed_url'] ?? '');
+$timezoneName = (string) ($status['timezone_name'] ?? '');
 $updateAvailable = (bool) ($lastCheck['available'] ?? false);
+$externalIcon = '<svg class="external-link-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M10.5 2a.5.5 0 0 0 0 1h1.793L6.146 9.146a.5.5 0 1 0 .708.708L13 3.707V5.5a.5.5 0 0 0 1 0v-3A.5.5 0 0 0 13.5 2h-3Z"/><path fill="currentColor" d="M3.5 4A1.5 1.5 0 0 0 2 5.5v7A1.5 1.5 0 0 0 3.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-4a.5.5 0 0 0-1 0v4a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-7a.5.5 0 0 1 .5-.5h4a.5.5 0 0 0 0-1h-4Z"/></svg>';
+$externalLink = static function (string $url, string $label = '') use ($e, $externalIcon): string {
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+
+    $text = $label !== '' ? $label : $url;
+
+    return '<a class="external-link" href="' . $e($url) . '" target="_blank" rel="noopener noreferrer">'
+        . $e($text)
+        . $externalIcon
+        . '</a>';
+};
 ?>
 <div class="row g-4">
     <div class="col-12">
@@ -27,9 +42,9 @@ $updateAvailable = (bool) ($lastCheck['available'] ?? false);
                         <h1 class="h4 mb-2">ModulNest Updates</h1>
                         <p class="text-body-secondary mb-0">Offizielle Releases prüfen, herunterladen und nach SHA256-Prüfung installieren.</p>
                     </div>
-                    <div class="text-body-secondary small">
-                        <div>Installiert: <strong class="text-body"><?= $e($installedVersion) ?></strong></div>
-                        <div>Channel: <strong class="text-body"><?= $e($channel) ?></strong></div>
+                    <div class="updates-version-meta small">
+                        <div><span>Installiert:</span> <strong><?= $e($installedVersion) ?></strong></div>
+                        <div><span>Channel:</span> <strong><?= $e($channel) ?></strong></div>
                     </div>
                 </div>
 
@@ -49,7 +64,7 @@ $updateAvailable = (bool) ($lastCheck['available'] ?? false);
                 <h2 class="h6 mb-3">1. Prüfen</h2>
                 <dl class="mb-3 small">
                     <dt class="text-body-secondary">Updatequelle</dt>
-                    <dd class="text-break"><?= $e($feedUrl) ?></dd>
+                    <dd class="text-break"><?= $externalLink($feedUrl) ?></dd>
                 </dl>
                 <form method="post" action="/admin/updates/check">
                     <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
@@ -58,7 +73,13 @@ $updateAvailable = (bool) ($lastCheck['available'] ?? false);
                 <?php if ($lastCheck !== []): ?>
                     <hr>
                     <div class="small">
-                        <div>Letzte Prüfung: <?= $e((string) ($lastCheck['checked_at'] ?? '')) ?></div>
+                        <div>
+                            Letzte Prüfung:
+                            <?= $e((string) ($lastCheck['checked_at_local'] ?? '')) ?>
+                            <?php if ($timezoneName !== ''): ?>
+                                <span class="text-body-secondary">· <?= $e($timezoneName) ?></span>
+                            <?php endif; ?>
+                        </div>
                         <div>Neueste Version: <strong><?= $e((string) ($lastCheck['latest'] ?? '')) ?></strong></div>
                         <?php if ($updateAvailable): ?>
                             <span class="badge text-bg-warning mt-2">Update verfügbar</span>
@@ -80,12 +101,12 @@ $updateAvailable = (bool) ($lastCheck['available'] ?? false);
                         <dt class="text-body-secondary">Pakettyp</dt>
                         <dd><?= $e((string) ($package['type'] ?? 'bundled')) ?> <span class="text-body-secondary">(empfohlen)</span></dd>
                         <dt class="text-body-secondary">Download</dt>
-                        <dd class="text-break"><?= $e((string) ($package['url'] ?? '')) ?></dd>
+                        <dd class="text-break"><?= $externalLink((string) ($package['url'] ?? '')) ?></dd>
                         <dt class="text-body-secondary">SHA256</dt>
                         <dd class="text-break font-monospace"><?= $e((string) ($package['sha256'] ?? '')) ?></dd>
                         <?php if ((string) ($metadata['changelog_url'] ?? '') !== ''): ?>
                             <dt class="text-body-secondary">Release</dt>
-                            <dd><a href="<?= $e((string) ($metadata['changelog_url'] ?? '')) ?>" rel="noopener noreferrer">Changelog öffnen</a></dd>
+                            <dd><?= $externalLink((string) ($metadata['changelog_url'] ?? ''), 'Changelog öffnen') ?></dd>
                         <?php endif; ?>
                     </dl>
                     <form method="post" action="/admin/updates/prepare">
@@ -100,6 +121,15 @@ $updateAvailable = (bool) ($lastCheck['available'] ?? false);
                     <hr>
                     <div class="small">
                         <div>Vorbereitet: <strong><?= $e((string) ($prepared['version'] ?? '')) ?></strong></div>
+                        <?php if ((string) ($prepared['prepared_at_local'] ?? '') !== ''): ?>
+                            <div>
+                                Vorbereitet am:
+                                <?= $e((string) ($prepared['prepared_at_local'] ?? '')) ?>
+                                <?php if ($timezoneName !== ''): ?>
+                                    <span class="text-body-secondary">· <?= $e($timezoneName) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                         <div>Staging: <span class="text-break"><?= $e((string) ($prepared['staging_path'] ?? '')) ?></span></div>
                     </div>
                 <?php endif; ?>
@@ -139,6 +169,15 @@ $updateAvailable = (bool) ($lastCheck['available'] ?? false);
                         <div class="col-12 col-md-3">Auf: <strong><?= $e((string) ($lastInstall['version'] ?? '')) ?></strong></div>
                         <div class="col-12 col-md-3">Dateien: <strong><?= $e((string) ($lastInstall['copied_files'] ?? '0')) ?></strong></div>
                         <div class="col-12 col-md-3">Backups: <strong><?= $e((string) ($lastInstall['backed_up_files'] ?? '0')) ?></strong></div>
+                        <?php if ((string) ($lastInstall['installed_at_local'] ?? '') !== ''): ?>
+                            <div class="col-12">
+                                Installiert am:
+                                <strong><?= $e((string) ($lastInstall['installed_at_local'] ?? '')) ?></strong>
+                                <?php if ($timezoneName !== ''): ?>
+                                    <span class="text-body-secondary">· <?= $e($timezoneName) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                         <div class="col-12">Backup-Pfad: <span class="text-break"><?= $e((string) ($lastInstall['backup_path'] ?? '')) ?></span></div>
                         <?php if ((string) ($lastInstall['migration_note'] ?? '') !== ''): ?>
                             <div class="col-12 text-body-secondary"><?= $e((string) ($lastInstall['migration_note'] ?? '')) ?></div>

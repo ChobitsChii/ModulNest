@@ -991,6 +991,38 @@ body.is-mail-resizing {
     flex: 0 0 auto;
 }
 
+.external-link {
+    display: inline;
+}
+
+.external-link-icon {
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    margin-left: 0.25rem;
+    opacity: 0.75;
+    vertical-align: -0.08em;
+}
+
+.external-link:hover .external-link-icon,
+.external-link:focus-visible .external-link-icon {
+    opacity: 1;
+}
+
+.updates-version-meta {
+    color: color-mix(in srgb, var(--app-text) 78%, var(--app-muted));
+    text-align: right;
+}
+
+.updates-version-meta span {
+    color: color-mix(in srgb, var(--app-text) 70%, var(--app-muted));
+}
+
+.updates-version-meta strong {
+    color: var(--app-text);
+    font-weight: 700;
+}
+
 .news-grid-compact .app-card {
     height: 100%;
 }

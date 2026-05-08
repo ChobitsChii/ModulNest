@@ -99,8 +99,9 @@ $moduleContext = new ModuleContext(
     ],
     [
         'authConfig' => $authConfig,
-        'app_version' => (string) ($versionConfig['version'] ?? Env::get('APP_VERSION', '0.4.0')),
-        'app_channel' => (string) ($versionConfig['channel'] ?? Env::get('APP_CHANNEL', 'alpha')),
+        'app_version' => (string) ($versionConfig['version'] ?? '0.0.0'),
+        'app_channel' => (string) ($versionConfig['channel'] ?? 'alpha'),
+        'product_name' => (string) ($versionConfig['product_name'] ?? 'Modulon'),
     ],
 );
 $nativeModules = NativeModuleLoader::createActiveModules($basePath, $moduleContext);
@@ -197,7 +198,7 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
         'user_nav_items' => $user !== null ? $userNavigationRegistry->items($currentPath) : [],
         'module_features' => $moduleFeatures,
         'public_registration_enabled' => $publicRegistrationEnabled,
-        'app_version' => (string) ($versionConfig['version'] ?? Env::get('APP_VERSION', '0.4.0')),
+        'app_version' => (string) ($versionConfig['version'] ?? '0.0.0'),
         'product_meta' => $versionConfig,
     ];
 });

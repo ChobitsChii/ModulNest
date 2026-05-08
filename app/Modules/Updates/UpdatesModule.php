@@ -10,6 +10,7 @@ use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleInterface;
 use Modulon\Core\Router;
 use Modulon\Core\UserNavigationRegistry;
+use Modulon\Modules\Auth\AuthService;
 
 final class UpdatesModule implements NativeModuleInterface
 {
@@ -28,11 +29,13 @@ final class UpdatesModule implements NativeModuleInterface
 
     public static function create(ModuleContext $context): ?NativeModuleInterface
     {
+        $authService = $context->service('authService');
         $controller = new UpdatesController(
             new UpdatesService($context->basePath),
             $context->session,
             (string) $context->config('app_version', ''),
             (string) $context->config('app_channel', 'alpha'),
+            $authService instanceof AuthService ? $authService : null,
         );
 
         return new self($controller, $context->moduleRow('updates'));

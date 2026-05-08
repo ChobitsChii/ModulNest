@@ -41,6 +41,11 @@ final class SysteminfoModule implements NativeModuleInterface
             $context->service('healthCheck'),
             $context->service('authService'),
             (array) $context->config('authConfig', []),
+            [
+                'version' => (string) $context->config('app_version', ''),
+                'channel' => (string) $context->config('app_channel', ''),
+                'product_name' => (string) $context->config('product_name', ''),
+            ],
         );
 
         return new self($controller, $context->moduleAccess('systeminfo', 'admin'));

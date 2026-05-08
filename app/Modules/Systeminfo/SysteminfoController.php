@@ -23,6 +23,7 @@ final class SysteminfoController
         private readonly SystemHealthCheck $healthCheck,
         private readonly ?AuthService $auth = null,
         private readonly array $authConfig = [],
+        private readonly array $versionConfig = [],
     ) {
     }
 
@@ -53,7 +54,9 @@ final class SysteminfoController
         $publicRegistration = $this->settings->getBool('public_registration_enabled', (bool) ($this->authConfig['public_registration_enabled'] ?? true));
 
         $appInfo = [
-            'Modulon Version' => (string) Env::get('APP_VERSION', '0.4.0'),
+            'App Version' => (string) ($this->versionConfig['version'] ?? 'unbekannt'),
+            'Release Channel' => (string) ($this->versionConfig['channel'] ?? 'unbekannt'),
+            'Produktname' => (string) ($this->versionConfig['product_name'] ?? 'Modulon'),
             'Umgebung' => (string) Env::get('APP_ENV', 'production'),
             'Aktive Module' => (string) $activeCount,
             'Native Module (aktiv)' => (string) $nativeCount,

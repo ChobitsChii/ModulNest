@@ -37,6 +37,7 @@ final class UpdatesService
     public function status(string $installedVersion, string $channel): array
     {
         $state = $this->readState();
+        $state = $this->normalizeStateForInstalledVersion($state, $installedVersion);
 
         return [
             'installed_version' => $installedVersion,
@@ -181,10 +182,12 @@ final class UpdatesService
                     ? 'Dieses Update meldet mögliche Datenbankänderungen. Bitte Schema/Migrationen prüfen und bei Bedarf manuell ausführen.'
                     : 'Keine Datenbankmigration automatisch ausgeführt.',
             ];
-            $this->writeState(array_merge($state, [
+            $nextState = array_merge($state, [
                 'prepared' => null,
                 'last_install' => $installed,
-            ]));
+            ]);
+            $nextState = $this->normalizeStateForInstalledVersion($nextState, $version);
+            $this->writeState($nextState);
             $this->log('Update installiert', ['version' => $version, 'copied' => $copied, 'backup' => $backupPath]);
 
             return $installed;
@@ -223,6 +226,30 @@ final class UpdatesService
         $state = is_string($json) ? json_decode($json, true) : null;
 
         return is_array($state) ? $state : [];
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @return array<string, mixed>
+     */
+    private function normalizeStateForInstalledVersion(array $state, string $installedVersion): array
+    {
+        if ($installedVersion === '' || !isset($state['last_check']) || !is_array($state['last_check'])) {
+            return $state;
+        }
+
+        $latest = (string) ($state['last_check']['latest'] ?? '');
+        if ($latest === '') {
+            return $state;
+        }
+
+        $state['last_check']['installed_version'] = $installedVersion;
+        if (!version_compare($latest, $installedVersion, '>')) {
+            $state['last_check']['available'] = false;
+            $state['last_check']['message'] = 'Kein Update erforderlich.';
+        }
+
+        return $state;
     }
 
     /**

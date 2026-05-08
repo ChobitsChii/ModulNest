@@ -10,11 +10,11 @@ APP_DEBUG=false
 APP_PRODUCT_NAME=ModulNest
 APP_CORE_NAME=Modulon
 APP_CORE_LABEL="Modulon Core"
-APP_VERSION=0.6.0
-APP_CHANNEL=alpha
 ```
 
 `APP_ENV=development` oder `APP_DEBUG=true` aktiviert sichtbarere Diagnosehinweise. In Produktion sollte `APP_DEBUG=false` gesetzt sein.
+
+Die installierte App-/Release-Version kommt aus `app/Config/version.php`. `APP_VERSION` und `APP_CHANNEL` werden für neue Installationen nicht mehr in `.env` geschrieben, damit Datei-Updates die angezeigte Version nicht durch alte lokale Werte blockieren. Falls diese Werte in bestehenden `.env`-Dateien noch vorhanden sind, werden sie für die UI-Version ignoriert.
 
 ## Datenbank
 

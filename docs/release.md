@@ -10,16 +10,16 @@ Die zentrale Datei `app/Config/version.php` trennt die Namen:
 - Interner Core-/Arbeitsname: `Modulon`
 - UI-Laufzeitname über `APP_PRODUCT_NAME`
 - Core-Hinweis über `APP_CORE_LABEL`
-- Version über `APP_VERSION`
-- Release-Channel über `APP_CHANNEL`
+- Version über `app/Config/version.php`
+- Release-Channel über `app/Config/version.php`
 
-Der private Entwicklungsstand kann dadurch weiter als Modulon laufen, während der öffentliche Export in `.env.example` ModulNest als Produktname setzt.
+Der private Entwicklungsstand kann dadurch weiter als Modulon laufen, während der öffentliche Export in `.env.example` ModulNest als Produktname setzt. Die lokale `.env` überschreibt die Code-/Release-Version nicht mehr, damit Updates die installierte Version zuverlässig aktualisieren.
 
 ## Versionierung
 
 ModulNest-App-Version und Bootstrap-Installer-Version sind getrennt:
 
-- Die App-Version beschreibt das installierte ModulNest-Release und wird über `APP_VERSION` bzw. Release-Metadaten geführt.
+- Die App-Version beschreibt das installierte ModulNest-Release und wird über `app/Config/version.php` bzw. Release-Metadaten geführt.
 - Die Bootstrap-Installer-Version beschreibt nur die einzelne `install.php` und deren Installationslogik.
 
 Für die Installer-Version gilt:
@@ -28,7 +28,7 @@ Für die Installer-Version gilt:
 - Minor-Versionen für neue Installer-Funktionen wie Pakettypen, Modulauswahl, AJAX-Prüfungen oder verbesserte Systemchecks.
 - Major-Versionen später für stabile oder inkompatible Änderungen am Installer-Verhalten.
 
-Der nächste Public-/Alpha-Stand ist `0.6.0`. Für diesen Stand werden App-Version und Bootstrap-Installer-Version bewusst beide auf `0.6.0` gesetzt.
+Der nächste Public-/Alpha-Patchstand ist `0.6.1`. Für diesen Stand werden App-Version und Bootstrap-Installer-Version bewusst beide auf `0.6.1` gesetzt.
 
 ## Zwei Modul-Auswahl-Ebenen
 
