@@ -1,0 +1,115 @@
+{
+    "latest": "0.5.0",
+    "channel": "alpha",
+    "php_requirement": "^8.3",
+    "packages": {
+        "source": {
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.5.0/modulnest-source-0.5.0.zip",
+            "sha256": "2d9f29785d350e0759e5ded5e96009ba921a1b2be226d26757903ab247be6893",
+            "needs_composer": true
+        },
+        "bundled": {
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.5.0/modulnest-bundled-0.5.0.zip",
+            "sha256": "e1ef344fa9acddf333fe0081c50d23eba51bf7486c0bf53eb069d84e09061667",
+            "needs_composer": false
+        }
+    },
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.5.0",
+    "requires_migrations": true,
+    "package_metadata": "modulnest-package.json",
+    "modules": [
+        {
+            "directory": "Admin",
+            "key": "admin",
+            "name": "Admin",
+            "route_prefix": "admin",
+            "access_level": "admin",
+            "description": "Core-Modul",
+            "required": true,
+            "default_enabled": true,
+            "native": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Auth",
+            "key": "auth",
+            "name": "Auth",
+            "route_prefix": "auth",
+            "access_level": "public",
+            "description": "Core-Modul",
+            "required": true,
+            "default_enabled": true,
+            "native": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Modules",
+            "key": "modules",
+            "name": "Modules",
+            "route_prefix": "modules",
+            "access_level": "admin",
+            "description": "Core-Modul",
+            "required": true,
+            "default_enabled": true,
+            "native": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Dashboard",
+            "key": "dashboard",
+            "name": "Dashboard",
+            "route_prefix": "dashboard",
+            "access_level": "user",
+            "description": "Persönliches Dashboard.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "dashboard"
+        },
+        {
+            "directory": "News",
+            "key": "news",
+            "name": "News",
+            "route_prefix": "news",
+            "access_level": "public",
+            "description": "News und Updates.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "news"
+        },
+        {
+            "directory": "Systeminfo",
+            "key": "systeminfo",
+            "name": "Systeminfo",
+            "route_prefix": "systeminfo",
+            "access_level": "admin",
+            "description": "Systeminformationen und Healthchecks.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "systeminfo"
+        },
+        {
+            "directory": "User",
+            "key": "profil",
+            "name": "Profil",
+            "route_prefix": "profil",
+            "access_level": "user",
+            "description": "Benutzerprofil und Einstellungen.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": false,
+            "view_dir": "user"
+        }
+    ],
+    "generated_at": "2026-05-08T12:13:59+00:00"
+}

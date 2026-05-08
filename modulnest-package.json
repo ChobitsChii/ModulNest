@@ -1,0 +1,113 @@
+{
+    "schema": 1,
+    "product": "ModulNest",
+    "core": "Modulon",
+    "version": "0.5.0",
+    "channel": "alpha",
+    "generated_at": "2026-05-08T12:12:13+00:00",
+    "required_modules": [
+        "Admin",
+        "Auth",
+        "Modules"
+    ],
+    "optional_modules": [
+        "Dashboard",
+        "News",
+        "Systeminfo",
+        "User"
+    ],
+    "modules": [
+        {
+            "directory": "Admin",
+            "key": "admin",
+            "name": "Admin",
+            "route_prefix": "admin",
+            "access_level": "admin",
+            "description": "Core-Modul",
+            "required": true,
+            "default_enabled": true,
+            "native": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Auth",
+            "key": "auth",
+            "name": "Auth",
+            "route_prefix": "auth",
+            "access_level": "public",
+            "description": "Core-Modul",
+            "required": true,
+            "default_enabled": true,
+            "native": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Modules",
+            "key": "modules",
+            "name": "Modules",
+            "route_prefix": "modules",
+            "access_level": "admin",
+            "description": "Core-Modul",
+            "required": true,
+            "default_enabled": true,
+            "native": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Dashboard",
+            "key": "dashboard",
+            "name": "Dashboard",
+            "route_prefix": "dashboard",
+            "access_level": "user",
+            "description": "Persönliches Dashboard.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "dashboard"
+        },
+        {
+            "directory": "News",
+            "key": "news",
+            "name": "News",
+            "route_prefix": "news",
+            "access_level": "public",
+            "description": "News und Updates.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "news"
+        },
+        {
+            "directory": "Systeminfo",
+            "key": "systeminfo",
+            "name": "Systeminfo",
+            "route_prefix": "systeminfo",
+            "access_level": "admin",
+            "description": "Systeminformationen und Healthchecks.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "systeminfo"
+        },
+        {
+            "directory": "User",
+            "key": "profil",
+            "name": "Profil",
+            "route_prefix": "profil",
+            "access_level": "user",
+            "description": "Benutzerprofil und Einstellungen.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": false,
+            "view_dir": "user"
+        }
+    ]
+}
