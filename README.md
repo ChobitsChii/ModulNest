@@ -44,6 +44,7 @@ Manuelle Installation und Details stehen in der [Installationsdokumentation](doc
 - [Routen](docs/routes.md): wichtige öffentliche, Benutzer- und Admin-Routen.
 - [Datenbank](docs/database.md): Tabellenüberblick und Verweis auf das Schema.
 - [Tests](docs/testing.md): lokale Browser-E2E-Tests mit pytest und Playwright.
+- [Entwicklung](docs/development.md): Projektpflege, KI-Unterstützung und technische Leitlinien.
 - [Technische Architektur](docs/technical/tech-architecture.md): Core, Routing, Module und technische Details.
 - [Export-Zusammenfassung](docs/export-summary.md): letzter Public-Export und Review-Hinweise.
 
@@ -54,6 +55,12 @@ Manuelle Installation und Details stehen in der [Installationsdokumentation](doc
 - Vor Updates Backups von Dateien und Datenbank erstellen.
 - `install.php` nach der Installation entfernen. Der Installer versucht das automatisch.
 - Secrets wie `MAIL_CREDENTIAL_KEY`, Datenbankpasswörter und API-Schlüssel dürfen nicht in Git landen.
+
+## Entwicklung
+
+ModulNest ist ein persönliches Open-Source-Projekt von Jennifer Graßl. Bei Planung, Code-Reviews, Refactoring, Dokumentation und einzelnen Implementierungsschritten kamen KI-Werkzeuge wie ChatGPT und Codex unterstützend zum Einsatz.
+
+Architekturentscheidungen, Funktionsumfang, Tests, Review und Veröffentlichung liegen beim Projektmaintainer. Weitere Details stehen in der [Entwicklungsdokumentation](docs/development.md).
 
 ## Lizenz
 
