@@ -110,6 +110,11 @@ $zip->close();
 $preview = $service->previewArchive($export['path'], 123);
 assert_true(($preview['manifest']['format_version'] ?? null) === 1, 'Format-Version falsch.');
 assert_true(($preview['modules'][0]['can_import'] ?? false) === true, 'Preview markiert Provider nicht importierbar.');
+
+$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityController.php');
+assert_true(!str_contains($controllerSource, 'file_get_contents($export'), 'Export-Controller darf Export-ZIPs nicht komplett in den Response-Body laden.');
+assert_true(str_contains($controllerSource, 'Response::downloadFile'), 'Export-Controller nutzt keine Streaming-Download-Response.');
+
 assert_true(isset($service->providersForScope('user')['smoke']), 'User-Scope zeigt userfähigen Provider nicht.');
 assert_true(!isset($service->providersForScope('user')['admin-only']), 'User-Scope zeigt admin-only Provider.');
 

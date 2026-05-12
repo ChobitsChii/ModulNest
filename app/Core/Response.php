@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Modulon\Core;
 
+use Closure;
+use RuntimeException;
+
 final class Response
 {
     public function __construct(
         private readonly string $output,
         private readonly int $status = 200,
         private readonly array $headers = ['Content-Type' => 'text/html; charset=UTF-8'],
+        private readonly ?Closure $streamer = null,
     ) {
     }
 
@@ -24,9 +28,16 @@ final class Response
             header($name . ': ' . $value);
         }
 
-        if ($withBody) {
-            echo $this->output;
+        if (!$withBody) {
+            return;
         }
+
+        if ($this->streamer !== null) {
+            ($this->streamer)();
+            return;
+        }
+
+        echo $this->output;
     }
 
     /**
@@ -35,5 +46,60 @@ final class Response
     public static function redirect(string $location, int $status = 302): self
     {
         return new self('', $status, ['Location' => $location]);
+    }
+
+    /**
+     * Streamt eine Datei ohne sie komplett in den PHP-Speicher zu laden.
+     */
+    public static function downloadFile(string $path, string $filename, string $contentType = 'application/octet-stream', bool $deleteAfterSend = false): self
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            throw new RuntimeException('Download-Datei ist nicht lesbar.');
+        }
+
+        $size = filesize($path);
+        if ($size === false) {
+            throw new RuntimeException('Download-Dateigröße konnte nicht gelesen werden.');
+        }
+
+        $safeFilename = self::safeDownloadFilename($filename);
+
+        return new self('', 200, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => 'attachment; filename="' . $safeFilename . '"',
+            'Content-Length' => (string) $size,
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ], static function () use ($path, $deleteAfterSend): void {
+            $handle = fopen($path, 'rb');
+            if ($handle === false) {
+                throw new RuntimeException('Download-Datei konnte nicht geöffnet werden.');
+            }
+
+            try {
+                while (!feof($handle)) {
+                    $chunk = fread($handle, 1048576);
+                    if ($chunk === false) {
+                        throw new RuntimeException('Download-Datei konnte nicht gelesen werden.');
+                    }
+                    echo $chunk;
+                    flush();
+                }
+            } finally {
+                fclose($handle);
+                if ($deleteAfterSend && is_file($path)) {
+                    @unlink($path);
+                }
+            }
+        });
+    }
+
+    private static function safeDownloadFilename(string $filename): string
+    {
+        $filename = basename($filename);
+        $filename = preg_replace('/[^A-Za-z0-9._-]+/', '-', $filename) ?? '';
+        $filename = trim($filename, '.-');
+
+        return $filename !== '' ? $filename : 'download.bin';
     }
 }

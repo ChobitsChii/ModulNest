@@ -10,7 +10,7 @@ use ZipArchive;
 final class DataPortabilityService
 {
     private const FORMAT_VERSION = 1;
-    private const MAX_IMPORT_SIZE = 100 * 1024 * 1024;
+    private const MAX_IMPORT_SIZE = 512 * 1024 * 1024;
 
     /**
      * @param array<string,DataPortabilityProviderInterface> $providers

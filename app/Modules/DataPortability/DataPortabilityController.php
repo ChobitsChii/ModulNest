@@ -72,18 +72,7 @@ final class DataPortabilityController
             $keys = $request->inputRaw('providers', []);
             $keys = is_array($keys) ? array_map('strval', $keys) : [];
             $export = $this->service->createExport($keys, $this->currentUserId(), 'admin');
-            $body = file_get_contents($export['path']);
-            if (!is_string($body)) {
-                throw new RuntimeException('Export-ZIP konnte nicht gelesen werden.');
-            }
-            $this->service->cleanup($export['path']);
-
-            return new Response($body, 200, [
-                'Content-Type' => 'application/zip',
-                'Content-Disposition' => 'attachment; filename="' . $export['filename'] . '"',
-                'Content-Length' => (string) strlen($body),
-                'Cache-Control' => 'no-store',
-            ]);
+            return Response::downloadFile($export['path'], $export['filename'], 'application/zip', true);
         } catch (Throwable $exception) {
             return $this->redirectError($exception->getMessage(), '/admin/data-portability', 'data_portability_error');
         }
@@ -99,18 +88,7 @@ final class DataPortabilityController
             $keys = $request->inputRaw('providers', []);
             $keys = is_array($keys) ? array_map('strval', $keys) : [];
             $export = $this->service->createExport($keys, $this->currentUserId(), 'user');
-            $body = file_get_contents($export['path']);
-            if (!is_string($body)) {
-                throw new RuntimeException('Export-ZIP konnte nicht gelesen werden.');
-            }
-            $this->service->cleanup($export['path']);
-
-            return new Response($body, 200, [
-                'Content-Type' => 'application/zip',
-                'Content-Disposition' => 'attachment; filename="' . $export['filename'] . '"',
-                'Content-Length' => (string) strlen($body),
-                'Cache-Control' => 'no-store',
-            ]);
+            return Response::downloadFile($export['path'], $export['filename'], 'application/zip', true);
         } catch (Throwable $exception) {
             return $this->redirectError($exception->getMessage(), '/profil/data-portability', 'data_portability_user_error');
         }
