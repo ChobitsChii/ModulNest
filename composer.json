@@ -1,6 +1,7 @@
 {
   "name": "modulon/modulon",
   "description": "Grundsystem fuer das Modulon-Projekt.",
+  "license": "MIT",
   "type": "project",
   "require": {
     "php": "^8.3",
@@ -10,7 +11,8 @@
     "chillerlan/php-qrcode": "^6.0",
     "webklex/php-imap": "^6.2",
     "symfony/mailer": "^8.0",
-    "symfony/mime": "^8.0"
+    "symfony/mime": "^8.0",
+    "league/commonmark": "^2.8"
   },
   "autoload": {
     "psr-4": {

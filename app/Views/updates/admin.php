@@ -150,7 +150,7 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                         <button class="btn btn-danger" type="submit">Vorbereitetes Update installieren</button>
                     </form>
                     <?php if (!empty($prepared['requires_migrations'])): ?>
-                        <p class="text-body-secondary small mt-3 mb-0">Dieses Release meldet mögliche Datenbankänderungen. v1 führt keine riskanten Migrationen automatisch aus.</p>
+                        <p class="text-body-secondary small mt-3 mb-0">Dieses Release meldet mögliche Datenbankänderungen. Verfügbare sichere Migrationen werden während der Installation ausgeführt.</p>
                     <?php endif; ?>
                 <?php else: ?>
                     <p class="text-body-secondary mb-0">Noch kein geprüftes Update vorbereitet.</p>
@@ -181,6 +181,15 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                         <div class="col-12">Backup-Pfad: <span class="text-break"><?= $e((string) ($lastInstall['backup_path'] ?? '')) ?></span></div>
                         <?php if ((string) ($lastInstall['migration_note'] ?? '') !== ''): ?>
                             <div class="col-12 text-body-secondary"><?= $e((string) ($lastInstall['migration_note'] ?? '')) ?></div>
+                        <?php endif; ?>
+                        <?php if (is_array($lastInstall['migrations'] ?? null)): ?>
+                            <?php $migrations = $lastInstall['migrations']; ?>
+                            <div class="col-12 text-body-secondary">
+                                Migrationen:
+                                <?= $e((string) count(is_array($migrations['executed'] ?? null) ? $migrations['executed'] : [])) ?> ausgeführt,
+                                <?= $e((string) count(is_array($migrations['skipped'] ?? null) ? $migrations['skipped'] : [])) ?> übersprungen,
+                                <?= $e((string) count(is_array($migrations['errors'] ?? null) ? $migrations['errors'] : [])) ?> Fehler
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>

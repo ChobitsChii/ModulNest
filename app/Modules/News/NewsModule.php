@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modulon\Modules\News;
 
 use Modulon\Core\AdminNavigationRegistry;
+use Modulon\Core\MarkdownRenderer;
 use Modulon\Core\ModuleContext;
 use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleInterface;
@@ -39,6 +40,7 @@ final class NewsModule implements NativeModuleInterface
             new NewsRepository($context->pdo),
             $context->session,
             $context->service('authService'),
+            new MarkdownRenderer(),
         );
 
         return new self(

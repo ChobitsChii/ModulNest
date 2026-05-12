@@ -6,7 +6,7 @@ $title = (string) ($entry['title'] ?? '');
 $type = (string) ($entry['type'] ?? 'news');
 $version = trim((string) ($entry['version'] ?? ''));
 $publishedAt = (string) (($entry['published_at'] ?? '') ?: ($entry['created_at'] ?? ''));
-$content = (string) ($entry['content'] ?? '');
+$contentHtml = (string) ($entry['content_html'] ?? '');
 ?>
 <div class="mb-3">
     <a href="/news" class="btn btn-outline-secondary btn-sm">&larr; Zur Übersicht</a>
@@ -22,6 +22,6 @@ $content = (string) ($entry['content'] ?? '');
             <span class="text-body-secondary small"><?= htmlspecialchars($publishedAt, ENT_QUOTES, 'UTF-8') ?></span>
         </div>
         <h1 class="h3 mb-4"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
-        <div class="modulon-news-content"><?= nl2br(htmlspecialchars($content, ENT_QUOTES, 'UTF-8')) ?></div>
+        <div class="modulon-news-content mn-markdown"><?= $contentHtml ?></div>
     </div>
 </article>

@@ -1,0 +1,323 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modulon\Modules\DataPortability\Providers;
+
+use Modulon\Modules\DataPortability\DataPortabilityArchiveReader;
+use Modulon\Modules\DataPortability\DataPortabilityFileCollector;
+use Modulon\Modules\DataPortability\DataPortabilityProviderInterface;
+use PDO;
+use Throwable;
+
+final class DashboardDataPortabilityProvider implements DataPortabilityProviderInterface
+{
+    public function __construct(private readonly PDO $pdo)
+    {
+    }
+
+    public function key(): string
+    {
+        return 'dashboard';
+    }
+
+    public function label(): string
+    {
+        return 'Dashboard';
+    }
+
+    public function routePrefix(): string
+    {
+        return '/dashboard';
+    }
+
+    public function description(): string
+    {
+        return 'Persönliche Dashboard-Widgets, Links, Aufgaben und Notizen des aktuellen Benutzers.';
+    }
+
+    public function schemaVersion(): int
+    {
+        return 1;
+    }
+
+    public function hasFiles(): bool
+    {
+        return false;
+    }
+
+    public function sensitivityNote(): string
+    {
+        return 'Dashboard-Exporte können persönliche Links, Aufgaben und Notizen enthalten.';
+    }
+
+    public function scopes(): array
+    {
+        return ['admin', 'user'];
+    }
+
+    public function export(int $userId, DataPortabilityFileCollector $files): array
+    {
+        $widgets = $this->fetchAll('SELECT * FROM dashboard_widgets WHERE user_id = :user_id ORDER BY sort_order, id', ['user_id' => $userId]);
+        $widgetIds = array_column($widgets, 'id');
+
+        return [
+            'files' => [
+                'data.json' => [
+                    'schema_version' => $this->schemaVersion(),
+                    'widgets' => $this->withRefs($widgets, 'widget'),
+                    'folders' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_link_folders', $widgetIds), 'folder'),
+                    'links' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_links', $widgetIds), 'link'),
+                    'tasks' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_tasks', $widgetIds), 'task'),
+                    'notes' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_notes', $widgetIds), 'note'),
+                ],
+            ],
+            'counts' => [
+                'widgets' => count($widgets),
+                'folders' => count($widgetIds) > 0 ? count($this->fetchByWidgetIds('dashboard_link_folders', $widgetIds)) : 0,
+                'links' => count($widgetIds) > 0 ? count($this->fetchByWidgetIds('dashboard_links', $widgetIds)) : 0,
+            ],
+            'warnings' => [],
+        ];
+    }
+
+    public function previewImport(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    {
+        $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+
+        return [
+            'counts' => [
+                'widgets' => count($data['widgets'] ?? []),
+                'folders' => count($data['folders'] ?? []),
+                'links' => count($data['links'] ?? []),
+                'tasks' => count($data['tasks'] ?? []),
+                'notes' => count($data['notes'] ?? []),
+            ],
+            'warnings' => ['Dashboard-Daten werden für den Zielbenutzer hinzugefügt; bestehende Widgets werden nicht gelöscht.'],
+            'can_import' => true,
+        ];
+    }
+
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    {
+        $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+        $created = 0;
+        $skipped = 0;
+        $widgetMap = [];
+        $folderMap = [];
+
+        $this->pdo->beginTransaction();
+        try {
+            foreach (($data['widgets'] ?? []) as $widget) {
+                if (!is_array($widget)) {
+                    $skipped++;
+                    continue;
+                }
+                $ref = (string) ($widget['_export_ref'] ?? '');
+                $newId = $this->insert('dashboard_widgets', [
+                    'user_id' => $targetUserId,
+                    'widget_type' => (string) ($widget['widget_type'] ?? 'links'),
+                    'title' => (string) ($widget['title'] ?? 'Importiertes Widget'),
+                    'sort_order' => (int) ($widget['sort_order'] ?? 0),
+                    'layout_width' => (string) ($widget['layout_width'] ?? 'half'),
+                    'is_active' => (int) ($widget['is_active'] ?? 1),
+                    'created_at' => $this->now(),
+                    'updated_at' => $this->now(),
+                ]);
+                $widgetMap[$ref] = $newId;
+                $created++;
+            }
+
+            foreach (($data['folders'] ?? []) as $folder) {
+                if (!is_array($folder)) {
+                    $skipped++;
+                    continue;
+                }
+                $widgetId = $widgetMap[(string) ($folder['_widget_ref'] ?? '')] ?? null;
+                if (!$widgetId) {
+                    $skipped++;
+                    continue;
+                }
+                $ref = (string) ($folder['_export_ref'] ?? '');
+                $folderMap[$ref] = $this->insert('dashboard_link_folders', [
+                    'widget_id' => $widgetId,
+                    'name' => (string) ($folder['name'] ?? 'Importiert'),
+                    'sort_order' => (int) ($folder['sort_order'] ?? 0),
+                    'is_default' => (int) ($folder['is_default'] ?? 0),
+                    'created_at' => $this->now(),
+                    'updated_at' => $this->now(),
+                ]);
+                $created++;
+            }
+
+            foreach (($data['links'] ?? []) as $link) {
+                if (!is_array($link)) {
+                    $skipped++;
+                    continue;
+                }
+                $widgetId = $widgetMap[(string) ($link['_widget_ref'] ?? '')] ?? null;
+                if (!$widgetId) {
+                    $skipped++;
+                    continue;
+                }
+                $this->insert('dashboard_links', [
+                    'widget_id' => $widgetId,
+                    'folder_id' => $folderMap[(string) ($link['_folder_ref'] ?? '')] ?? null,
+                    'title' => (string) ($link['title'] ?? ''),
+                    'url' => (string) ($link['url'] ?? ''),
+                    'sort_order' => (int) ($link['sort_order'] ?? 0),
+                    'is_active' => (int) ($link['is_active'] ?? 1),
+                    'favicon_url' => $this->nullable($link['favicon_url'] ?? null),
+                    'favicon_host' => $this->nullable($link['favicon_host'] ?? null),
+                    'favicon_last_checked_at' => $this->nullable($link['favicon_last_checked_at'] ?? null),
+                    'created_at' => $this->now(),
+                    'updated_at' => $this->now(),
+                ]);
+                $created++;
+            }
+
+            foreach (($data['tasks'] ?? []) as $task) {
+                $widgetId = is_array($task) ? ($widgetMap[(string) ($task['_widget_ref'] ?? '')] ?? null) : null;
+                if (!is_array($task) || !$widgetId) {
+                    $skipped++;
+                    continue;
+                }
+                $this->insert('dashboard_tasks', [
+                    'widget_id' => $widgetId,
+                    'title' => (string) ($task['title'] ?? ''),
+                    'details' => (string) ($task['details'] ?? ''),
+                    'link_url' => $this->nullable($task['link_url'] ?? null),
+                    'priority' => (string) ($task['priority'] ?? 'normal'),
+                    'due_at' => $this->nullable($task['due_at'] ?? null),
+                    'is_active' => (int) ($task['is_active'] ?? 1),
+                    'is_done' => (int) ($task['is_done'] ?? 0),
+                    'done_at' => $this->nullable($task['done_at'] ?? null),
+                    'repeat_type' => $this->nullable($task['repeat_type'] ?? null),
+                    'repeat_time' => $this->nullable($task['repeat_time'] ?? null),
+                    'repeat_weekday' => $this->nullable($task['repeat_weekday'] ?? null),
+                    'repeat_month_mode' => (string) ($task['repeat_month_mode'] ?? 'day'),
+                    'repeat_month_day' => $this->nullable($task['repeat_month_day'] ?? null),
+                    'repeat_month_ordinal' => $this->nullable($task['repeat_month_ordinal'] ?? null),
+                    'repeat_month_weekday' => $this->nullable($task['repeat_month_weekday'] ?? null),
+                    'sort_order' => (int) ($task['sort_order'] ?? 0),
+                    'created_at' => $this->now(),
+                    'updated_at' => $this->now(),
+                ]);
+                $created++;
+            }
+
+            foreach (($data['notes'] ?? []) as $note) {
+                $widgetId = is_array($note) ? ($widgetMap[(string) ($note['_widget_ref'] ?? '')] ?? null) : null;
+                if (!is_array($note) || !$widgetId) {
+                    $skipped++;
+                    continue;
+                }
+                $this->insert('dashboard_notes', [
+                    'widget_id' => $widgetId,
+                    'title' => (string) ($note['title'] ?? ''),
+                    'content' => (string) ($note['content'] ?? ''),
+                    'textarea_height' => $this->nullable($note['textarea_height'] ?? null),
+                    'sort_order' => (int) ($note['sort_order'] ?? 0),
+                    'is_pinned' => (int) ($note['is_pinned'] ?? 0),
+                    'is_archived' => (int) ($note['is_archived'] ?? 0),
+                    'created_at' => $this->now(),
+                    'updated_at' => $this->now(),
+                ]);
+                $created++;
+            }
+            $this->pdo->commit();
+        } catch (Throwable $throwable) {
+            $this->pdo->rollBack();
+            throw $throwable;
+        }
+
+        return ['created' => $created, 'updated' => 0, 'skipped' => $skipped, 'warnings' => []];
+    }
+
+    /**
+     * @param array<string,mixed> $params
+     * @return array<int,array<string,mixed>>
+     */
+    private function fetchAll(string $sql, array $params = []): array
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+
+        return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
+     * @param array<int,mixed> $widgetIds
+     * @return array<int,array<string,mixed>>
+     */
+    private function fetchByWidgetIds(string $table, array $widgetIds): array
+    {
+        if ($widgetIds === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($widgetIds), '?'));
+
+        return $this->fetchAll('SELECT * FROM ' . $table . ' WHERE widget_id IN (' . $placeholders . ') ORDER BY widget_id, sort_order, id', array_values($widgetIds));
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private function withRefs(array $rows, string $prefix): array
+    {
+        foreach ($rows as &$row) {
+            $row['_export_ref'] = $prefix . '-' . (string) ($row['id'] ?? '');
+            unset($row['id'], $row['user_id']);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private function withWidgetRefs(array $rows, string $prefix): array
+    {
+        foreach ($rows as &$row) {
+            $row['_export_ref'] = $prefix . '-' . (string) ($row['id'] ?? '');
+            $row['_widget_ref'] = 'widget-' . (string) ($row['widget_id'] ?? '');
+            if (isset($row['folder_id'])) {
+                $row['_folder_ref'] = $row['folder_id'] !== null ? 'folder-' . (string) $row['folder_id'] : null;
+            }
+            unset($row['id'], $row['widget_id'], $row['folder_id']);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     */
+    private function insert(string $table, array $data): int
+    {
+        $columns = array_keys($data);
+        $sql = 'INSERT INTO ' . $table . ' (' . implode(', ', $columns) . ') VALUES (:' . implode(', :', $columns) . ')';
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($data);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    private function nullable(mixed $value): mixed
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function now(): string
+    {
+        return gmdate('Y-m-d H:i:s');
+    }
+}

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Modulon\Modules\Updates;
 
+use Modulon\Core\Database\MigrationRunner;
+use Modulon\Modules\Modules\ModuleRepository;
+use PDO;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
@@ -21,7 +24,7 @@ final class UpdatesService
     private string $logPath;
     private string $maintenanceFlag;
 
-    public function __construct(private readonly string $basePath)
+    public function __construct(private readonly string $basePath, private readonly ?PDO $pdo = null)
     {
         $this->storagePath = $this->basePath . '/storage/updates';
         $this->downloadsPath = $this->storagePath . '/downloads';
@@ -168,6 +171,8 @@ final class UpdatesService
 
         try {
             [$copied, $backedUp, $skipped] = $this->copyPreparedFiles($stagingPath, $backupPath);
+            $migrationResult = $this->runMigrations($prepared);
+            $activatedModules = $this->syncPackageModules();
             $installed = [
                 'installed_at' => gmdate(DATE_ATOM),
                 'status' => 'installed',
@@ -178,9 +183,11 @@ final class UpdatesService
                 'backed_up_files' => $backedUp,
                 'skipped_entries' => $skipped,
                 'requires_migrations' => (bool) ($prepared['requires_migrations'] ?? false),
-                'migration_note' => (bool) ($prepared['requires_migrations'] ?? false)
-                    ? 'Dieses Update meldet mögliche Datenbankänderungen. Bitte Schema/Migrationen prüfen und bei Bedarf manuell ausführen.'
-                    : 'Keine Datenbankmigration automatisch ausgeführt.',
+                'migrations' => $migrationResult,
+                'activated_default_modules' => $activatedModules,
+                'migration_note' => $migrationResult === null
+                    ? 'Keine Datenbankverbindung verfügbar; Migrationen wurden nicht ausgeführt.'
+                    : 'Datenbankmigrationen geprüft: ' . count($migrationResult['executed']) . ' ausgeführt, ' . count($migrationResult['skipped']) . ' übersprungen.',
             ];
             $nextState = array_merge($state, [
                 'prepared' => null,
@@ -490,6 +497,63 @@ final class UpdatesService
         }
 
         return false;
+    }
+
+    /**
+     * @param array<string,mixed> $prepared
+     * @return array{executed:array<int,array<string,mixed>>,skipped:array<int,array<string,mixed>>,errors:array<int,array<string,mixed>>}|null
+     */
+    private function runMigrations(array $prepared): ?array
+    {
+        if ($this->pdo === null) {
+            $this->log('Migrationen übersprungen', ['reason' => 'Keine Datenbankverbindung verfügbar']);
+            return null;
+        }
+
+        $modules = [];
+        $packageMetadata = is_array($prepared['package_metadata'] ?? null) ? $prepared['package_metadata'] : [];
+        foreach (is_array($packageMetadata['modules'] ?? null) ? $packageMetadata['modules'] : [] as $module) {
+            $module = (string) $module;
+            if ($module !== '') {
+                $modules[] = $module;
+            }
+        }
+
+        $runner = new MigrationRunner(
+            $this->pdo,
+            $this->basePath,
+            function (string $message, array $context): void {
+                $this->log($message, $context);
+            }
+        );
+
+        $result = $runner->run(array_values(array_unique($modules)));
+        $this->log('Migrationen abgeschlossen', [
+            'executed' => count($result['executed']),
+            'skipped' => count($result['skipped']),
+            'errors' => count($result['errors']),
+        ]);
+
+        return $result;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function syncPackageModules(): array
+    {
+        if ($this->pdo === null) {
+            $this->log('Paketmodule nicht synchronisiert', ['reason' => 'Keine Datenbankverbindung verfügbar']);
+            return [];
+        }
+
+        $repository = new ModuleRepository($this->pdo);
+        $activated = $repository->syncPackageDefaultModules($this->basePath);
+        if ($activated !== []) {
+            $this->log('Neue Paketmodule aktiviert', ['modules' => $activated]);
+        }
+
+        return $activated;
     }
 
     private function enableMaintenance(string $reason): void

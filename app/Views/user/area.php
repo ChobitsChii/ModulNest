@@ -18,6 +18,15 @@ $fantasyCardsProfileAvailable = (bool) ($fantasy_cards_profile_available ?? fals
 $fantasyCardsProfile = is_array($fantasy_cards_profile ?? null) ? $fantasy_cards_profile : [];
 $profileCardsMessage = (string) ($profile_cards_message ?? '');
 $profileCardsError = (string) ($profile_cards_error ?? '');
+$dataPortabilityAvailable = (bool) ($data_portability_available ?? false);
+$dataPortabilityProviders = is_array($data_portability_providers ?? null) ? $data_portability_providers : [];
+$dataPortabilityPreview = is_array($data_portability_preview ?? null) ? $data_portability_preview : null;
+$dataPortabilityMessage = (string) ($data_portability_message ?? '');
+$dataPortabilityError = (string) ($data_portability_error ?? '');
+$dataPortabilityCsrfToken = (string) ($data_portability_csrf_token ?? '');
+$dataPortabilityTargetUser = is_array($data_portability_target_user ?? null) ? $data_portability_target_user : $profileUser;
+$dataPortabilityTargetLabel = (string) ($dataPortabilityTargetUser['display_name'] ?? $dataPortabilityTargetUser['name'] ?? $dataPortabilityTargetUser['email'] ?? 'aktueller Benutzer');
+$dataPortabilityPreviewModules = is_array($dataPortabilityPreview['modules'] ?? null) ? $dataPortabilityPreview['modules'] : [];
 $totpEnabled = (bool) ($totp_enabled ?? false);
 $webauthnEnabled = (bool) ($webauthn_enabled ?? false);
 $pendingTotp = is_array($pending_totp ?? null) ? $pending_totp : null;
@@ -321,4 +330,210 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     </div>
 <?php elseif ($userTab === 'fantasy-cards' && $fantasyCardsProfileAvailable): ?>
     <?php require __DIR__ . '/partials/fantasy-cards.php'; ?>
+<?php elseif ($userTab === 'data-portability' && $dataPortabilityAvailable): ?>
+    <section class="app-card p-4 mb-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+            <div>
+                <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Profil</p>
+                <h1 class="h4 mb-2">Meine Daten</h1>
+                <p class="text-body-secondary mb-0">Exportiere oder importiere persönliche Moduldaten dieser ModulNest-Instanz.</p>
+            </div>
+            <span class="badge text-bg-secondary align-self-lg-start">aktuelles Benutzerkonto</span>
+        </div>
+    </section>
+
+    <?php if ($dataPortabilityMessage !== '' || $dataPortabilityError !== ''): ?>
+        <div class="modulon-feedback-stack mb-4">
+            <?php if ($dataPortabilityMessage !== ''): ?>
+                <div class="alert alert-success mb-0" role="status"><?= htmlspecialchars($dataPortabilityMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+            <?php if ($dataPortabilityError !== ''): ?>
+                <div class="alert alert-danger mb-0" role="alert"><?= htmlspecialchars($dataPortabilityError, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <div class="alert alert-info small" role="status">
+        Importierte Daten werden deinem aktuellen Benutzerkonto zugeordnet:
+        <strong><?= htmlspecialchars($dataPortabilityTargetLabel, ENT_QUOTES, 'UTF-8') ?></strong>.
+        Bestehende Daten werden in v1 nicht gelöscht.
+    </div>
+
+    <div class="row g-4 align-items-stretch">
+        <div class="col-12 col-lg-6">
+            <section class="card shadow-sm border-0 app-card h-100">
+                <div class="card-body p-4">
+                    <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Export</p>
+                    <h2 class="h5 mb-2">Meine Daten exportieren</h2>
+                    <p class="text-body-secondary small mb-4">Wähle aus, welche persönlichen Bereiche in ein ZIP-Archiv geschrieben werden.</p>
+
+                    <form method="post" action="/profil/data-portability/export">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <?php if ($dataPortabilityProviders === []): ?>
+                            <div class="alert alert-info mb-0">Aktuell sind keine exportfähigen persönlichen Bereiche aktiv.</div>
+                        <?php else: ?>
+                            <div class="vstack gap-3 data-portability-provider-list">
+                                <?php foreach ($dataPortabilityProviders as $provider): ?>
+                                    <label class="data-portability-provider">
+                                        <span class="data-portability-provider-check">
+                                            <input class="form-check-input" type="checkbox" name="providers[]" value="<?= htmlspecialchars((string) ($provider['key'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" checked>
+                                        </span>
+                                        <span class="data-portability-provider-body">
+                                            <span class="data-portability-provider-header">
+                                                <span>
+                                                    <strong><?= htmlspecialchars((string) ($provider['label'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong>
+                                                    <span class="d-block small text-body-secondary"><?= htmlspecialchars((string) ($provider['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
+                                                </span>
+                                                <span class="data-portability-provider-badges">
+                                                    <span class="badge text-bg-secondary">Format v<?= (int) ($provider['schema_version'] ?? 0) ?></span>
+                                                </span>
+                                            </span>
+                                            <?php if (!empty($provider['sensitivity_note'])): ?>
+                                                <span class="alert alert-warning data-portability-provider-note small mt-3 mb-0" role="note">
+                                                    <?= htmlspecialchars((string) $provider['sensitivity_note'], ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <button class="btn btn-primary mt-4" type="submit">Meine Daten exportieren</button>
+                        <?php endif; ?>
+                    </form>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <section class="card shadow-sm border-0 app-card h-100">
+                <div class="card-body p-4">
+                    <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Import</p>
+                    <h2 class="h5 mb-2">Meine Daten importieren</h2>
+                    <p class="text-body-secondary small mb-4">Eine ZIP-Datei wird zuerst geprüft. Erst nach der Vorschau kannst du den Import bestätigen.</p>
+
+                    <div class="data-portability-workflow mb-4">
+                        <div class="data-portability-step">
+                            <div class="data-portability-step-marker">1</div>
+                            <div class="data-portability-step-body">
+                                <h3 class="h6 mb-1">ZIP auswählen</h3>
+                                <p class="text-body-secondary small mb-0">Wähle ein ModulNest-Exportarchiv.</p>
+                            </div>
+                        </div>
+                        <div class="data-portability-step">
+                            <div class="data-portability-step-marker">2</div>
+                            <div class="data-portability-step-body">
+                                <h3 class="h6 mb-1">Import prüfen</h3>
+                                <p class="text-body-secondary small mb-0">Manifest und freigegebene persönliche Bereiche werden validiert.</p>
+                            </div>
+                        </div>
+                        <div class="data-portability-step <?= $dataPortabilityPreview === null ? 'is-disabled' : 'is-ready' ?>">
+                            <div class="data-portability-step-marker">3</div>
+                            <div class="data-portability-step-body">
+                                <h3 class="h6 mb-1">Vorschau bestätigen</h3>
+                                <?php if ($dataPortabilityPreview === null): ?>
+                                    <p class="text-body-secondary small mb-0">Dieser Schritt wird nach einer erfolgreichen Prüfung freigeschaltet.</p>
+                                <?php else: ?>
+                                    <p class="text-body-secondary small mb-3">Die Vorschau ist bereit. Der Import wird deinem aktuellen Benutzerkonto zugeordnet.</p>
+                                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                        <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" action="/profil/data-portability/import/preview" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <div class="mb-3">
+                            <label class="form-label" for="profile_import_zip">Export-ZIP</label>
+                            <input class="form-control" type="file" id="profile_import_zip" name="import_zip" accept=".zip,application/zip" required>
+                            <div class="form-text text-body-secondary">ZIPs werden temporär außerhalb des Webroots verarbeitet.</div>
+                        </div>
+                        <button class="btn btn-outline-primary" type="submit">Import prüfen</button>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <?php if ($dataPortabilityPreview !== null): ?>
+        <section class="card shadow-sm border-0 app-card mt-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+                    <div>
+                        <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Import-Vorschau</p>
+                        <h2 class="h5 mb-1"><?= htmlspecialchars((string) ($dataPortabilityPreview['manifest']['product'] ?? 'Export'), ENT_QUOTES, 'UTF-8') ?></h2>
+                        <p class="text-body-secondary mb-0">
+                            Format <?= (int) ($dataPortabilityPreview['manifest']['format_version'] ?? 0) ?> · App-Version <?= htmlspecialchars((string) ($dataPortabilityPreview['manifest']['app_version'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                        </p>
+                    </div>
+                    <span class="badge text-bg-secondary"><?= count($dataPortabilityPreviewModules) ?> Module</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 app-table">
+                        <thead>
+                        <tr>
+                            <th class="ps-4">Modul</th>
+                            <th>Status</th>
+                            <th>Datensätze</th>
+                            <th>Dateien</th>
+                            <th class="pe-4">Warnungen/Konflikte</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php if ($dataPortabilityPreviewModules === []): ?>
+                            <tr>
+                                <td colspan="5" class="ps-4 text-body-secondary">Keine für deinen Benutzerbereich importierbaren Module im Archiv gefunden.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($dataPortabilityPreviewModules as $module): ?>
+                                <?php $counts = is_array($module['counts'] ?? null) ? $module['counts'] : []; ?>
+                                <tr>
+                                    <td class="ps-4">
+                                        <strong><?= htmlspecialchars((string) ($module['label'] ?? $module['key'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <div class="text-body-secondary small"><?= htmlspecialchars((string) ($module['key'] ?? ''), ENT_QUOTES, 'UTF-8') ?> · Format v<?= (int) ($module['schema_version'] ?? 0) ?></div>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($module['can_import'])): ?>
+                                            <span class="badge text-bg-success">bereit</span>
+                                        <?php elseif (!empty($module['available'])): ?>
+                                            <span class="badge text-bg-warning">prüfen</span>
+                                        <?php else: ?>
+                                            <span class="badge text-bg-danger">Modul fehlt</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($counts === []): ?>
+                                            <span class="text-body-secondary small">keine Angaben</span>
+                                        <?php else: ?>
+                                            <div class="d-flex flex-wrap gap-1">
+                                                <?php foreach ($counts as $name => $count): ?>
+                                                    <span class="badge text-bg-secondary"><?= htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8') ?>: <?= (int) $count ?></span>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= (int) ($module['file_count'] ?? 0) ?></td>
+                                    <td class="small pe-4">
+                                        <?php if (($module['warnings'] ?? []) === []): ?>
+                                            <span class="text-body-secondary">-</span>
+                                        <?php else: ?>
+                                            <div class="vstack gap-1">
+                                                <?php foreach (($module['warnings'] ?? []) as $warning): ?>
+                                                    <div class="text-warning"><?= htmlspecialchars((string) $warning, ENT_QUOTES, 'UTF-8') ?></div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    <?php endif; ?>
 <?php endif; ?>

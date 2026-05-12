@@ -1,15 +1,16 @@
 # ModulNest Export Summary
 
 - Zielpfad: `/srv/http/modulnest`
-- Erstellt am: `2026-05-08T23:09:16+02:00`
-- Core-Module: `Admin Auth Modules`
-- Optionale Module: `Dashboard News Systeminfo Updates User`
+- Erstellt am: `2026-05-12T17:21:28+02:00`
+- Core-Module: `Admin Auth Modules User`
+- Optionale Module: `Banking Dashboard DataPortability Logs News SneakPreview Systeminfo Tools Updates`
 
 ## Ausgeschlossen
 
 - `.env`, `.local`, `vendor`, `storage`-Nutzdaten, Runtime-Assets, Logs, Backups, IDE-Dateien, private Testdaten.
 - `app/Legacy` enthält nur `.gitkeep`.
-- `app/Database/schema.sql` wurde für den Export sanitisiert: keine News-/Karten-Demo-Seeds.
+- `app/Database/schema.sql` wurde als Kompatibilitäts-Aggregat aus Core-Schema, Core-Seeds und den ausgewählten Modul-Schemas/-Seeds erzeugt.
+- Nicht ausgewählte Module bringen keine Modul-Schema-Dateien in den Export.
 
 - `install.php` ist als einzelner Bootstrap-Installer enthalten.
 

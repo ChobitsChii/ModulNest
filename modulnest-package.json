@@ -2,20 +2,25 @@
     "schema": 1,
     "product": "ModulNest",
     "core": "Modulon",
-    "version": "0.6.1",
+    "version": "0.7.0",
     "channel": "alpha",
-    "generated_at": "2026-05-08T21:09:16+00:00",
+    "generated_at": "2026-05-12T15:21:27+00:00",
     "required_modules": [
         "Admin",
         "Auth",
-        "Modules"
+        "Modules",
+        "User"
     ],
     "optional_modules": [
+        "Banking",
         "Dashboard",
+        "DataPortability",
+        "Logs",
         "News",
+        "SneakPreview",
         "Systeminfo",
-        "Updates",
-        "User"
+        "Tools",
+        "Updates"
     ],
     "modules": [
         {
@@ -28,6 +33,8 @@
             "required": true,
             "default_enabled": true,
             "native": false,
+            "show_in_header": false,
+            "show_on_home": false,
             "view_dir": null
         },
         {
@@ -40,6 +47,8 @@
             "required": true,
             "default_enabled": true,
             "native": false,
+            "show_in_header": false,
+            "show_on_home": false,
             "view_dir": null
         },
         {
@@ -52,7 +61,37 @@
             "required": true,
             "default_enabled": true,
             "native": false,
+            "show_in_header": false,
+            "show_on_home": false,
             "view_dir": null
+        },
+        {
+            "directory": "User",
+            "key": "profil",
+            "name": "Profil",
+            "route_prefix": "profil",
+            "access_level": "user",
+            "description": "Benutzerprofil und Einstellungen.",
+            "required": true,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": false,
+            "view_dir": "user"
+        },
+        {
+            "directory": "Banking",
+            "key": "banking",
+            "name": "Banking",
+            "route_prefix": "banking",
+            "access_level": "user",
+            "description": "Native Banking-Übersicht.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "banking"
         },
         {
             "directory": "Dashboard",
@@ -69,6 +108,34 @@
             "view_dir": "dashboard"
         },
         {
+            "directory": "DataPortability",
+            "key": "data-portability",
+            "name": "Export / Import",
+            "route_prefix": "data-portability",
+            "access_level": "admin",
+            "description": "Moduldaten sicher zwischen ModulNest-Instanzen exportieren und importieren.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "data-portability"
+        },
+        {
+            "directory": "Logs",
+            "key": "logs",
+            "name": "Logs",
+            "route_prefix": "logs",
+            "access_level": "admin",
+            "description": "Admin-Logviewer für Modulon-Logdateien.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "logs"
+        },
+        {
             "directory": "News",
             "key": "news",
             "name": "News",
@@ -81,6 +148,20 @@
             "show_in_header": true,
             "show_on_home": true,
             "view_dir": "news"
+        },
+        {
+            "directory": "SneakPreview",
+            "key": "sneak-preview",
+            "name": "Sneak Preview",
+            "route_prefix": "sneak-preview",
+            "access_level": "public",
+            "description": "Öffentliche Sneak-Preview-Liste mit Modulon-Adminbereich.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "sneak-preview"
         },
         {
             "directory": "Systeminfo",
@@ -97,6 +178,20 @@
             "view_dir": "systeminfo"
         },
         {
+            "directory": "Tools",
+            "key": "tools",
+            "name": "Tools",
+            "route_prefix": "tools",
+            "access_level": "user",
+            "description": "Sammlung kleiner Hilfs-, Entwickler- und Admin-Werkzeuge.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "tools"
+        },
+        {
             "directory": "Updates",
             "key": "updates",
             "name": "Updates",
@@ -109,20 +204,6 @@
             "show_in_header": false,
             "show_on_home": false,
             "view_dir": null
-        },
-        {
-            "directory": "User",
-            "key": "profil",
-            "name": "Profil",
-            "route_prefix": "profil",
-            "access_level": "user",
-            "description": "Benutzerprofil und Einstellungen.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": false,
-            "view_dir": "user"
         }
     ]
 }

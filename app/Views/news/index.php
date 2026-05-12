@@ -30,7 +30,7 @@ $isExpanded = $viewMode === 'expanded';
             $version = trim((string) ($entry['version'] ?? ''));
             $excerpt = (string) ($entry['excerpt'] ?? '');
             $publishedAt = (string) (($entry['published_at'] ?? '') ?: ($entry['created_at'] ?? ''));
-            $content = (string) ($entry['content'] ?? '');
+            $contentHtml = (string) ($entry['content_html'] ?? '');
             ?>
             <div class="<?= $isExpanded ? 'col-12' : 'col-12 col-lg-6' ?>">
                 <article class="card shadow-sm border-0 app-card h-100">
@@ -45,7 +45,7 @@ $isExpanded = $viewMode === 'expanded';
                         <h2 class="h5 mb-2"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h2>
                         <p class="text-body-secondary mb-3"><?= htmlspecialchars($excerpt, ENT_QUOTES, 'UTF-8') ?></p>
                         <?php if ($isExpanded): ?>
-                            <div class="modulon-news-content mb-3"><?= nl2br(htmlspecialchars($content, ENT_QUOTES, 'UTF-8')) ?></div>
+                            <div class="modulon-news-content mn-markdown mb-3"><?= $contentHtml ?></div>
                         <?php endif; ?>
                         <a href="/news/<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-secondary btn-sm">Zum Eintrag</a>
                     </div>

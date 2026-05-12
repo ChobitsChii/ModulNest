@@ -25,6 +25,7 @@ final class UserController
         private readonly ?UserRepository $users,
         private readonly Session $session,
         private readonly ?FantasyCardsProfileService $fantasyCardsProfile = null,
+        private readonly bool $dataPortabilityAvailable = false,
     ) {
     }
 
@@ -47,6 +48,9 @@ final class UserController
         }
         if ($path === 'profil/fantasy-cards' && $this->fantasyCardsProfile !== null) {
             return $this->renderUserArea($request, 'fantasy-cards');
+        }
+        if ($path === 'profil/data-portability' && $this->dataPortabilityAvailable) {
+            return Response::redirect('/profil/data-portability');
         }
 
         return new Response(View::render('errors/404', $this->viewData($request, [
@@ -238,6 +242,9 @@ final class UserController
         if ($this->fantasyCardsProfile !== null) {
             $allowedTabs[] = 'fantasy-cards';
         }
+        if ($this->dataPortabilityAvailable) {
+            $allowedTabs[] = 'data-portability';
+        }
         $activeTab = in_array($tab, $allowedTabs, true) ? $tab : 'profile';
         $timezoneValue = trim((string) ($user['timezone'] ?? ''));
         if ($timezoneValue === '' || !in_array($timezoneValue, DateTimeZone::listIdentifiers(), true)) {
@@ -251,6 +258,7 @@ final class UserController
             'title' => match ($activeTab) {
                 'security' => 'Profil / Sicherheit',
                 'settings' => 'Profil / Einstellungen',
+                'data-portability' => 'Profil / Meine Daten',
                 default => 'Profil',
             },
             'user_tab' => $activeTab,
@@ -268,6 +276,7 @@ final class UserController
             'profile_cards_message' => $this->session->pullFlash('profile_cards_info'),
             'profile_cards_error' => $this->session->pullFlash('profile_cards_error'),
             'fantasy_cards_profile_available' => $this->fantasyCardsProfile !== null,
+            'data_portability_available' => $this->dataPortabilityAvailable,
             'fantasy_cards_profile' => $this->fantasyCardsProfile !== null ? $this->fantasyCardsProfile->profileData($userId) : null,
             'totp_enabled' => (int) ($user['totp_enabled'] ?? 0) === 1,
             'webauthn_enabled' => (int) ($user['webauthn_enabled'] ?? 0) === 1,

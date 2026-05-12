@@ -17,7 +17,7 @@ KEEP_WORK=0
 usage() {
     cat <<EOF
 Usage: $SCRIPT_NAME [--public-target /srv/http/modulnest] [--output /pfad] [--metadata /pfad]
-                   [--version 0.6.1] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
+                   [--version 0.7.0] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
 
 Baut installierbare ModulNest-ZIP-Pakete aus einem bereits bereinigten Public-Export.
 
@@ -157,6 +157,9 @@ copy_public_export_to_staging() {
         --exclude='vendor' \
         --exclude='.env' \
         --exclude='.local' \
+        --exclude='**/__pycache__/' \
+        --exclude='**/*.pyc' \
+        --exclude='tests/e2e/test_fantasy_cards_module.py' \
         "$PUBLIC_TARGET"/ "$staging"/
 }
 
@@ -198,6 +201,23 @@ scan_package_tree() {
 
     if [[ -d "$tree/public/assets/favicons" ]] && find "$tree/public/assets/favicons" -type f ! -name '.gitkeep' | grep -q .; then
         printf 'Runtime-Favicons im Paket-Staging gefunden.\n' >&2
+        failed=1
+    fi
+
+    if find "$tree" -type d -name '__pycache__' | grep -q .; then
+        printf '__pycache__ im Paket-Staging gefunden.\n' >&2
+        find "$tree" -type d -name '__pycache__' >&2
+        failed=1
+    fi
+
+    if find "$tree" -type f -name '*.pyc' | grep -q .; then
+        printf '*.pyc im Paket-Staging gefunden.\n' >&2
+        find "$tree" -type f -name '*.pyc' >&2
+        failed=1
+    fi
+
+    if [[ -f "$tree/tests/e2e/test_fantasy_cards_module.py" ]]; then
+        printf 'FantasyCards-E2E-Test im Paket-Staging gefunden, obwohl FantasyCards nicht im Public-Release ist.\n' >&2
         failed=1
     fi
 

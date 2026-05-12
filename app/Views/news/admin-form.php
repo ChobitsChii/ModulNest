@@ -56,6 +56,23 @@ $publishedAtInput = $publishedAtRaw !== '' ? substr(str_replace(' ', 'T', $publi
             <div class="col-12">
                 <label class="form-label mb-1" for="news_content">Inhalt</label>
                 <textarea id="news_content" class="form-control" name="content" rows="10" required><?= htmlspecialchars($content, ENT_QUOTES, 'UTF-8') ?></textarea>
+                <div class="form-text">
+                    News-Inhalte unterstützen Markdown: <strong>fett</strong>, <em>kursiv</em>, <code>Code</code>, Listen, Links und Überschriften.
+                    HTML wird aus Sicherheitsgründen entfernt.
+                </div>
+                <details class="markdown-help mt-2">
+                    <summary>Markdown-Beispiele anzeigen</summary>
+                    <pre><code>**fett**
+*kursiv*
+`app/Config/version.php`
+
+- Punkt 1
+- Punkt 2
+
+[Linktext](https://example.com)
+
+## Überschrift</code></pre>
+                </details>
             </div>
             <div class="col-12 col-md-3">
                 <label class="form-label mb-1" for="news_type">Typ</label>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Modulon\Core\Application;
 use Modulon\Core\AdminNavigationRegistry;
 use Modulon\Core\Database;
+use Modulon\Core\Database\MigrationRunner;
 use Modulon\Core\Env;
 use Modulon\Core\HealthCheckProviderInterface;
 use Modulon\Core\HealthCheckRegistry;
@@ -50,6 +51,42 @@ try {
 } catch (\RuntimeException) {
     // App startet auch ohne aktive DB, falls lokale Werte noch nicht gesetzt sind.
 }
+
+if ($pdo !== null) {
+    try {
+        $appVersion = preg_replace('/[^A-Za-z0-9_.-]/', '_', (string) ($versionConfig['version'] ?? 'unknown')) ?: 'unknown';
+        $migrationFlag = $basePath . '/storage/migrations/' . $appVersion . '.done';
+        if (!is_file($migrationFlag)) {
+            $packageModules = null;
+            $packagePath = $basePath . '/modulnest-package.json';
+            if (is_file($packagePath)) {
+                $package = json_decode((string) file_get_contents($packagePath), true);
+                if (is_array($package) && is_array($package['modules'] ?? null)) {
+                    $packageModules = [];
+                    foreach ($package['modules'] as $module) {
+                        if (!is_array($module)) {
+                            continue;
+                        }
+                        $directory = (string) ($module['directory'] ?? '');
+                        if ($directory !== '' && (!empty($module['required']) || !empty($module['default_enabled']))) {
+                            $packageModules[] = $directory;
+                        }
+                    }
+                }
+            }
+
+            $runner = new MigrationRunner($pdo, $basePath);
+            $runner->run($packageModules);
+            $migrationDir = dirname($migrationFlag);
+            if (!is_dir($migrationDir)) {
+                @mkdir($migrationDir, 0775, true);
+            }
+            @file_put_contents($migrationFlag, gmdate(DATE_ATOM));
+        }
+    } catch (\Throwable $throwable) {
+        error_log('ModulNest migration bootstrap failed: ' . $throwable->getMessage());
+    }
+}
 $healthCheckRegistry = new HealthCheckRegistry();
 $healthCheck = new SystemHealthCheck($basePath, $pdo, $healthCheckRegistry);
 $adminNavigationRegistry = new AdminNavigationRegistry();
@@ -79,6 +116,10 @@ if ($pdo !== null) {
     $moduleRepository = new ModuleRepository($pdo);
     try {
         $moduleRepository->ensureBuiltinNativeModules();
+        $activatedPackageModules = $moduleRepository->syncPackageDefaultModules($basePath);
+        if ($activatedPackageModules !== []) {
+            error_log('ModulNest package modules activated: ' . implode(', ', $activatedPackageModules));
+        }
     } catch (\Throwable) {
         // Runtime-Migration best effort: App soll auch ohne Schema-Update weiter starten.
     }

@@ -46,9 +46,11 @@ Architekturprinzip:
 - `app/Config/`
   - Konfigurationsdateien (`auth.php`, `database.php`) auf Basis von ENV
 - `app/Database/`
-  - SQL-Schema und Seeds (`schema.sql`)
+  - Core-Schema und Core-Seeds (`schema/core.sql`, `seeds/core.sql`)
+  - `schema.sql` bleibt als Kompatibilitäts-/Gesamtschema erhalten
 - `app/Modules/`
   - fachliche Module/Controller/Repositories
+  - optionale Modul-Schemas liegen im jeweiligen Modul unter `Database/schema.sql`
   - z. B. `Auth`, `Admin`, `Dashboard`, `Mail`, `News`, `User`, `Systeminfo`, `Banking`, `Modules`
 - `app/Views/`
   - Templates inkl. `layouts/` und `partials/`

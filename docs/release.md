@@ -123,7 +123,7 @@ Der Installer:
 - entpackt mit Zip-Slip-Schutz in einen temporären Ordner
 - entfernt abgewählte optionale Module vor dem Kopieren
 - schreibt `.env`
-- führt `app/Database/schema.sql` aus
+- führt zuerst `app/Database/schema/core.sql`, dann die Schemas der ausgewählten Module, danach Core-Seeds und ausgewählte Modul-Seeds aus
 - aktiviert die ausgewählten nativen Module in der Tabelle `modules`
 - erstellt den ersten Admin-User
 - schreibt `var/install.lock`
@@ -158,6 +158,15 @@ Die JSON enthält mindestens:
 - `packages.bundled.needs_composer`
 - `changelog_url`
 - `requires_migrations`
+
+## Datenbankmigrationen Bei Updates
+
+- Seit der 0.7.0-Vorbereitung gibt es `schema_migrations` und `Modulon\Core\Database\MigrationRunner`.
+- Migrationen liegen als PHP-Dateien unter `app/Database/migrations/` und `app/Modules/<Modul>/Database/Migrations/`.
+- Der Updater führt nach erfolgreicher Datei-Kopie während Maintenance den MigrationRunner aus, sofern eine Datenbankverbindung verfügbar ist.
+- Der App-Start führt Migrationen zusätzlich best-effort einmal pro Code-Version aus (`storage/migrations/<version>.done`), damit Updates von älteren Updater-Versionen auf 0.7.0 nicht ohne Migrationsprüfung bleiben.
+- Migrationen dürfen keine Daten löschen und müssen idempotent sein.
+- V1 versucht keinen automatischen DB-Rollback; bei Fehlern wird geloggt und der Fehler im Adminbereich angezeigt.
 - `package_metadata`
 - `modules`
 - `generated_at`

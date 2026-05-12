@@ -1023,6 +1023,153 @@ body.is-mail-resizing {
     font-weight: 700;
 }
 
+.data-portability-hero-copy {
+    max-width: 620px;
+}
+
+.data-portability-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 0.75rem;
+    min-width: min(100%, 520px);
+}
+
+.data-portability-info-tile,
+.data-portability-target,
+.data-portability-step,
+.data-portability-provider {
+    border: 1px solid var(--app-border);
+    background: color-mix(in srgb, var(--app-surface-2) 78%, transparent);
+    border-radius: 8px;
+}
+
+.data-portability-info-tile {
+    padding: 0.85rem 1rem;
+}
+
+.data-portability-info-value {
+    display: block;
+    color: var(--app-text);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.data-portability-info-label {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--app-muted);
+    font-size: 0.82rem;
+}
+
+.data-portability-provider {
+    display: flex;
+    gap: 0.9rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.data-portability-provider:hover,
+.data-portability-provider:focus-within {
+    border-color: color-mix(in srgb, var(--app-primary) 54%, var(--app-border));
+    background: color-mix(in srgb, var(--app-surface-2) 88%, var(--app-primary) 12%);
+}
+
+.data-portability-provider-check {
+    flex: 0 0 auto;
+    padding-top: 0.15rem;
+}
+
+.data-portability-provider-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.data-portability-provider-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.data-portability-provider-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.data-portability-route-badge {
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-surface) 76%, var(--app-primary) 24%);
+    border: 1px solid color-mix(in srgb, var(--app-primary) 34%, var(--app-border));
+    font-weight: 600;
+}
+
+.data-portability-provider-note {
+    display: block;
+    padding: 0.55rem 0.7rem;
+}
+
+.data-portability-workflow {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.data-portability-step {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.85rem;
+    padding: 0.9rem;
+}
+
+.data-portability-step.is-disabled {
+    opacity: 0.72;
+}
+
+.data-portability-step.is-ready {
+    border-color: color-mix(in srgb, var(--bs-success) 55%, var(--app-border));
+}
+
+.data-portability-step-marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--app-primary) 18%, var(--app-surface));
+    color: var(--app-text);
+    font-weight: 700;
+}
+
+.data-portability-step.is-disabled .data-portability-step-marker {
+    background: color-mix(in srgb, var(--app-muted) 18%, var(--app-surface));
+    color: var(--app-muted);
+}
+
+.data-portability-target {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem;
+}
+
+@media (max-width: 575.98px) {
+    .data-portability-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .data-portability-provider-header {
+        flex-direction: column;
+    }
+
+    .data-portability-provider-badges {
+        justify-content: flex-start;
+    }
+}
+
 .news-grid-compact .app-card {
     height: 100%;
 }
@@ -1057,18 +1204,116 @@ body.is-mail-resizing {
     white-space: normal;
 }
 
-.modulon-news-content p {
+.mn-markdown > :first-child {
+    margin-top: 0;
+}
+
+.mn-markdown > :last-child {
+    margin-bottom: 0;
+}
+
+.mn-markdown p {
     margin-bottom: 0.75rem;
 }
 
-.modulon-news-content ul,
-.modulon-news-content ol {
-    padding-left: 1.2rem;
-    margin-bottom: 0.75rem;
+.mn-markdown ul,
+.mn-markdown ol {
+    padding-left: 1.35rem;
+    margin: 0 0 0.85rem;
 }
 
-.modulon-news-content li {
+.mn-markdown li {
     margin-bottom: 0.25rem;
+}
+
+.mn-markdown a {
+    color: var(--app-primary);
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+}
+
+.mn-markdown code {
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-surface-2) 75%, transparent);
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+    padding: 0.08rem 0.32rem;
+    font-size: 0.92em;
+}
+
+.mn-markdown pre {
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-surface-2) 82%, #000 18%);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+}
+
+.mn-markdown pre code {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.mn-markdown blockquote {
+    margin: 0 0 0.9rem;
+    padding: 0.65rem 0.9rem;
+    border-left: 4px solid color-mix(in srgb, var(--app-primary) 50%, var(--app-border));
+    color: var(--app-muted);
+    background: color-mix(in srgb, var(--app-surface-2) 45%, transparent);
+    border-radius: 0 8px 8px 0;
+}
+
+.mn-markdown h1,
+.mn-markdown h2,
+.mn-markdown h3,
+.mn-markdown h4,
+.mn-markdown h5,
+.mn-markdown h6 {
+    margin: 1.2rem 0 0.55rem;
+    color: var(--app-text);
+    line-height: 1.25;
+}
+
+.mn-markdown h1 {
+    font-size: 1.45rem;
+}
+
+.mn-markdown h2 {
+    font-size: 1.25rem;
+}
+
+.mn-markdown h3 {
+    font-size: 1.12rem;
+}
+
+.markdown-help {
+    max-width: 34rem;
+    color: var(--app-muted);
+    font-size: 0.875rem;
+}
+
+.markdown-help summary {
+    cursor: pointer;
+    color: var(--app-primary);
+    width: fit-content;
+}
+
+.markdown-help pre {
+    margin: 0.55rem 0 0;
+    padding: 0.75rem 0.85rem;
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-surface-2) 84%, #000 16%);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.markdown-help code {
+    color: inherit;
+    font-size: 0.9rem;
 }
 
 .card,

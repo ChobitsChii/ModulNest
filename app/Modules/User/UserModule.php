@@ -43,6 +43,7 @@ final class UserModule implements NativeModuleInterface
             $context->service('userRepository'),
             $context->session,
             $fantasyCardsProfile,
+            $context->isNativeActive('data-portability'),
         );
 
         return new self($controller, $context->moduleAccess('profil', 'user'));
@@ -90,7 +91,7 @@ final class UserModule implements NativeModuleInterface
             'internal_name' => 'User / Profil',
             'controller' => UserController::class,
             'implementation_path' => 'app/Modules/User/UserController.php',
-            'route_binding' => 'GET /profil, GET /profil/*, POST /profil/update, POST /profil/password, POST /profil/settings, POST /profil/fantasy-cards',
+        'route_binding' => 'GET /profil, GET /profil/*, POST /profil/update, POST /profil/password, POST /profil/settings, POST /profil/fantasy-cards',
         ];
     }
 }

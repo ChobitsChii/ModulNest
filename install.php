@@ -11,7 +11,7 @@ declare(strict_types=1);
  * implementiert statt an die eigentliche Anwendung zu delegieren.
  */
 
-const MODULNEST_INSTALLER_VERSION = '0.6.1';
+const MODULNEST_INSTALLER_VERSION = '0.7.0';
 const MODULNEST_METADATA_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/stable.json';
 const MODULNEST_MIN_PHP = '8.3.0';
 const MODULNEST_REQUIRED_EXTENSIONS = [
@@ -813,16 +813,55 @@ function envValue(string $value): string
     return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
 }
 
-function runSchema(PDO $pdo): void
+function relativeInstallPath(string $path): string
 {
-    $schemaPath = projectPath('app/Database/schema.sql');
-    if (!is_file($schemaPath)) {
-        throw new RuntimeException('Datenbankschema nicht gefunden: app/Database/schema.sql');
+    $root = rtrim(installPaths()['project_root'], '/') . '/';
+    if (str_starts_with($path, $root)) {
+        return substr($path, strlen($root));
     }
 
-    $sql = (string) file_get_contents($schemaPath);
+    return $path;
+}
+
+function runSqlFile(PDO $pdo, string $path, bool $required = false): void
+{
+    if (!is_file($path)) {
+        if ($required) {
+            throw new RuntimeException('SQL-Datei nicht gefunden: ' . relativeInstallPath($path));
+        }
+        logInstall('Optionale SQL-Datei übersprungen', ['path' => relativeInstallPath($path)]);
+        return;
+    }
+
+    $sql = trim((string) file_get_contents($path));
+    if ($sql === '') {
+        logInstall('Leere SQL-Datei übersprungen', ['path' => relativeInstallPath($path)]);
+        return;
+    }
+
     $pdo->exec($sql);
-    logInstall('Datenbankschema ausgeführt');
+    logInstall('SQL-Datei ausgeführt', ['path' => relativeInstallPath($path)]);
+}
+
+function runModuleSqlFiles(PDO $pdo, array $packageMetadata, array $selectedDirectories, string $filename): void
+{
+    $selected = array_flip($selectedDirectories);
+    foreach (packageModules($packageMetadata) as $module) {
+        $dir = (string) ($module['directory'] ?? '');
+        if ($dir === '' || !isset($selected[$dir])) {
+            continue;
+        }
+        runSqlFile($pdo, projectPath('app/Modules/' . $dir . '/Database/' . $filename));
+    }
+}
+
+function runInstallDatabase(PDO $pdo, array $packageMetadata, array $selectedDirectories): void
+{
+    runSqlFile($pdo, projectPath('app/Database/schema/core.sql'), true);
+    runModuleSqlFiles($pdo, $packageMetadata, $selectedDirectories, 'schema.sql');
+    runSqlFile($pdo, projectPath('app/Database/seeds/core.sql'), true);
+    runModuleSqlFiles($pdo, $packageMetadata, $selectedDirectories, 'seeds.sql');
+    logInstall('Datenbankschema und Seeds ausgeführt', ['modules' => $selectedDirectories]);
 }
 
 function createAdminUser(PDO $pdo, array $admin): void
@@ -1125,7 +1164,7 @@ function install(array $input): array
             runComposerInstall($paths['project_root']);
         }
         writeEnvFile($input['db']);
-        runSchema($pdo);
+        runInstallDatabase($pdo, $packageMetadata, $selectedModules);
         seedSelectedModules($pdo, $packageMetadata, $selectedModules);
         createAdminUser($pdo, $input['admin']);
         writeInstallLock($metadata, (string) $input['package_type'], $selectedModules);

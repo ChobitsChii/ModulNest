@@ -41,6 +41,7 @@ Manuelle Installation und Details stehen in der [Installationsdokumentation](doc
 - [Installation](docs/installation.md): Bootstrap-Installer, Webroot, Source/Bundled und manuelle Installation.
 - [Konfiguration](docs/configuration.md): wichtige `.env`-Werte, Datenbank, Sessions, 2FA und Mail-Schlüssel.
 - [Release & Export](docs/release.md): privater Entwicklungsstand, öffentlicher Export, Paketbau und Update-Metadaten.
+- [Export & Import](docs/export-import.md): Moduldaten zwischen ModulNest-Instanzen übertragen.
 - [Anforderungen](docs/requirements.md): PHP-Version, Extensions und Composer-Abhängigkeiten.
 - [Technologien & Abhängigkeiten](docs/dependencies.md): verwendete Libraries, Frameworks und externe Bausteine.
 - [Module](docs/modules.md): native Module, optionale Module, Autodiscovery und Zugriffsebenen.

@@ -20,6 +20,7 @@ Der aktuelle Public-Export enthält:
 - `Auth`: Login, Sessions, Remember-Me, 2FA und Passkeys
 - `Modules`: Modulverwaltung und Auto-Discovery
 - `Dashboard`: persönliche Widgets
+- `DataPortability`: Adminbereich für Export und Import von Moduldaten
 - `News`: öffentliche News und Admin-Verwaltung
 - `Systeminfo`: Systeminformationen und Systemcheck
 - `Updates`: Adminbereich für offizielle ModulNest-Updates aus `stable.json`
@@ -34,6 +35,19 @@ Neue native Modulordner unter `app/Modules` können in der Modulverwaltung erkan
 ## Legacy-Anbindung
 
 Legacy-Anwendungen können über Modul-Einträge angebunden werden. Im Public-Export enthält `app/Legacy` nur einen Platzhalter, keine privaten Legacy-Apps.
+
+## News und Markdown
+
+News-/Changelog-Inhalte unterstützen Markdown für Grundformatierungen:
+
+- `**fett**`
+- `*kursiv*`
+- `` `Inline-Code` ``
+- Listen
+- Links
+- Überschriften
+
+Markdown wird über den Core-Service `Modulon\Core\MarkdownRenderer` gerendert. Raw HTML wird aus Sicherheitsgründen entfernt, unsichere Links wie `javascript:` werden nicht als klickbare Links ausgegeben, Markdown-Bilder werden entfernt und die Verschachtelung ist begrenzt. Titel, Slugs, Kurzbeschreibungen und Metadaten bleiben normale escaped Textfelder.
 
 ## Mail-Modul
 

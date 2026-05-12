@@ -31,7 +31,7 @@ final class UpdatesModule implements NativeModuleInterface
     {
         $authService = $context->service('authService');
         $controller = new UpdatesController(
-            new UpdatesService($context->basePath),
+            new UpdatesService($context->basePath, $context->pdo),
             $context->session,
             (string) $context->config('app_version', ''),
             (string) $context->config('app_channel', 'alpha'),

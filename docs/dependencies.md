@@ -8,6 +8,7 @@ ModulNest besitzt einen eigenen Core, nutzt aber bewusst etablierte Libraries un
 - Composer
 - PSR-4 Autoloading
 - PDO / `pdo_mysql`
+- `league/commonmark` für sicheres Markdown-Rendering
 
 ## Security / Auth
 

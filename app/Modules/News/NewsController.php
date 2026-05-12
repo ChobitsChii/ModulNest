@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modulon\Modules\News;
 
 use DateTimeImmutable;
+use Modulon\Core\MarkdownRenderer;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Session;
@@ -26,6 +27,7 @@ final class NewsController
         private readonly NewsRepository $news,
         private readonly Session $session,
         private readonly ?AuthService $auth = null,
+        private readonly ?MarkdownRenderer $markdown = null,
     ) {
     }
 
@@ -38,7 +40,7 @@ final class NewsController
 
         return new Response(View::render('news/index', $this->viewData($request, [
             'title' => 'News',
-            'entries' => $this->news->listPublished(),
+            'entries' => $this->renderedEntries($this->news->listPublished()),
             'view_mode' => $viewMode,
         ])));
     }
@@ -61,7 +63,7 @@ final class NewsController
 
         return new Response(View::render('news/show', $this->viewData($request, [
             'title' => (string) ($entry['title'] ?? 'News'),
-            'entry' => $entry,
+            'entry' => $this->renderedEntry($entry),
         ])));
     }
 
@@ -175,6 +177,33 @@ final class NewsController
             'types' => $this->allowedTypes,
             'statuses' => $this->allowedStatuses,
         ])));
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $entries
+     * @return array<int, array<string, mixed>>
+     */
+    private function renderedEntries(array $entries): array
+    {
+        foreach ($entries as &$entry) {
+            if (is_array($entry)) {
+                $entry = $this->renderedEntry($entry);
+            }
+        }
+        unset($entry);
+
+        return $entries;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     * @return array<string, mixed>
+     */
+    private function renderedEntry(array $entry): array
+    {
+        $entry['content_html'] = ($this->markdown ?? new MarkdownRenderer())->render((string) ($entry['content'] ?? ''));
+
+        return $entry;
     }
 
     /**

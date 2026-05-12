@@ -182,6 +182,75 @@ final class ModuleRepository
         return $created;
     }
 
+    /**
+     * Registriert neue native Module aus modulnest-package.json und aktiviert nur neue
+     * Paketmodule, die explizit default_enabled oder required sind. Bestehende Module
+     * behalten ihren Admin-Status unverändert.
+     *
+     * @return array<int, string> Aktivierte Route-Prefixes neuer Module.
+     */
+    public function syncPackageDefaultModules(string $basePath): array
+    {
+        $this->ensureBuiltinNativeModules();
+
+        $packagePath = rtrim($basePath, '/') . '/modulnest-package.json';
+        if (!is_file($packagePath)) {
+            return [];
+        }
+
+        $package = json_decode((string) file_get_contents($packagePath), true);
+        if (!is_array($package) || !is_array($package['modules'] ?? null)) {
+            return [];
+        }
+
+        $nativeModules = NativeModuleLoader::discover($basePath);
+        $insert = $this->pdo->prepare(
+            'INSERT INTO modules
+                (name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home)
+             VALUES
+                (:name, :description, :route_prefix, :access_level, :handler, NULL, NULL, 0, :is_active, :sort_order, :show_in_header, :show_on_home)'
+        );
+
+        $activated = [];
+        foreach ($package['modules'] as $module) {
+            if (!is_array($module)) {
+                continue;
+            }
+
+            $directory = trim((string) ($module['directory'] ?? ''));
+            $routePrefix = trim((string) ($module['route_prefix'] ?? ''), '/');
+            if ($directory === '' || $routePrefix === '' || !isset($nativeModules[$routePrefix])) {
+                continue;
+            }
+            if ($this->routePrefixExists($routePrefix, 0)) {
+                continue;
+            }
+            if (!is_dir(rtrim($basePath, '/') . '/app/Modules/' . $directory)) {
+                continue;
+            }
+
+            $metadata = $nativeModules[$routePrefix]::metadata();
+            $isActive = !empty($module['required']) || !empty($module['default_enabled']);
+            $insert->execute([
+                'name' => (string) ($metadata['name'] ?? $module['name'] ?? ucfirst($routePrefix)),
+                'description' => $this->normalizeDiscoveredDescription((string) ($metadata['description'] ?? $module['description'] ?? '')),
+                'route_prefix' => $routePrefix,
+                'access_level' => $this->normalizeDiscoveredAccess((string) ($metadata['access_level'] ?? $module['access_level'] ?? 'admin')),
+                'handler' => 'native',
+                'is_active' => $isActive ? 1 : 0,
+                'sort_order' => $this->nextSortOrder(),
+                'show_in_header' => !empty($metadata['show_in_header']) ? 1 : 0,
+                'show_on_home' => !empty($metadata['show_on_home']) ? 1 : 0,
+            ]);
+
+            if ($isActive) {
+                $activated[] = $routePrefix;
+            }
+        }
+
+        return $activated;
+    }
+
     public function createModule(
         string $name,
         ?string $description,

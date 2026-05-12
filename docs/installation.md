@@ -11,7 +11,7 @@ Für eine normale Installation wird nur [`../install.php`](../install.php) benö
 5. Erstes Admin-Konto anlegen.
 6. Installation starten.
 
-Der Installer lädt ein geprüftes Release-Paket, prüft SHA256, entpackt sicher, schreibt `.env`, führt das Datenbankschema aus, aktiviert die ausgewählten Module und erstellt das erste Admin-Konto.
+Der Installer lädt ein geprüftes Release-Paket, prüft SHA256, entpackt sicher, schreibt `.env`, führt Core- und ausgewählte Modul-Schemas/Seeds aus, aktiviert die ausgewählten Module und erstellt das erste Admin-Konto.
 
 Nach erfolgreicher Installation versucht der Installer, die laufende `install.php` automatisch zu löschen. Wenn das nicht klappt, zeigt er einen deutlichen manuellen Löschhinweis.
 
@@ -55,11 +55,14 @@ composer install
 cp .env.example .env
 ```
 
-Danach `.env` anpassen und das Schema einspielen:
+Danach `.env` anpassen und für manuelle Installationen die benötigten Schema-Dateien einspielen. Der Bootstrap-Installer erledigt das automatisch anhand der ausgewählten Module.
 
 ```bash
-mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < app/Database/schema.sql
+mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < app/Database/schema/core.sql
+mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < app/Database/seeds/core.sql
 ```
+
+Modulschemas liegen unter `app/Modules/<Modul>/Database/schema.sql`, optionale Seeds unter `app/Modules/<Modul>/Database/seeds.sql`.
 
 Lokaler Testserver:
 

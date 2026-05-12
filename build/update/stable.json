@@ -1,20 +1,20 @@
 {
-    "latest": "0.6.1",
+    "latest": "0.7.0",
     "channel": "alpha",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.6.1/modulnest-source-0.6.1.zip",
-            "sha256": "b60a17ee1926939eaae2fe99b4dd6a6dc06c6204a605ea3b82decd2e14fb75f6",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.0/modulnest-source-0.7.0.zip",
+            "sha256": "b73ea17dbea858e91d086d141fbb4778725df87de044903a3106cb393fa09f2b",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.6.1/modulnest-bundled-0.6.1.zip",
-            "sha256": "e4af1abca8e8d25b520530872b8c1f194a04ec1f10e4c0575cb99422d0d9a0bc",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.0/modulnest-bundled-0.7.0.zip",
+            "sha256": "1e80d48974d743db36e7710dfb4a964fd61a76fb1319ec73367a3e0500348325",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.6.1",
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.7.0",
     "requires_migrations": true,
     "package_metadata": "modulnest-package.json",
     "modules": [
@@ -28,6 +28,8 @@
             "required": true,
             "default_enabled": true,
             "native": false,
+            "show_in_header": false,
+            "show_on_home": false,
             "view_dir": null
         },
         {
@@ -40,6 +42,8 @@
             "required": true,
             "default_enabled": true,
             "native": false,
+            "show_in_header": false,
+            "show_on_home": false,
             "view_dir": null
         },
         {
@@ -52,7 +56,37 @@
             "required": true,
             "default_enabled": true,
             "native": false,
+            "show_in_header": false,
+            "show_on_home": false,
             "view_dir": null
+        },
+        {
+            "directory": "User",
+            "key": "profil",
+            "name": "Profil",
+            "route_prefix": "profil",
+            "access_level": "user",
+            "description": "Benutzerprofil und Einstellungen.",
+            "required": true,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": false,
+            "view_dir": "user"
+        },
+        {
+            "directory": "Banking",
+            "key": "banking",
+            "name": "Banking",
+            "route_prefix": "banking",
+            "access_level": "user",
+            "description": "Native Banking-Übersicht.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "banking"
         },
         {
             "directory": "Dashboard",
@@ -69,6 +103,34 @@
             "view_dir": "dashboard"
         },
         {
+            "directory": "DataPortability",
+            "key": "data-portability",
+            "name": "Export / Import",
+            "route_prefix": "data-portability",
+            "access_level": "admin",
+            "description": "Moduldaten sicher zwischen ModulNest-Instanzen exportieren und importieren.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "data-portability"
+        },
+        {
+            "directory": "Logs",
+            "key": "logs",
+            "name": "Logs",
+            "route_prefix": "logs",
+            "access_level": "admin",
+            "description": "Admin-Logviewer für Modulon-Logdateien.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "logs"
+        },
+        {
             "directory": "News",
             "key": "news",
             "name": "News",
@@ -81,6 +143,20 @@
             "show_in_header": true,
             "show_on_home": true,
             "view_dir": "news"
+        },
+        {
+            "directory": "SneakPreview",
+            "key": "sneak-preview",
+            "name": "Sneak Preview",
+            "route_prefix": "sneak-preview",
+            "access_level": "public",
+            "description": "Öffentliche Sneak-Preview-Liste mit Modulon-Adminbereich.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "sneak-preview"
         },
         {
             "directory": "Systeminfo",
@@ -97,6 +173,20 @@
             "view_dir": "systeminfo"
         },
         {
+            "directory": "Tools",
+            "key": "tools",
+            "name": "Tools",
+            "route_prefix": "tools",
+            "access_level": "user",
+            "description": "Sammlung kleiner Hilfs-, Entwickler- und Admin-Werkzeuge.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "tools"
+        },
+        {
             "directory": "Updates",
             "key": "updates",
             "name": "Updates",
@@ -109,21 +199,7 @@
             "show_in_header": false,
             "show_on_home": false,
             "view_dir": null
-        },
-        {
-            "directory": "User",
-            "key": "profil",
-            "name": "Profil",
-            "route_prefix": "profil",
-            "access_level": "user",
-            "description": "Benutzerprofil und Einstellungen.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": false,
-            "view_dir": "user"
         }
     ],
-    "generated_at": "2026-05-08T21:10:07+00:00"
+    "generated_at": "2026-05-12T15:22:06+00:00"
 }
