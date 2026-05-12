@@ -104,6 +104,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
             'warnings' => [
                 $this->sensitivityNote(),
                 'Import löscht keine bestehenden Banking-Daten. Umsätze werden user-scoped über Hash, Legacy-ID oder abgeleiteten Kernfeld-Hash dedupliziert.',
+                'Wiederkehrende Regeln und Filter werden als eigene Regeln importiert. Gleiche Namen oder gleiche Filterwerte gelten nicht als Duplikate.',
             ],
             'can_import' => true,
         ];
@@ -118,12 +119,26 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
         $categoryMap = [];
         $batchMap = [];
         $ruleMap = [];
+        $details = [
+            'accounts_created' => 0,
+            'accounts_existing' => 0,
+            'categories_created' => 0,
+            'categories_existing' => 0,
+            'import_batches_created' => 0,
+            'transactions_created' => 0,
+            'transactions_skipped_duplicates' => 0,
+            'recurring_rules_created' => 0,
+            'conditions_created' => 0,
+            'conditions_skipped_missing_rule' => 0,
+            'invalid_rows_skipped' => 0,
+        ];
 
         $this->pdo->beginTransaction();
         try {
             foreach (($payload['accounts']['accounts'] ?? []) as $account) {
                 if (!is_array($account)) {
                     $skipped++;
+                    $details['invalid_rows_skipped']++;
                     continue;
                 }
                 $existing = $this->findOne('SELECT id FROM banking_accounts WHERE user_id = :user_id AND account_identifier = :identifier', [
@@ -133,6 +148,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                 if ($existing) {
                     $accountMap[(string) ($account['_export_ref'] ?? '')] = (int) $existing['id'];
                     $skipped++;
+                    $details['accounts_existing']++;
                     continue;
                 }
                 $accountMap[(string) ($account['_export_ref'] ?? '')] = $this->insert('banking_accounts', [
@@ -149,11 +165,13 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                     'updated_at' => $this->now(),
                 ]);
                 $created++;
+                $details['accounts_created']++;
             }
 
             foreach (($payload['categories']['categories'] ?? []) as $category) {
                 if (!is_array($category)) {
                     $skipped++;
+                    $details['invalid_rows_skipped']++;
                     continue;
                 }
                 $normalized = (string) ($category['normalized_name'] ?? $this->normalize((string) ($category['name'] ?? '')));
@@ -164,6 +182,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                 if ($existing) {
                     $categoryMap[(string) ($category['_export_ref'] ?? '')] = (int) $existing['id'];
                     $skipped++;
+                    $details['categories_existing']++;
                     continue;
                 }
                 $categoryMap[(string) ($category['_export_ref'] ?? '')] = $this->insert('banking_categories', [
@@ -178,11 +197,13 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                     'updated_at' => $this->now(),
                 ]);
                 $created++;
+                $details['categories_created']++;
             }
 
             foreach (($payload['transactions']['import_batches'] ?? []) as $batch) {
                 if (!is_array($batch)) {
                     $skipped++;
+                    $details['invalid_rows_skipped']++;
                     continue;
                 }
                 $batchMap[(string) ($batch['_export_ref'] ?? '')] = $this->insert('banking_import_batches', [
@@ -204,11 +225,13 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                     'updated_at' => $this->now(),
                 ]);
                 $created++;
+                $details['import_batches_created']++;
             }
 
             foreach (($payload['transactions']['transactions'] ?? []) as $transaction) {
                 if (!is_array($transaction)) {
                     $skipped++;
+                    $details['invalid_rows_skipped']++;
                     continue;
                 }
                 $hash = trim((string) ($transaction['transaction_hash'] ?? ''));
@@ -217,6 +240,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                 }
                 if ($this->transactionExists($targetUserId, $transaction, $hash)) {
                     $skipped++;
+                    $details['transactions_skipped_duplicates']++;
                     continue;
                 }
                 $this->insert('banking_transactions', [
@@ -244,17 +268,13 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                     'updated_at' => $this->now(),
                 ]);
                 $created++;
+                $details['transactions_created']++;
             }
 
             foreach (($payload['recurring']['rules'] ?? []) as $rule) {
                 if (!is_array($rule)) {
                     $skipped++;
-                    continue;
-                }
-                $existing = $this->findRecurringRule($targetUserId, $rule);
-                if ($existing) {
-                    $ruleMap[(string) ($rule['_export_ref'] ?? '')] = (int) $existing['id'];
-                    $skipped++;
+                    $details['invalid_rows_skipped']++;
                     continue;
                 }
                 $ruleMap[(string) ($rule['_export_ref'] ?? '')] = $this->insert('banking_recurring_rules', [
@@ -279,16 +299,18 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                     'updated_at' => $this->now(),
                 ]);
                 $created++;
+                $details['recurring_rules_created']++;
             }
 
             foreach (($payload['recurring']['conditions'] ?? []) as $condition) {
                 $ruleId = is_array($condition) ? ($ruleMap[(string) ($condition['_rule_ref'] ?? '')] ?? null) : null;
                 if (!is_array($condition) || !$ruleId) {
                     $skipped++;
-                    continue;
-                }
-                if ($this->conditionExists($ruleId, $condition)) {
-                    $skipped++;
+                    if (is_array($condition)) {
+                        $details['conditions_skipped_missing_rule']++;
+                    } else {
+                        $details['invalid_rows_skipped']++;
+                    }
                     continue;
                 }
                 $this->insert('banking_recurring_rule_conditions', [
@@ -303,6 +325,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
                     'created_at' => $this->now(),
                 ]);
                 $created++;
+                $details['conditions_created']++;
             }
 
             $this->pdo->commit();
@@ -311,7 +334,14 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
             throw $throwable;
         }
 
-        return ['created' => $created, 'updated' => $updated, 'skipped' => $skipped, 'warnings' => []];
+        return [
+            'created' => $created,
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'details' => $details,
+            'summary' => $this->summary($details),
+            'warnings' => [],
+        ];
     }
 
     /**
@@ -471,40 +501,6 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
         ]));
     }
 
-    private function findRecurringRule(int $userId, array $rule): ?array
-    {
-        $legacyId = $this->nullable($rule['legacy_id'] ?? null);
-        if ($legacyId !== null) {
-            $existing = $this->findOne('SELECT id FROM banking_recurring_rules WHERE user_id = :user_id AND legacy_id = :legacy_id', ['user_id' => $userId, 'legacy_id' => $legacyId]);
-            if ($existing) {
-                return $existing;
-            }
-        }
-
-        return $this->findOne(
-            'SELECT id FROM banking_recurring_rules WHERE user_id = :user_id AND name = :name AND interval_type = :interval_type AND COALESCE(group_label, "") = :group_label',
-            [
-                'user_id' => $userId,
-                'name' => (string) ($rule['name'] ?? ''),
-                'interval_type' => (string) ($rule['interval_type'] ?? 'monthly'),
-                'group_label' => (string) ($rule['group_label'] ?? ''),
-            ]
-        );
-    }
-
-    private function conditionExists(int $ruleId, array $condition): bool
-    {
-        return $this->findOne(
-            'SELECT id FROM banking_recurring_rule_conditions WHERE recurring_rule_id = :rule_id AND field = :field AND operator = :operator AND value = :value',
-            [
-                'rule_id' => $ruleId,
-                'field' => (string) ($condition['field'] ?? $condition['field_name'] ?? ''),
-                'operator' => (string) ($condition['operator'] ?? ''),
-                'value' => (string) ($condition['value'] ?? ''),
-            ]
-        ) !== null;
-    }
-
     private function availableLegacyId(string $table, int $userId, mixed $legacyId): mixed
     {
         if ($legacyId === null || $legacyId === '') {
@@ -553,5 +549,28 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
     private function now(): string
     {
         return gmdate('Y-m-d H:i:s');
+    }
+
+    /**
+     * @param array<string,int> $details
+     */
+    private function summary(array $details): string
+    {
+        $parts = [
+            'Konten neu ' . $details['accounts_created'] . ', bestehend ' . $details['accounts_existing'],
+            'Kategorien neu ' . $details['categories_created'] . ', bestehend ' . $details['categories_existing'],
+            'Buchungen neu ' . $details['transactions_created'] . ', Duplikate übersprungen ' . $details['transactions_skipped_duplicates'],
+            'Regeln neu ' . $details['recurring_rules_created'],
+            'Filter/Bedingungen neu ' . $details['conditions_created'],
+        ];
+
+        if ($details['conditions_skipped_missing_rule'] > 0) {
+            $parts[] = 'Filter ohne Regel übersprungen ' . $details['conditions_skipped_missing_rule'];
+        }
+        if ($details['invalid_rows_skipped'] > 0) {
+            $parts[] = 'ungültige Zeilen übersprungen ' . $details['invalid_rows_skipped'];
+        }
+
+        return implode(', ', $parts);
     }
 }

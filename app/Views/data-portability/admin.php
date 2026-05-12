@@ -10,6 +10,19 @@ $providerCount = count($providers);
 $previewModules = is_array($preview['modules'] ?? null) ? $preview['modules'] : [];
 $targetUserLabel = (string) ($targetUser['display_name'] ?? $targetUser['email'] ?? 'aktueller Admin-User');
 $targetUserId = (int) ($targetUser['id'] ?? 0);
+$countLabel = static fn (string $name): string => [
+    'accounts' => 'Konten',
+    'categories' => 'Kategorien',
+    'transactions' => 'Buchungen',
+    'recurring_rules' => 'Regeln',
+    'conditions' => 'Filter',
+    'entries' => 'Einträge',
+    'settings' => 'Einstellungen',
+    'files' => 'Dateien',
+    'new' => 'neu',
+    'update' => 'aktualisieren',
+    'invalid' => 'ungültig',
+][strtolower($name)] ?? $name;
 ?>
 <section class="app-card data-portability-hero p-4 mb-4">
     <div class="d-flex flex-column flex-xl-row justify-content-between gap-4">
@@ -219,7 +232,7 @@ $targetUserId = (int) ($targetUser['id'] ?? 0);
                                 <?php else: ?>
                                     <div class="d-flex flex-wrap gap-1">
                                         <?php foreach ($counts as $name => $count): ?>
-                                            <span class="badge text-bg-secondary"><?= $e($name) ?>: <?= (int) $count ?></span>
+                                            <span class="badge text-bg-secondary"><?= $e($countLabel((string) $name)) ?>: <?= (int) $count ?></span>
                                         <?php endforeach; ?>
                                     </div>
                                 <?php endif; ?>
@@ -240,6 +253,17 @@ $targetUserId = (int) ($targetUser['id'] ?? 0);
                     <?php endforeach; ?>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="data-portability-preview-action mt-4">
+                <div>
+                    <h3 class="h6 mb-1">Import bereit</h3>
+                    <p class="text-body-secondary small mb-0">Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen. Bestehende Daten werden nicht gelöscht.</p>
+                </div>
+                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                    <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                    <button class="btn btn-danger" type="submit">Import ausführen</button>
+                </form>
             </div>
         </div>
     </section>

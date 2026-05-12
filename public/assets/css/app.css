@@ -1156,6 +1156,18 @@ body.is-mail-resizing {
     padding: 0.9rem;
 }
 
+.data-portability-preview-action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--bs-success) 48%, var(--app-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--app-surface-2) 82%, var(--bs-success) 10%);
+}
+
 @media (max-width: 575.98px) {
     .data-portability-info-grid {
         grid-template-columns: 1fr;

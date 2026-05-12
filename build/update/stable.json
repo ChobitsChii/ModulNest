@@ -1,20 +1,20 @@
 {
-    "latest": "0.7.2",
+    "latest": "0.7.3",
     "channel": "alpha",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.2/modulnest-source-0.7.2.zip",
-            "sha256": "d32e64956514453f1d188b5259ccc0d713c6c6aeecfd8264aa683a8d7b8bdc04",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.3/modulnest-source-0.7.3.zip",
+            "sha256": "c241c4111f611d9e605d50d972fb9939e6fe03e6b2e2990a7383165decb2c0c2",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.2/modulnest-bundled-0.7.2.zip",
-            "sha256": "ceb4b70ab4f0eda2d7d80e609edfdd3782a974c04672e747bff7ded9df17ae5b",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.3/modulnest-bundled-0.7.3.zip",
+            "sha256": "18447fa0af546a1a54d1d596c01ffdd4ab4e141fc2a43185c9b83831e95b57fd",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.7.2",
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.7.3",
     "requires_migrations": true,
     "package_metadata": "modulnest-package.json",
     "modules": [
@@ -75,20 +75,6 @@
             "view_dir": "user"
         },
         {
-            "directory": "Banking",
-            "key": "banking",
-            "name": "Banking",
-            "route_prefix": "banking",
-            "access_level": "user",
-            "description": "Native Banking-Übersicht.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": true,
-            "view_dir": "banking"
-        },
-        {
             "directory": "Dashboard",
             "key": "dashboard",
             "name": "Dashboard",
@@ -117,20 +103,6 @@
             "view_dir": "data-portability"
         },
         {
-            "directory": "Logs",
-            "key": "logs",
-            "name": "Logs",
-            "route_prefix": "logs",
-            "access_level": "admin",
-            "description": "Admin-Logviewer für Modulon-Logdateien.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": false,
-            "show_on_home": false,
-            "view_dir": "logs"
-        },
-        {
             "directory": "News",
             "key": "news",
             "name": "News",
@@ -143,20 +115,6 @@
             "show_in_header": true,
             "show_on_home": true,
             "view_dir": "news"
-        },
-        {
-            "directory": "SneakPreview",
-            "key": "sneak-preview",
-            "name": "Sneak Preview",
-            "route_prefix": "sneak-preview",
-            "access_level": "public",
-            "description": "Öffentliche Sneak-Preview-Liste mit Modulon-Adminbereich.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": true,
-            "view_dir": "sneak-preview"
         },
         {
             "directory": "Systeminfo",
@@ -173,6 +131,48 @@
             "view_dir": "systeminfo"
         },
         {
+            "directory": "Updates",
+            "key": "updates",
+            "name": "Updates",
+            "route_prefix": "updates",
+            "access_level": "admin",
+            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": null
+        },
+        {
+            "directory": "Banking",
+            "key": "banking",
+            "name": "Banking",
+            "route_prefix": "banking",
+            "access_level": "user",
+            "description": "Native Banking-Übersicht.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "banking"
+        },
+        {
+            "directory": "SneakPreview",
+            "key": "sneak-preview",
+            "name": "Sneak Preview",
+            "route_prefix": "sneak-preview",
+            "access_level": "public",
+            "description": "Öffentliche Sneak-Preview-Liste mit Modulon-Adminbereich.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "sneak-preview"
+        },
+        {
             "directory": "Tools",
             "key": "tools",
             "name": "Tools",
@@ -187,19 +187,19 @@
             "view_dir": "tools"
         },
         {
-            "directory": "Updates",
-            "key": "updates",
-            "name": "Updates",
-            "route_prefix": "updates",
+            "directory": "Logs",
+            "key": "logs",
+            "name": "Logs",
+            "route_prefix": "logs",
             "access_level": "admin",
-            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
+            "description": "Admin-Logviewer für Modulon-Logdateien.",
             "required": false,
             "default_enabled": true,
             "native": true,
             "show_in_header": false,
             "show_on_home": false,
-            "view_dir": null
+            "view_dir": "logs"
         }
     ],
-    "generated_at": "2026-05-12T21:35:05+00:00"
+    "generated_at": "2026-05-12T23:52:10+00:00"
 }

@@ -27,6 +27,14 @@ $dataPortabilityCsrfToken = (string) ($data_portability_csrf_token ?? '');
 $dataPortabilityTargetUser = is_array($data_portability_target_user ?? null) ? $data_portability_target_user : $profileUser;
 $dataPortabilityTargetLabel = (string) ($dataPortabilityTargetUser['display_name'] ?? $dataPortabilityTargetUser['name'] ?? $dataPortabilityTargetUser['email'] ?? 'aktueller Benutzer');
 $dataPortabilityPreviewModules = is_array($dataPortabilityPreview['modules'] ?? null) ? $dataPortabilityPreview['modules'] : [];
+$dataPortabilityCountLabel = static fn (string $name): string => [
+    'accounts' => 'Konten',
+    'categories' => 'Kategorien',
+    'transactions' => 'Buchungen',
+    'recurring_rules' => 'Regeln',
+    'conditions' => 'Filter',
+    'items' => 'Einträge',
+][strtolower($name)] ?? $name;
 $totpEnabled = (bool) ($totp_enabled ?? false);
 $webauthnEnabled = (bool) ($webauthn_enabled ?? false);
 $pendingTotp = is_array($pending_totp ?? null) ? $pending_totp : null;
@@ -510,7 +518,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                         <?php else: ?>
                                             <div class="d-flex flex-wrap gap-1">
                                                 <?php foreach ($counts as $name => $count): ?>
-                                                    <span class="badge text-bg-secondary"><?= htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8') ?>: <?= (int) $count ?></span>
+                                                    <span class="badge text-bg-secondary"><?= htmlspecialchars($dataPortabilityCountLabel((string) $name), ENT_QUOTES, 'UTF-8') ?>: <?= (int) $count ?></span>
                                                 <?php endforeach; ?>
                                             </div>
                                         <?php endif; ?>
@@ -532,6 +540,16 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         <?php endif; ?>
                         </tbody>
                     </table>
+                </div>
+                <div class="data-portability-preview-action mt-4">
+                    <div>
+                        <h3 class="h6 mb-1">Import bereit</h3>
+                        <p class="text-body-secondary small mb-0">Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen. Bestehende Daten werden nicht gelöscht.</p>
+                    </div>
+                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <button class="btn btn-danger" type="submit">Import ausführen</button>
+                    </form>
                 </div>
             </div>
         </section>

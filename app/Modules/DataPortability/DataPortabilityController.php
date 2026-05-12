@@ -96,6 +96,11 @@ final class DataPortabilityController
 
     public function previewImport(Request $request): Response
     {
+        $oversizedPostMessage = $this->oversizedPostMessage();
+        if ($oversizedPostMessage !== null) {
+            return $this->redirectError($oversizedPostMessage, '/admin/data-portability', 'data_portability_error');
+        }
+
         if (!$this->validToken((string) $request->input('csrf_token', ''))) {
             return $this->redirectError('Ungültiger Sicherheits-Token.', '/admin/data-portability', 'data_portability_error');
         }
@@ -121,6 +126,11 @@ final class DataPortabilityController
 
     public function userPreviewImport(Request $request): Response
     {
+        $oversizedPostMessage = $this->oversizedPostMessage();
+        if ($oversizedPostMessage !== null) {
+            return $this->redirectError($oversizedPostMessage, '/profil/data-portability', 'data_portability_user_error');
+        }
+
         if (!$this->validToken((string) $request->input('csrf_token', ''))) {
             return $this->redirectError('Ungültiger Sicherheits-Token.', '/profil/data-portability', 'data_portability_user_error');
         }
@@ -162,16 +172,7 @@ final class DataPortabilityController
             $this->session->remove(self::ADMIN_IMPORT_TOKEN_KEY);
             $this->session->remove(self::ADMIN_PREVIEW_KEY);
 
-            $parts = [];
-            foreach (($result['results'] ?? []) as $key => $stats) {
-                if (!is_array($stats)) {
-                    continue;
-                }
-                $parts[] = $key . ': neu ' . (int) ($stats['created'] ?? 0)
-                    . ', aktualisiert ' . (int) ($stats['updated'] ?? 0)
-                    . ', übersprungen ' . (int) ($stats['skipped'] ?? 0);
-            }
-            $this->session->flash('data_portability_info', 'Import abgeschlossen. ' . implode(' · ', $parts));
+            $this->session->flash('data_portability_info', 'Import abgeschlossen. ' . $this->formatResultParts($result));
         } catch (Throwable $exception) {
             $this->session->flash('data_portability_error', $exception->getMessage());
         }
@@ -243,6 +244,11 @@ final class DataPortabilityController
             if (!is_array($stats)) {
                 continue;
             }
+            $summary = trim((string) ($stats['summary'] ?? ''));
+            if ($summary !== '') {
+                $parts[] = $key . ': ' . $summary;
+                continue;
+            }
             $parts[] = $key . ': neu ' . (int) ($stats['created'] ?? 0)
                 . ', aktualisiert ' . (int) ($stats['updated'] ?? 0)
                 . ', übersprungen ' . (int) ($stats['skipped'] ?? 0);
@@ -307,5 +313,64 @@ final class DataPortabilityController
         $token = $this->session->get(self::TOKEN_KEY);
 
         return is_string($token) && $token !== '' && hash_equals($token, $submitted);
+    }
+
+    private function oversizedPostMessage(): ?string
+    {
+        $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+
+        return self::buildOversizedPostMessage(
+            $contentLength,
+            (string) ini_get('post_max_size'),
+            (string) ini_get('upload_max_filesize')
+        );
+    }
+
+    private static function buildOversizedPostMessage(int $contentLength, string $postMaxSize, string $uploadMaxFilesize): ?string
+    {
+        $postMaxBytes = self::phpSizeToBytes($postMaxSize);
+        if ($contentLength <= 0 || $postMaxBytes <= 0 || $contentLength <= $postMaxBytes) {
+            return null;
+        }
+
+        $uploadMaxBytes = self::phpSizeToBytes($uploadMaxFilesize);
+        $uploadText = $uploadMaxBytes > 0 ? self::formatBytes($uploadMaxBytes) : trim($uploadMaxFilesize);
+
+        return 'Die hochgeladene Datei ist zu groß für die aktuelle Serverkonfiguration. Der Server erlaubt aktuell maximal '
+            . self::formatBytes($postMaxBytes)
+            . ' POST-Daten. upload_max_filesize ist aktuell '
+            . $uploadText
+            . '. Bitte post_max_size und upload_max_filesize erhöhen oder eine kleinere ZIP-Datei verwenden.';
+    }
+
+    private static function phpSizeToBytes(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return 0;
+        }
+        $unit = strtolower(substr($value, -1));
+        $number = (float) $value;
+        return match ($unit) {
+            'g' => (int) ($number * 1024 * 1024 * 1024),
+            'm' => (int) ($number * 1024 * 1024),
+            'k' => (int) ($number * 1024),
+            default => (int) $number,
+        };
+    }
+
+    private static function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1024 * 1024 * 1024) {
+            return str_replace('.', ',', rtrim(rtrim(number_format($bytes / (1024 * 1024 * 1024), 1, '.', ''), '0'), '.')) . ' GB';
+        }
+        if ($bytes >= 1024 * 1024) {
+            return str_replace('.', ',', rtrim(rtrim(number_format($bytes / (1024 * 1024), 1, '.', ''), '0'), '.')) . ' MB';
+        }
+        if ($bytes >= 1024) {
+            return str_replace('.', ',', rtrim(rtrim(number_format($bytes / 1024, 1, '.', ''), '0'), '.')) . ' KB';
+        }
+
+        return $bytes . ' Bytes';
     }
 }

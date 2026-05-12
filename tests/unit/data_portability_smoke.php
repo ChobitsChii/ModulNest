@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Modulon\Modules\DataPortability\DataPortabilityArchiveReader;
+use Modulon\Modules\DataPortability\DataPortabilityController;
 use Modulon\Modules\DataPortability\DataPortabilityFileCollector;
 use Modulon\Modules\DataPortability\DataPortabilityProviderInterface;
 use Modulon\Modules\DataPortability\DataPortabilityService;
+use Modulon\Modules\DataPortability\Providers\BankingDataPortabilityProvider;
 use Modulon\Modules\DataPortability\Providers\NewsDataPortabilityProvider;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -239,7 +241,101 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     assert_true(($newsCounts['update'] ?? null) === 1, 'News-Preview erkennt Updates nicht.');
     assert_true(($newsCounts['invalid'] ?? null) === 1, 'News-Preview erkennt ungültige Einträge nicht.');
     assert_true($newsService->previewArchive($newsImport, 1, 'user')['modules'] === [], 'News erscheint in User-Preview.');
+
+    $bankingPdo = new PDO('sqlite::memory:');
+    $bankingPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $bankingPdo->exec('CREATE TABLE banking_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, migration_run_id INTEGER NULL,
+        legacy_account_key TEXT NULL, account_identifier TEXT NOT NULL, display_name TEXT NOT NULL,
+        iban TEXT NULL, bic TEXT NULL, currency TEXT NOT NULL, is_active INTEGER NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )');
+    $bankingPdo->exec('CREATE TABLE banking_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, migration_run_id INTEGER NULL,
+        name TEXT NOT NULL, normalized_name TEXT NOT NULL, color TEXT NULL, sort_order INTEGER NOT NULL,
+        is_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )');
+    $bankingPdo->exec('CREATE TABLE banking_import_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, account_id INTEGER NULL, migration_run_id INTEGER NULL,
+        source_type TEXT NOT NULL, original_filename TEXT NULL, file_sha256 TEXT NULL, status TEXT NOT NULL,
+        imported_count INTEGER NOT NULL, updated_count INTEGER NOT NULL, skipped_count INTEGER NOT NULL, error_count INTEGER NOT NULL,
+        error_summary TEXT NULL, started_at TEXT NULL, finished_at TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )');
+    $bankingPdo->exec('CREATE TABLE banking_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, account_id INTEGER NULL, category_id INTEGER NULL,
+        import_batch_id INTEGER NULL, booking_date TEXT NULL, value_date TEXT NULL, booking_text TEXT NOT NULL,
+        purpose TEXT NOT NULL, counterparty_name TEXT NULL, counterparty_iban TEXT NULL, counterparty_bic TEXT NULL,
+        amount TEXT NOT NULL, currency TEXT NOT NULL, raw_info TEXT NULL, legacy_category_name TEXT NULL,
+        transaction_hash TEXT NOT NULL, booking_status TEXT NOT NULL, legacy_id INTEGER NULL, migration_run_id INTEGER NULL,
+        legacy_created_at TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )');
+    $bankingPdo->exec('CREATE TABLE banking_recurring_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, account_id INTEGER NULL, category_id INTEGER NULL,
+        migration_run_id INTEGER NULL, legacy_id INTEGER NULL, name TEXT NOT NULL, interval_type TEXT NOT NULL,
+        notes TEXT NULL, rule_type TEXT NULL, group_label TEXT NULL, active_from TEXT NULL, active_to TEXT NULL,
+        period_mode TEXT NULL, due_day TEXT NULL, is_active INTEGER NOT NULL, legacy_created_at TEXT NULL,
+        legacy_updated_at TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )');
+    $bankingPdo->exec('CREATE TABLE banking_recurring_rule_conditions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, recurring_rule_id INTEGER NOT NULL,
+        migration_run_id INTEGER NULL, legacy_id INTEGER NULL, field TEXT NOT NULL, operator TEXT NOT NULL,
+        value TEXT NOT NULL, legacy_created_at TEXT NULL, created_at TEXT NOT NULL
+    )');
+
+    $bankingPdo->exec("INSERT INTO banking_accounts (user_id, migration_run_id, legacy_account_key, account_identifier, display_name, iban, bic, currency, is_active, created_at, updated_at)
+        VALUES (1, NULL, 'legacy-main', 'DEMO-ACCOUNT', 'Demo Konto', NULL, NULL, 'EUR', 1, '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $bankingPdo->exec("INSERT INTO banking_categories (user_id, migration_run_id, name, normalized_name, color, sort_order, is_active, created_at, updated_at)
+        VALUES (1, NULL, 'Miete', 'miete', '#abcdef', 1, 1, '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $bankingPdo->exec("INSERT INTO banking_import_batches (user_id, account_id, migration_run_id, source_type, original_filename, file_sha256, status, imported_count, updated_count, skipped_count, error_count, error_summary, started_at, finished_at, created_at, updated_at)
+        VALUES (1, 1, NULL, 'csv', 'demo.csv', 'abc', 'completed', 1, 0, 0, 0, NULL, '2026-05-01 00:00:00', '2026-05-01 00:00:00', '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $bankingPdo->exec("INSERT INTO banking_transactions (user_id, account_id, category_id, import_batch_id, booking_date, value_date, booking_text, purpose, counterparty_name, counterparty_iban, counterparty_bic, amount, currency, raw_info, legacy_category_name, transaction_hash, booking_status, legacy_id, migration_run_id, legacy_created_at, created_at, updated_at)
+        VALUES (1, 1, 1, 1, '2026-05-02', '2026-05-02', 'Dauerauftrag', 'Miete Mai', 'Vermieter', NULL, NULL, '-800.00', 'EUR', NULL, 'Miete', 'hash-demo-transaction', 'gebucht', 501, NULL, NULL, '2026-05-02 00:00:00', '2026-05-02 00:00:00')");
+    $bankingPdo->exec("INSERT INTO banking_recurring_rules (user_id, account_id, category_id, migration_run_id, legacy_id, name, interval_type, notes, rule_type, group_label, active_from, active_to, period_mode, due_day, is_active, legacy_created_at, legacy_updated_at, created_at, updated_at)
+        VALUES
+        (1, 1, 1, NULL, 701, 'Miete', 'monthly', 'erste Regel', 'expense', 'Wohnen', '2026-01-01', NULL, 'fixed', '3', 1, NULL, NULL, '2026-05-01 00:00:00', '2026-05-01 00:00:00'),
+        (1, 1, 1, NULL, 702, 'Miete', 'monthly', 'zweite Regel gleicher Name', 'expense', 'Wohnen', '2026-01-01', NULL, 'fixed', '3', 1, NULL, NULL, '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $bankingPdo->exec("INSERT INTO banking_recurring_rule_conditions (user_id, recurring_rule_id, migration_run_id, legacy_id, field, operator, value, legacy_created_at, created_at)
+        VALUES
+        (1, 1, NULL, 801, 'purpose', 'contains', 'Miete', NULL, '2026-05-01 00:00:00'),
+        (1, 2, NULL, 802, 'purpose', 'contains', 'Miete', NULL, '2026-05-01 00:00:00')");
+
+    $bankingProvider = new BankingDataPortabilityProvider($bankingPdo);
+    $bankingService = new DataPortabilityService($base, '9.9.9', ['banking' => $bankingProvider]);
+    $bankingExport = $bankingService->createExport(['banking'], 1, 'user');
+    $bankingZip = new ZipArchive();
+    assert_true($bankingZip->open($bankingExport['path']) === true, 'Banking-Export-ZIP kann nicht geöffnet werden.');
+    $recurringPayload = json_decode((string) $bankingZip->getFromName('modules/banking/recurring.json'), true);
+    $bankingZip->close();
+    assert_true(count($recurringPayload['rules'] ?? []) === 2, 'Banking-Export enthält nicht alle wiederkehrenden Regeln.');
+    assert_true(count($recurringPayload['conditions'] ?? []) === 2, 'Banking-Export enthält nicht alle Filter/Bedingungen.');
+
+    $bankingPreview = $bankingService->previewArchive($bankingExport['path'], 2, 'user');
+    $bankingPreviewCounts = $bankingPreview['modules'][0]['counts'] ?? [];
+    assert_true(($bankingPreviewCounts['recurring_rules'] ?? null) === 2, 'Banking-Preview zählt Regeln falsch.');
+    assert_true(($bankingPreviewCounts['conditions'] ?? null) === 2, 'Banking-Preview zählt Filter/Bedingungen falsch.');
+
+    $bankingImport = $bankingService->importArchive($bankingExport['path'], 2, 'user');
+    $bankingStats = $bankingImport['results']['banking'] ?? [];
+    assert_true(($bankingStats['details']['recurring_rules_created'] ?? null) === 2, 'Banking-Import legt gleichnamige Regeln nicht vollständig neu an.');
+    assert_true(($bankingStats['details']['conditions_created'] ?? null) === 2, 'Banking-Import legt Filter/Bedingungen nicht vollständig an.');
+    assert_true(str_contains((string) ($bankingStats['summary'] ?? ''), 'Regeln neu 2'), 'Banking-Import liefert keine klare Regel-Zusammenfassung.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rules WHERE user_id = 2')->fetchColumn() === 2, 'Zieluser hat nicht alle Regeln.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rule_conditions WHERE user_id = 2')->fetchColumn() === 2, 'Zieluser hat nicht alle Filter/Bedingungen.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(DISTINCT recurring_rule_id) FROM banking_recurring_rule_conditions WHERE user_id = 2')->fetchColumn() === 2, 'Filter/Bedingungen wurden nicht den jeweils importierten Regeln zugeordnet.');
+
+    $bankingSecondImport = $bankingService->importArchive($bankingExport['path'], 2, 'user');
+    $bankingSecondStats = $bankingSecondImport['results']['banking'] ?? [];
+    assert_true(($bankingSecondStats['details']['transactions_skipped_duplicates'] ?? 0) >= 1, 'Banking-Import dedupliziert Buchungen nicht mehr.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_transactions WHERE user_id = 2')->fetchColumn() === 1, 'Buchungs-Deduplizierung erzeugt Duplikate.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rules WHERE user_id = 2')->fetchColumn() === 4, 'Wiederholter Import darf gleichnamige Regeln nicht deduplizieren.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rule_conditions WHERE user_id = 2')->fetchColumn() === 4, 'Wiederholter Import darf gleiche Filter/Bedingungen nicht deduplizieren.');
 }
+
+$controllerReflection = new ReflectionClass(DataPortabilityController::class);
+$oversizedMethod = $controllerReflection->getMethod('buildOversizedPostMessage');
+$oversizedMethod->setAccessible(true);
+assert_true(is_string($oversizedMethod->invoke(null, 2 * 1024 * 1024, '1M', '512K')), 'Überschreitung von post_max_size wird nicht erkannt.');
+assert_true($oversizedMethod->invoke(null, 512 * 1024, '1M', '512K') === null, 'Normale Upload-Größe wird fälschlich als zu groß erkannt.');
 
 $invalid = $base . '/invalid.zip';
 $zip = new ZipArchive();

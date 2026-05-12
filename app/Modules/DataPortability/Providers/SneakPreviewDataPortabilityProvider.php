@@ -114,8 +114,10 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
     public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
     {
         $data = is_array($payload['entries'] ?? null) ? $payload['entries'] : [];
-        $created = 0;
-        $updated = 0;
+        $entriesCreated = 0;
+        $entriesUpdated = 0;
+        $settingsUpdated = 0;
+        $filesImported = 0;
         $skipped = 0;
 
         $this->pdo->beginTransaction();
@@ -126,7 +128,7 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
                     continue;
                 }
                 $this->upsertSetting((string) $setting['setting_key'], (string) ($setting['setting_value'] ?? ''));
-                $updated++;
+                $settingsUpdated++;
             }
 
             foreach (($data['entries'] ?? []) as $entry) {
@@ -158,11 +160,14 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
                 if ($existing) {
                     $row['id'] = (int) $existing['id'];
                     $this->updateEntry($row);
-                    $updated++;
+                    $entriesUpdated++;
                 } else {
                     $row['created_by'] = $targetUserId;
                     $this->insertEntry($row);
-                    $created++;
+                    $entriesCreated++;
+                }
+                if ($posterPath !== null && isset($entry['poster_export_file'])) {
+                    $filesImported++;
                 }
             }
 
@@ -172,7 +177,23 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
             throw $throwable;
         }
 
-        return ['created' => $created, 'updated' => $updated, 'skipped' => $skipped, 'warnings' => []];
+        return [
+            'created' => $entriesCreated,
+            'updated' => $entriesUpdated + $settingsUpdated,
+            'skipped' => $skipped,
+            'details' => [
+                'entries_created' => $entriesCreated,
+                'entries_updated' => $entriesUpdated,
+                'settings_updated' => $settingsUpdated,
+                'files_imported' => $filesImported,
+            ],
+            'summary' => 'Einträge neu ' . $entriesCreated
+                . ', Einträge aktualisiert ' . $entriesUpdated
+                . ', Einstellungen aktualisiert ' . $settingsUpdated
+                . ', Dateien importiert ' . $filesImported
+                . ', übersprungen ' . $skipped,
+            'warnings' => [],
+        ];
     }
 
     private function importPoster(array $entry, DataPortabilityArchiveReader $archive): ?string

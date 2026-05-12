@@ -391,7 +391,7 @@ write_package_metadata() {
         $target = $argv[1];
         $core = array_values(array_filter(explode(",", $argv[2])));
         $selected = array_values(array_filter(explode(",", $argv[3])));
-        $version = "0.7.2";
+        $version = "0.7.3";
         if (is_file("app/Core/Env.php") && is_file("app/Config/version.php")) {
             require_once "app/Core/Env.php";
             $config = require "app/Config/version.php";
