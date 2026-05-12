@@ -145,5 +145,6 @@ $slug = static fn (string $value): string => strtolower(strtr($value, ['ä' => '
     <?php endforeach; ?>
 </div>
 
-<script src="/assets/vendor/qrcode-generator/qrcode.min.js"></script>
-<script src="/assets/js/tools.js"></script>
+<?php $assetVersion = rawurlencode((string) ($app_version ?? '')); ?>
+<script src="/assets/vendor/qrcode-generator/qrcode.min.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>
+<script src="/assets/js/tools.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>

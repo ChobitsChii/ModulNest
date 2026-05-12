@@ -268,4 +268,5 @@ $formatBytes = static function (int $bytes): string {
     </div>
 </section>
 
-<script src="/assets/js/tools.js"></script>
+<?php $assetVersion = rawurlencode((string) ($app_version ?? '')); ?>
+<script src="/assets/js/tools.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>

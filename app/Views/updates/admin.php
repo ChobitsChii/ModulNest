@@ -150,7 +150,7 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                         <button class="btn btn-danger" type="submit">Vorbereitetes Update installieren</button>
                     </form>
                     <?php if (!empty($prepared['requires_migrations'])): ?>
-                        <p class="text-body-secondary small mt-3 mb-0">Dieses Release meldet mögliche Datenbankänderungen. Verfügbare sichere Migrationen werden während der Installation ausgeführt.</p>
+                        <p class="text-body-secondary small mt-3 mb-0">Dieses Release enthält mögliche Datenbankänderungen. Automatische Migrationen werden während der Installation ausgeführt, sofern Migrationen im Paket enthalten sind.</p>
                     <?php endif; ?>
                 <?php else: ?>
                     <p class="text-body-secondary mb-0">Noch kein geprüftes Update vorbereitet.</p>
@@ -179,17 +179,30 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                             </div>
                         <?php endif; ?>
                         <div class="col-12">Backup-Pfad: <span class="text-break"><?= $e((string) ($lastInstall['backup_path'] ?? '')) ?></span></div>
-                        <?php if ((string) ($lastInstall['migration_note'] ?? '') !== ''): ?>
-                            <div class="col-12 text-body-secondary"><?= $e((string) ($lastInstall['migration_note'] ?? '')) ?></div>
-                        <?php endif; ?>
                         <?php if (is_array($lastInstall['migrations'] ?? null)): ?>
                             <?php $migrations = $lastInstall['migrations']; ?>
-                            <div class="col-12 text-body-secondary">
-                                Migrationen:
-                                <?= $e((string) count(is_array($migrations['executed'] ?? null) ? $migrations['executed'] : [])) ?> ausgeführt,
-                                <?= $e((string) count(is_array($migrations['skipped'] ?? null) ? $migrations['skipped'] : [])) ?> übersprungen,
-                                <?= $e((string) count(is_array($migrations['errors'] ?? null) ? $migrations['errors'] : [])) ?> Fehler
+                            <?php
+                            $executedMigrations = count(is_array($migrations['executed'] ?? null) ? $migrations['executed'] : []);
+                            $skippedMigrations = count(is_array($migrations['skipped'] ?? null) ? $migrations['skipped'] : []);
+                            $migrationErrors = count(is_array($migrations['errors'] ?? null) ? $migrations['errors'] : []);
+                            ?>
+                            <div class="col-12">
+                                <div class="alert <?= $migrationErrors > 0 ? 'alert-warning' : 'alert-success' ?> small mb-0" role="status">
+                                    <?php if ($migrationErrors > 0): ?>
+                                        Automatische Migrationen wurden ausgeführt, dabei wurden Fehler gemeldet. Bitte Details im Update-Log prüfen.
+                                    <?php else: ?>
+                                        Dieses Update enthielt mögliche Datenbankänderungen. Automatische Migrationen wurden ausgeführt, sofern Migrationen im Paket enthalten waren.
+                                    <?php endif; ?>
+                                    <div class="mt-1">
+                                        Migrationen:
+                                        <?= $e((string) $executedMigrations) ?> ausgeführt,
+                                        <?= $e((string) $skippedMigrations) ?> übersprungen,
+                                        <?= $e((string) $migrationErrors) ?> Fehler
+                                    </div>
+                                </div>
                             </div>
+                        <?php elseif ((string) ($lastInstall['migration_note'] ?? '') !== ''): ?>
+                            <div class="col-12 text-body-secondary"><?= $e((string) ($lastInstall['migration_note'] ?? '')) ?></div>
                         <?php endif; ?>
                     </div>
                 </div>

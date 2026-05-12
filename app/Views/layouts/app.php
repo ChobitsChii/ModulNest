@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+
+$assetVersion = rawurlencode((string) ($app_version ?? ''));
 ?>
 <!doctype html>
 <html lang="de">
@@ -9,7 +11,7 @@ declare(strict_types=1);
     <title><?= htmlspecialchars((string) ($title ?? 'Modulon'), ENT_QUOTES, 'UTF-8') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/css/app.css" rel="stylesheet">
+    <link href="/assets/css/app.css<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>" rel="stylesheet">
 </head>
 <body class="app-body">
 <?php require dirname(__DIR__) . '/partials/navbar.php'; ?>
