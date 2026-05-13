@@ -53,6 +53,11 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
         return 'Sneak-Preview-Export enthält öffentliche Filmdaten und lokale Posterdateien.';
     }
 
+    public function supportsReplaceImport(): bool
+    {
+        return true;
+    }
+
     public function scopes(): array
     {
         return ['admin'];
@@ -111,7 +116,7 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
         ];
     }
 
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array
     {
         $data = is_array($payload['entries'] ?? null) ? $payload['entries'] : [];
         $entriesCreated = 0;
@@ -119,9 +124,14 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
         $settingsUpdated = 0;
         $filesImported = 0;
         $skipped = 0;
+        $replaced = [];
 
         $this->pdo->beginTransaction();
         try {
+            if ($importMode === 'replace') {
+                $replaced = $this->clearTargetData();
+            }
+
             foreach (($data['settings'] ?? []) as $setting) {
                 if (!is_array($setting) || !isset($setting['setting_key'])) {
                     $skipped++;
@@ -181,19 +191,68 @@ final class SneakPreviewDataPortabilityProvider implements DataPortabilityProvid
             'created' => $entriesCreated,
             'updated' => $entriesUpdated + $settingsUpdated,
             'skipped' => $skipped,
+            'import_mode' => $importMode,
+            'replaced' => $replaced,
             'details' => [
                 'entries_created' => $entriesCreated,
                 'entries_updated' => $entriesUpdated,
                 'settings_updated' => $settingsUpdated,
                 'files_imported' => $filesImported,
             ],
-            'summary' => 'Einträge neu ' . $entriesCreated
+            'summary' => ($importMode === 'replace'
+                    ? 'ersetzt, gelöscht: Einträge ' . (int) ($replaced['entries'] ?? 0)
+                        . ', Einstellungen ' . (int) ($replaced['settings'] ?? 0)
+                        . ', Posterdateien ' . (int) ($replaced['poster_files'] ?? 0)
+                        . '; '
+                    : '')
+                . 'Einträge neu ' . $entriesCreated
                 . ', Einträge aktualisiert ' . $entriesUpdated
                 . ', Einstellungen aktualisiert ' . $settingsUpdated
                 . ', Dateien importiert ' . $filesImported
                 . ', übersprungen ' . $skipped,
             'warnings' => [],
         ];
+    }
+
+    /**
+     * @return array{entries:int,settings:int,poster_files:int}
+     */
+    private function clearTargetData(): array
+    {
+        $entries = (int) $this->pdo->query('SELECT COUNT(*) FROM sneak_preview_entries')->fetchColumn();
+        $settings = (int) $this->pdo->query('SELECT COUNT(*) FROM sneak_preview_settings')->fetchColumn();
+        $posterFiles = $this->clearPosterFiles();
+
+        $this->pdo->exec('DELETE FROM sneak_preview_entries');
+        $this->pdo->exec('DELETE FROM sneak_preview_settings');
+
+        return ['entries' => $entries, 'settings' => $settings, 'poster_files' => $posterFiles];
+    }
+
+    private function clearPosterFiles(): int
+    {
+        $directory = rtrim($this->basePath, '/') . '/public/assets/sneak-preview/posters';
+        $root = realpath($directory);
+        if ($root === false || !is_dir($root)) {
+            return 0;
+        }
+
+        $deleted = 0;
+        foreach (new \DirectoryIterator($root) as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+            $extension = strtolower($file->getExtension());
+            if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                continue;
+            }
+            $path = $file->getPathname();
+            if (str_starts_with((string) realpath($path), $root) && @unlink($path)) {
+                $deleted++;
+            }
+        }
+
+        return $deleted;
     }
 
     private function importPoster(array $entry, DataPortabilityArchiveReader $archive): ?string

@@ -60,6 +60,11 @@ final class NewsDataPortabilityProvider implements DataPortabilityProviderInterf
         return 'News-Export enthält veröffentlichte Inhaltsdaten und Markdown-Quelltext.';
     }
 
+    public function supportsReplaceImport(): bool
+    {
+        return true;
+    }
+
     public function scopes(): array
     {
         return ['admin'];
@@ -93,7 +98,7 @@ final class NewsDataPortabilityProvider implements DataPortabilityProviderInterf
         $created = 0;
         $updated = 0;
         $invalid = 0;
-        $warnings = [$this->sensitivityNote()];
+        $warnings = [$this->sensitivityNote(), 'Standardmodus: vorhandene Slugs werden aktualisiert, neue News werden angelegt.'];
 
         foreach ($entries as $entry) {
             if (!is_array($entry)) {
@@ -128,15 +133,20 @@ final class NewsDataPortabilityProvider implements DataPortabilityProviderInterf
         ];
     }
 
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array
     {
         $created = 0;
         $updated = 0;
         $skipped = 0;
         $warnings = [];
+        $replaced = [];
 
         $this->pdo->beginTransaction();
         try {
+            if ($importMode === 'replace') {
+                $replaced = $this->clearTargetData();
+            }
+
             foreach ($this->entriesFromPayload($payload) as $entry) {
                 if (!is_array($entry)) {
                     $skipped++;
@@ -175,8 +185,23 @@ final class NewsDataPortabilityProvider implements DataPortabilityProviderInterf
             'created' => $created,
             'updated' => $updated,
             'skipped' => $skipped,
+            'import_mode' => $importMode,
+            'replaced' => $replaced,
+            'summary' => ($importMode === 'replace' ? 'ersetzt, gelöscht: News ' . (int) ($replaced['entries'] ?? 0) . '; ' : '')
+                . 'neu ' . $created . ', aktualisiert ' . $updated . ', übersprungen ' . $skipped,
             'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * @return array{entries:int}
+     */
+    private function clearTargetData(): array
+    {
+        $count = (int) $this->pdo->query('SELECT COUNT(*) FROM news_entries')->fetchColumn();
+        $this->pdo->exec('DELETE FROM news_entries');
+
+        return ['entries' => $count];
     }
 
     /**

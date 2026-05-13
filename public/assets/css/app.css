@@ -1168,6 +1168,13 @@ body.is-mail-resizing {
     background: color-mix(in srgb, var(--app-surface-2) 82%, var(--bs-success) 10%);
 }
 
+.data-portability-import-mode {
+    padding: 0.9rem;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--app-surface-2) 45%, transparent);
+}
+
 @media (max-width: 575.98px) {
     .data-portability-info-grid {
         grid-template-columns: 1fr;

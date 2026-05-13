@@ -39,6 +39,7 @@ final class DataPortabilityController
             'message' => $this->session->pullFlash('data_portability_info'),
             'error' => $this->session->pullFlash('data_portability_error'),
             'preview' => $this->session->get(self::ADMIN_PREVIEW_KEY),
+            'import_mode' => $this->previewImportMode(self::ADMIN_PREVIEW_KEY),
             'target_user' => $this->currentUser(),
         ]));
     }
@@ -58,6 +59,7 @@ final class DataPortabilityController
             'data_portability_message' => $this->session->pullFlash('data_portability_user_info'),
             'data_portability_error' => $this->session->pullFlash('data_portability_user_error'),
             'data_portability_preview' => $this->session->get(self::USER_PREVIEW_KEY),
+            'data_portability_import_mode' => $this->previewImportMode(self::USER_PREVIEW_KEY),
             'data_portability_target_user' => $user,
         ])));
     }
@@ -111,7 +113,8 @@ final class DataPortabilityController
                 throw new RuntimeException('Bitte eine Export-ZIP auswählen.');
             }
 
-            $result = $this->service->previewUpload($upload, $this->currentUserId(), 'admin');
+            $importMode = $this->importModeFromRequest($request);
+            $result = $this->service->previewUpload($upload, $this->currentUserId(), 'admin', $importMode);
             $this->session->set(self::ADMIN_IMPORT_TOKEN_KEY, $result['token']);
             $this->session->set(self::ADMIN_PREVIEW_KEY, $result['preview']);
             $this->session->flash('data_portability_info', 'Import-Vorschau wurde erstellt. Bitte prüfen und anschließend bestätigen.');
@@ -141,7 +144,8 @@ final class DataPortabilityController
                 throw new RuntimeException('Bitte eine Export-ZIP auswählen.');
             }
 
-            $result = $this->service->previewUpload($upload, $this->currentUserId(), 'user');
+            $importMode = $this->importModeFromRequest($request);
+            $result = $this->service->previewUpload($upload, $this->currentUserId(), 'user', $importMode);
             $this->session->set(self::USER_IMPORT_TOKEN_KEY, $result['token']);
             $this->session->set(self::USER_PREVIEW_KEY, $result['preview']);
             $this->session->flash('data_portability_user_info', 'Import-Vorschau wurde erstellt. Bitte prüfen und anschließend bestätigen.');
@@ -165,9 +169,10 @@ final class DataPortabilityController
             if (!is_string($token) || $token === '') {
                 throw new RuntimeException('Keine vorbereitete Import-Datei gefunden.');
             }
+            $importMode = $this->previewImportMode(self::ADMIN_PREVIEW_KEY);
 
             $path = $this->service->resolveImportPath($token);
-            $result = $this->service->importArchive($path, $this->currentUserId(), 'admin');
+            $result = $this->service->importArchive($path, $this->currentUserId(), 'admin', $importMode);
             $this->service->cleanup($path);
             $this->session->remove(self::ADMIN_IMPORT_TOKEN_KEY);
             $this->session->remove(self::ADMIN_PREVIEW_KEY);
@@ -191,9 +196,10 @@ final class DataPortabilityController
             if (!is_string($token) || $token === '') {
                 throw new RuntimeException('Keine vorbereitete Import-Datei gefunden.');
             }
+            $importMode = $this->previewImportMode(self::USER_PREVIEW_KEY);
 
             $path = $this->service->resolveImportPath($token);
-            $result = $this->service->importArchive($path, $this->currentUserId(), 'user');
+            $result = $this->service->importArchive($path, $this->currentUserId(), 'user', $importMode);
             $this->service->cleanup($path);
             $this->session->remove(self::USER_IMPORT_TOKEN_KEY);
             $this->session->remove(self::USER_PREVIEW_KEY);
@@ -313,6 +319,21 @@ final class DataPortabilityController
         $token = $this->session->get(self::TOKEN_KEY);
 
         return is_string($token) && $token !== '' && hash_equals($token, $submitted);
+    }
+
+    private function importModeFromRequest(Request $request): string
+    {
+        return (string) $request->input('import_mode', '') === 'replace' ? 'replace' : 'merge';
+    }
+
+    private function previewImportMode(string $previewKey): string
+    {
+        $preview = $this->session->get($previewKey);
+        if (is_array($preview) && (string) ($preview['import_mode'] ?? '') === 'replace') {
+            return 'replace';
+        }
+
+        return 'merge';
     }
 
     private function oversizedPostMessage(): ?string

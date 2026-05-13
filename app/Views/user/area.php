@@ -21,6 +21,8 @@ $profileCardsError = (string) ($profile_cards_error ?? '');
 $dataPortabilityAvailable = (bool) ($data_portability_available ?? false);
 $dataPortabilityProviders = is_array($data_portability_providers ?? null) ? $data_portability_providers : [];
 $dataPortabilityPreview = is_array($data_portability_preview ?? null) ? $data_portability_preview : null;
+$dataPortabilityImportMode = (string) ($data_portability_import_mode ?? ($dataPortabilityPreview['import_mode'] ?? 'merge'));
+$dataPortabilityImportMode = $dataPortabilityImportMode === 'replace' ? 'replace' : 'merge';
 $dataPortabilityMessage = (string) ($data_portability_message ?? '');
 $dataPortabilityError = (string) ($data_portability_error ?? '');
 $dataPortabilityCsrfToken = (string) ($data_portability_csrf_token ?? '');
@@ -441,9 +443,13 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                 <?php if ($dataPortabilityPreview === null): ?>
                                     <p class="text-body-secondary small mb-0">Dieser Schritt wird nach einer erfolgreichen Prüfung freigeschaltet.</p>
                                 <?php else: ?>
-                                    <p class="text-body-secondary small mb-3">Die Vorschau ist bereit. Der Import wird deinem aktuellen Benutzerkonto zugeordnet.</p>
-                                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                                    <p class="text-body-secondary small mb-3">
+                                        Die Vorschau ist bereit. Der Import wird deinem aktuellen Benutzerkonto zugeordnet.
+                                        <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Daten der enthaltenen Module werden vorher ersetzt.' : 'Bestehende Daten werden nicht gelöscht.' ?>
+                                    </p>
+                                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
                                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                        <input type="hidden" name="import_mode" value="<?= htmlspecialchars($dataPortabilityImportMode, ENT_QUOTES, 'UTF-8') ?>">
                                         <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
                                     </form>
                                 <?php endif; ?>
@@ -458,6 +464,19 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                             <input class="form-control" type="file" id="profile_import_zip" name="import_zip" accept=".zip,application/zip" required>
                             <div class="form-text text-body-secondary">ZIPs werden temporär außerhalb des Webroots verarbeitet.</div>
                         </div>
+                        <fieldset class="data-portability-import-mode mb-3">
+                            <legend class="form-label mb-2">Importmodus</legend>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_mode" id="profile_import_mode_merge" value="merge"<?= $dataPortabilityImportMode !== 'replace' ? ' checked' : '' ?>>
+                                <label class="form-check-label" for="profile_import_mode_merge">Hinzufügen / Zusammenführen</label>
+                                <div class="form-text text-body-secondary">Bestehende Daten bleiben erhalten. Das ist der sichere Standard.</div>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" name="import_mode" id="profile_import_mode_replace" value="replace"<?= $dataPortabilityImportMode === 'replace' ? ' checked' : '' ?>>
+                                <label class="form-check-label" for="profile_import_mode_replace">Bestehende Moduldaten ersetzen</label>
+                                <div class="form-text text-warning">Nur deine eigenen Dashboard-/Banking-Daten werden ersetzt. Bitte vorher Backup erstellen.</div>
+                            </div>
+                        </fieldset>
                         <button class="btn btn-outline-primary" type="submit">Import prüfen</button>
                     </form>
                 </div>
@@ -474,6 +493,11 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         <h2 class="h5 mb-1"><?= htmlspecialchars((string) ($dataPortabilityPreview['manifest']['product'] ?? 'Export'), ENT_QUOTES, 'UTF-8') ?></h2>
                         <p class="text-body-secondary mb-0">
                             Format <?= (int) ($dataPortabilityPreview['manifest']['format_version'] ?? 0) ?> · App-Version <?= htmlspecialchars((string) ($dataPortabilityPreview['manifest']['app_version'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                        </p>
+                        <p class="mb-0 mt-2">
+                            <span class="badge <?= $dataPortabilityImportMode === 'replace' ? 'text-bg-warning' : 'text-bg-secondary' ?>">
+                                Importmodus: <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten ersetzen' : 'Hinzufügen / Zusammenführen' ?>
+                            </span>
                         </p>
                     </div>
                     <span class="badge text-bg-secondary"><?= count($dataPortabilityPreviewModules) ?> Module</span>
@@ -541,13 +565,22 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         </tbody>
                     </table>
                 </div>
+                <?php if ($dataPortabilityImportMode === 'replace'): ?>
+                    <div class="alert alert-warning mt-4 mb-0" role="alert">
+                        Bestehende Daten der ausgewählten Module werden vor dem Import gelöscht. In deinem Profilbereich betrifft das nur dein aktuelles Benutzerkonto.
+                    </div>
+                <?php endif; ?>
                 <div class="data-portability-preview-action mt-4">
                     <div>
                         <h3 class="h6 mb-1">Import bereit</h3>
-                        <p class="text-body-secondary small mb-0">Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen. Bestehende Daten werden nicht gelöscht.</p>
+                        <p class="text-body-secondary small mb-0">
+                            Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen.
+                            <?= $dataPortabilityImportMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher deine Daten der enthaltenen Module.' : 'Bestehende Daten werden nicht gelöscht.' ?>
+                        </p>
                     </div>
-                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="import_mode" value="<?= htmlspecialchars($dataPortabilityImportMode, ENT_QUOTES, 'UTF-8') ?>">
                         <button class="btn btn-danger" type="submit">Import ausführen</button>
                     </form>
                 </div>

@@ -51,6 +51,11 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
         return 'Dashboard-Exporte können persönliche Links, Aufgaben und Notizen enthalten.';
     }
 
+    public function supportsReplaceImport(): bool
+    {
+        return true;
+    }
+
     public function scopes(): array
     {
         return ['admin', 'user'];
@@ -93,21 +98,26 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
                 'tasks' => count($data['tasks'] ?? []),
                 'notes' => count($data['notes'] ?? []),
             ],
-            'warnings' => ['Dashboard-Daten werden für den Zielbenutzer hinzugefügt; bestehende Widgets werden nicht gelöscht.'],
+            'warnings' => ['Standardmodus: Dashboard-Daten werden für den Zielbenutzer hinzugefügt; bestehende Widgets werden nicht gelöscht.'],
             'can_import' => true,
         ];
     }
 
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array
     {
         $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
         $created = 0;
         $skipped = 0;
         $widgetMap = [];
         $folderMap = [];
+        $replaced = [];
 
         $this->pdo->beginTransaction();
         try {
+            if ($importMode === 'replace') {
+                $replaced = $this->clearTargetData($targetUserId);
+            }
+
             foreach (($data['widgets'] ?? []) as $widget) {
                 if (!is_array($widget)) {
                     $skipped++;
@@ -231,7 +241,57 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
             throw $throwable;
         }
 
-        return ['created' => $created, 'updated' => 0, 'skipped' => $skipped, 'warnings' => []];
+        $summary = $importMode === 'replace'
+            ? 'ersetzt, gelöscht: Widgets ' . (int) ($replaced['widgets'] ?? 0)
+                . ', Ordner ' . (int) ($replaced['folders'] ?? 0)
+                . ', Links ' . (int) ($replaced['links'] ?? 0)
+                . ', Aufgaben ' . (int) ($replaced['tasks'] ?? 0)
+                . ', Notizen ' . (int) ($replaced['notes'] ?? 0)
+                . '; neu importiert ' . $created . ', übersprungen ' . $skipped
+            : 'neu importiert ' . $created . ', übersprungen ' . $skipped;
+
+        return [
+            'created' => $created,
+            'updated' => 0,
+            'skipped' => $skipped,
+            'replaced' => $replaced,
+            'summary' => $summary,
+            'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array{widgets:int,folders:int,links:int,tasks:int,notes:int}
+     */
+    private function clearTargetData(int $targetUserId): array
+    {
+        $widgetIds = array_map('intval', array_column(
+            $this->fetchAll('SELECT id FROM dashboard_widgets WHERE user_id = :user_id', ['user_id' => $targetUserId]),
+            'id'
+        ));
+        $counts = [
+            'widgets' => count($widgetIds),
+            'folders' => 0,
+            'links' => 0,
+            'tasks' => 0,
+            'notes' => 0,
+        ];
+        if ($widgetIds === []) {
+            return $counts;
+        }
+
+        $counts['notes'] = $this->countByWidgetIds('dashboard_notes', $widgetIds);
+        $counts['tasks'] = $this->countByWidgetIds('dashboard_tasks', $widgetIds);
+        $counts['links'] = $this->countByWidgetIds('dashboard_links', $widgetIds);
+        $counts['folders'] = $this->countByWidgetIds('dashboard_link_folders', $widgetIds);
+
+        $this->deleteByWidgetIds('dashboard_notes', $widgetIds);
+        $this->deleteByWidgetIds('dashboard_tasks', $widgetIds);
+        $this->deleteByWidgetIds('dashboard_links', $widgetIds);
+        $this->deleteByWidgetIds('dashboard_link_folders', $widgetIds);
+        $this->deleteByIds('dashboard_widgets', $widgetIds);
+
+        return $counts;
     }
 
     /**
@@ -258,6 +318,47 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
         $placeholders = implode(',', array_fill(0, count($widgetIds), '?'));
 
         return $this->fetchAll('SELECT * FROM ' . $table . ' WHERE widget_id IN (' . $placeholders . ') ORDER BY widget_id, sort_order, id', array_values($widgetIds));
+    }
+
+    /**
+     * @param array<int,int> $widgetIds
+     */
+    private function countByWidgetIds(string $table, array $widgetIds): int
+    {
+        if ($widgetIds === []) {
+            return 0;
+        }
+        $placeholders = implode(',', array_fill(0, count($widgetIds), '?'));
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM ' . $table . ' WHERE widget_id IN (' . $placeholders . ')');
+        $statement->execute(array_values($widgetIds));
+
+        return (int) $statement->fetchColumn();
+    }
+
+    /**
+     * @param array<int,int> $widgetIds
+     */
+    private function deleteByWidgetIds(string $table, array $widgetIds): void
+    {
+        if ($widgetIds === []) {
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($widgetIds), '?'));
+        $statement = $this->pdo->prepare('DELETE FROM ' . $table . ' WHERE widget_id IN (' . $placeholders . ')');
+        $statement->execute(array_values($widgetIds));
+    }
+
+    /**
+     * @param array<int,int> $ids
+     */
+    private function deleteByIds(string $table, array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->pdo->prepare('DELETE FROM ' . $table . ' WHERE id IN (' . $placeholders . ')');
+        $statement->execute(array_values($ids));
     }
 
     /**

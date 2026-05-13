@@ -8,6 +8,7 @@ use Modulon\Modules\DataPortability\DataPortabilityFileCollector;
 use Modulon\Modules\DataPortability\DataPortabilityProviderInterface;
 use Modulon\Modules\DataPortability\DataPortabilityService;
 use Modulon\Modules\DataPortability\Providers\BankingDataPortabilityProvider;
+use Modulon\Modules\DataPortability\Providers\DashboardDataPortabilityProvider;
 use Modulon\Modules\DataPortability\Providers\NewsDataPortabilityProvider;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -28,6 +29,7 @@ final class DataPortabilitySmokeProvider implements DataPortabilityProviderInter
     public function schemaVersion(): int { return 1; }
     public function hasFiles(): bool { return false; }
     public function sensitivityNote(): string { return ''; }
+    public function supportsReplaceImport(): bool { return false; }
     public function scopes(): array { return $this->scopes; }
 
     public function export(int $userId, DataPortabilityFileCollector $files): array
@@ -44,7 +46,7 @@ final class DataPortabilitySmokeProvider implements DataPortabilityProviderInter
         return ['counts' => ['items' => count($payload['data']['items'] ?? [])], 'warnings' => [], 'can_import' => true];
     }
 
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array
     {
         return ['created' => count($payload['data']['items'] ?? []), 'updated' => 0, 'skipped' => 0, 'warnings' => []];
     }
@@ -59,6 +61,7 @@ final class DataPortabilityAdminOnlySmokeProvider implements DataPortabilityProv
     public function schemaVersion(): int { return 1; }
     public function hasFiles(): bool { return false; }
     public function sensitivityNote(): string { return ''; }
+    public function supportsReplaceImport(): bool { return false; }
     public function scopes(): array { return ['admin']; }
 
     public function export(int $userId, DataPortabilityFileCollector $files): array
@@ -75,7 +78,7 @@ final class DataPortabilityAdminOnlySmokeProvider implements DataPortabilityProv
         return ['counts' => ['items' => count($payload['data']['items'] ?? [])], 'warnings' => [], 'can_import' => true];
     }
 
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array
     {
         return ['created' => count($payload['data']['items'] ?? []), 'updated' => 0, 'skipped' => 0, 'warnings' => []];
     }
@@ -112,6 +115,7 @@ $zip->close();
 $preview = $service->previewArchive($export['path'], 123);
 assert_true(($preview['manifest']['format_version'] ?? null) === 1, 'Format-Version falsch.');
 assert_true(($preview['modules'][0]['can_import'] ?? false) === true, 'Preview markiert Provider nicht importierbar.');
+assert_true(($service->previewArchive($export['path'], 123, 'admin', 'replace')['modules'][0]['can_import'] ?? true) === false, 'Ersetzen-Modus akzeptiert Provider ohne Replace-Support.');
 
 $controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityController.php');
 assert_true(!str_contains($controllerSource, 'file_get_contents($export'), 'Export-Controller darf Export-ZIPs nicht komplett in den Response-Body laden.');
@@ -173,6 +177,19 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
         'version' => '1.0.0',
         'status' => 'published',
         'published_at' => '2026-05-01 10:00:00',
+    ]);
+    $pdo->prepare(
+        'INSERT INTO news_entries (title, slug, excerpt, content, type, version, status, published_at)
+     VALUES (:title, :slug, :excerpt, :content, :type, :version, :status, :published_at)'
+    )->execute([
+        'title' => 'Keep me only in merge',
+        'slug' => 'keep-me',
+        'excerpt' => 'Keep excerpt',
+        'content' => 'Keep markdown',
+        'type' => 'news',
+        'version' => null,
+        'status' => 'published',
+        'published_at' => '2026-05-01 11:00:00',
     ]);
 
     $newsProvider = new NewsDataPortabilityProvider($pdo);
@@ -241,9 +258,16 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     assert_true(($newsCounts['update'] ?? null) === 1, 'News-Preview erkennt Updates nicht.');
     assert_true(($newsCounts['invalid'] ?? null) === 1, 'News-Preview erkennt ungültige Einträge nicht.');
     assert_true($newsService->previewArchive($newsImport, 1, 'user')['modules'] === [], 'News erscheint in User-Preview.');
+    $newsReplace = $newsService->importArchive($newsImport, 1, 'admin', 'replace');
+    assert_true(($newsReplace['results']['news']['created'] ?? null) === 2, 'News-Replace importiert gültige Einträge nicht neu.');
+    assert_true((int) $pdo->query('SELECT COUNT(*) FROM news_entries')->fetchColumn() === 2, 'News-Replace löscht vorhandene News nicht vor dem Import.');
+    assert_true((int) $pdo->query('SELECT COUNT(*) FROM news_entries WHERE slug = "keep-me"')->fetchColumn() === 0, 'News-Replace lässt alte News stehen.');
 
     $bankingPdo = new PDO('sqlite::memory:');
     $bankingPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $bankingPdo->exec('CREATE TABLE banking_migration_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, target_user_id INTEGER NOT NULL
+    )');
     $bankingPdo->exec('CREATE TABLE banking_accounts (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, migration_run_id INTEGER NULL,
         legacy_account_key TEXT NULL, account_identifier TEXT NOT NULL, display_name TEXT NOT NULL,
@@ -280,6 +304,10 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, recurring_rule_id INTEGER NOT NULL,
         migration_run_id INTEGER NULL, legacy_id INTEGER NULL, field TEXT NOT NULL, operator TEXT NOT NULL,
         value TEXT NOT NULL, legacy_created_at TEXT NULL, created_at TEXT NOT NULL
+    )');
+    $bankingPdo->exec('CREATE TABLE banking_dashboard_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, cache_scope TEXT NOT NULL, period_key TEXT NOT NULL,
+        data_hash TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     )');
 
     $bankingPdo->exec("INSERT INTO banking_accounts (user_id, migration_run_id, legacy_account_key, account_identifier, display_name, iban, bic, currency, is_active, created_at, updated_at)
@@ -329,6 +357,31 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_transactions WHERE user_id = 2')->fetchColumn() === 1, 'Buchungs-Deduplizierung erzeugt Duplikate.');
     assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rules WHERE user_id = 2')->fetchColumn() === 4, 'Wiederholter Import darf gleichnamige Regeln nicht deduplizieren.');
     assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rule_conditions WHERE user_id = 2')->fetchColumn() === 4, 'Wiederholter Import darf gleiche Filter/Bedingungen nicht deduplizieren.');
+    $bankingPdo->exec("INSERT INTO banking_accounts (user_id, migration_run_id, legacy_account_key, account_identifier, display_name, iban, bic, currency, is_active, created_at, updated_at)
+        VALUES (3, NULL, 'other', 'OTHER-ACCOUNT', 'Anderer User', NULL, NULL, 'EUR', 1, '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $bankingReplace = $bankingService->importArchive($bankingExport['path'], 2, 'user', 'replace');
+    assert_true(($bankingReplace['results']['banking']['replaced']['recurring_rules'] ?? null) === 4, 'Banking-Replace meldet gelöschte Regeln nicht korrekt.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_accounts WHERE user_id = 2')->fetchColumn() === 1, 'Banking-Replace stellt Zielkonten nicht vollständig wieder her.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_transactions WHERE user_id = 2')->fetchColumn() === 1, 'Banking-Replace stellt Zielbuchungen nicht korrekt wieder her.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rules WHERE user_id = 2')->fetchColumn() === 2, 'Banking-Replace stellt Regeln nicht korrekt wieder her.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_recurring_rule_conditions WHERE user_id = 2')->fetchColumn() === 2, 'Banking-Replace stellt Filter/Bedingungen nicht korrekt wieder her.');
+    assert_true((int) $bankingPdo->query('SELECT COUNT(*) FROM banking_accounts WHERE user_id = 3')->fetchColumn() === 1, 'Banking-Replace löscht Daten anderer User.');
+
+    $dashboardPdo = new PDO('sqlite::memory:');
+    $dashboardPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $dashboardPdo->exec('CREATE TABLE dashboard_widgets (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, widget_type TEXT NOT NULL, title TEXT NOT NULL, sort_order INTEGER NOT NULL, layout_width TEXT NOT NULL, is_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    $dashboardPdo->exec('CREATE TABLE dashboard_link_folders (id INTEGER PRIMARY KEY AUTOINCREMENT, widget_id INTEGER NOT NULL, name TEXT NOT NULL, sort_order INTEGER NOT NULL, is_default INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    $dashboardPdo->exec('CREATE TABLE dashboard_links (id INTEGER PRIMARY KEY AUTOINCREMENT, widget_id INTEGER NOT NULL, folder_id INTEGER NULL, title TEXT NOT NULL, url TEXT NOT NULL, sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL, favicon_url TEXT NULL, favicon_host TEXT NULL, favicon_last_checked_at TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    $dashboardPdo->exec('CREATE TABLE dashboard_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, widget_id INTEGER NOT NULL, title TEXT NOT NULL, details TEXT NULL, link_url TEXT NULL, priority TEXT NOT NULL, due_at TEXT NULL, is_active INTEGER NOT NULL, is_done INTEGER NOT NULL, done_at TEXT NULL, repeat_type TEXT NULL, repeat_time TEXT NULL, repeat_weekday INTEGER NULL, repeat_month_mode TEXT NULL, repeat_month_day INTEGER NULL, repeat_month_ordinal INTEGER NULL, repeat_month_weekday INTEGER NULL, sort_order INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    $dashboardPdo->exec('CREATE TABLE dashboard_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, widget_id INTEGER NOT NULL, title TEXT NULL, content TEXT NOT NULL, textarea_height INTEGER NULL, sort_order INTEGER NOT NULL, is_pinned INTEGER NOT NULL, is_archived INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    $dashboardPdo->exec("INSERT INTO dashboard_widgets (user_id, widget_type, title, sort_order, layout_width, is_active, created_at, updated_at) VALUES (1, 'links', 'Quelle', 1, 'half', 1, '2026-05-01 00:00:00', '2026-05-01 00:00:00'), (2, 'links', 'Ziel alt', 1, 'half', 1, '2026-05-01 00:00:00', '2026-05-01 00:00:00'), (3, 'links', 'Anderer User', 1, 'half', 1, '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $dashboardPdo->exec("INSERT INTO dashboard_links (widget_id, folder_id, title, url, sort_order, is_active, favicon_url, favicon_host, favicon_last_checked_at, created_at, updated_at) VALUES (1, NULL, 'Quelle Link', 'https://example.com', 1, 1, NULL, NULL, NULL, '2026-05-01 00:00:00', '2026-05-01 00:00:00'), (2, NULL, 'Alt Link', 'https://old.example', 1, 1, NULL, NULL, NULL, '2026-05-01 00:00:00', '2026-05-01 00:00:00'), (3, NULL, 'Fremd Link', 'https://other.example', 1, 1, NULL, NULL, NULL, '2026-05-01 00:00:00', '2026-05-01 00:00:00')");
+    $dashboardService = new DataPortabilityService($base, '9.9.9', ['dashboard' => new DashboardDataPortabilityProvider($dashboardPdo)]);
+    $dashboardExport = $dashboardService->createExport(['dashboard'], 1, 'user');
+    $dashboardService->importArchive($dashboardExport['path'], 2, 'user', 'replace');
+    assert_true((int) $dashboardPdo->query('SELECT COUNT(*) FROM dashboard_widgets WHERE user_id = 2')->fetchColumn() === 1, 'Dashboard-Replace stellt Zielwidgets nicht korrekt wieder her.');
+    assert_true((int) $dashboardPdo->query('SELECT COUNT(*) FROM dashboard_links WHERE widget_id IN (SELECT id FROM dashboard_widgets WHERE user_id = 2)')->fetchColumn() === 1, 'Dashboard-Replace stellt Ziellinks nicht korrekt wieder her.');
+    assert_true((int) $dashboardPdo->query('SELECT COUNT(*) FROM dashboard_widgets WHERE user_id = 3')->fetchColumn() === 1, 'Dashboard-Replace löscht Daten anderer User.');
 }
 
 $controllerReflection = new ReflectionClass(DataPortabilityController::class);

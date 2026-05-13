@@ -115,11 +115,11 @@ final class DataPortabilityService
      * @param array<string,mixed> $file
      * @return array{token:string,path:string,preview:array<string,mixed>}
      */
-    public function previewUpload(array $file, int $targetUserId, string $scope = 'admin'): array
+    public function previewUpload(array $file, int $targetUserId, string $scope = 'admin', string $importMode = 'merge'): array
     {
         $this->requireZip();
         $path = $this->storeUploadedZip($file);
-        $preview = $this->previewArchive($path, $targetUserId, $scope);
+        $preview = $this->previewArchive($path, $targetUserId, $scope, $importMode);
 
         return [
             'token' => basename($path, '.zip'),
@@ -131,9 +131,10 @@ final class DataPortabilityService
     /**
      * @return array<string,mixed>
      */
-    public function previewArchive(string $path, int $targetUserId, string $scope = 'admin'): array
+    public function previewArchive(string $path, int $targetUserId, string $scope = 'admin', string $importMode = 'merge'): array
     {
         $scope = $this->normalizeScope($scope);
+        $importMode = $this->normalizeImportMode($importMode);
         $reader = new DataPortabilityArchiveReader($path);
         $manifest = $reader->readJson('manifest.json');
         if ((int) ($manifest['format_version'] ?? 0) !== self::FORMAT_VERSION) {
@@ -152,15 +153,25 @@ final class DataPortabilityService
             }
             $payload = $provider !== null ? $this->loadModulePayload($reader, $module) : [];
             $providerPreview = $provider?->previewImport($payload, $module, $reader, $targetUserId);
+            $warnings = $providerPreview['warnings'] ?? ($provider === null ? ['Zielmodul ist nicht verfügbar.'] : []);
+            $supportsReplace = $provider !== null && $provider->supportsReplaceImport();
+            if ($importMode === 'replace') {
+                if ($supportsReplace) {
+                    $warnings[] = 'Ersetzen-Modus: Bestehende Daten dieses Moduls im Zielbereich werden vor dem Import gelöscht.';
+                } elseif ($provider !== null) {
+                    $warnings[] = 'Ersetzen-Modus wird von diesem Modul nicht unterstützt.';
+                }
+            }
             $modules[] = [
                 'key' => $key,
                 'label' => (string) ($module['label'] ?? $key),
                 'schema_version' => (int) ($module['schema_version'] ?? 0),
                 'available' => $provider !== null,
+                'supports_replace' => $supportsReplace,
                 'file_count' => (int) ($module['file_count'] ?? count($module['files'] ?? [])),
                 'counts' => $providerPreview['counts'] ?? [],
-                'warnings' => $providerPreview['warnings'] ?? ($provider === null ? ['Zielmodul ist nicht verfügbar.'] : []),
-                'can_import' => $provider !== null && ($providerPreview['can_import'] ?? false),
+                'warnings' => $warnings,
+                'can_import' => $provider !== null && ($providerPreview['can_import'] ?? false) && ($importMode !== 'replace' || $supportsReplace),
             ];
         }
 
@@ -171,6 +182,7 @@ final class DataPortabilityService
                 'app_version' => (string) ($manifest['app_version'] ?? ''),
                 'created_at' => (string) ($manifest['created_at'] ?? ''),
             ],
+            'import_mode' => $importMode,
             'modules' => $modules,
         ];
     }
@@ -178,16 +190,17 @@ final class DataPortabilityService
     /**
      * @return array<string,mixed>
      */
-    public function importArchive(string $path, int $targetUserId, string $scope = 'admin'): array
+    public function importArchive(string $path, int $targetUserId, string $scope = 'admin', string $importMode = 'merge'): array
     {
         $scope = $this->normalizeScope($scope);
+        $importMode = $this->normalizeImportMode($importMode);
         $reader = new DataPortabilityArchiveReader($path);
         $manifest = $reader->readJson('manifest.json');
         if ((int) ($manifest['format_version'] ?? 0) !== self::FORMAT_VERSION) {
             throw new RuntimeException('Das Exportformat wird nicht unterstützt.');
         }
 
-        $results = [];
+        $processable = [];
         foreach (($manifest['modules'] ?? []) as $module) {
             if (!is_array($module)) {
                 continue;
@@ -197,15 +210,28 @@ final class DataPortabilityService
             if ($provider !== null && !$this->supportsScope($provider, $scope)) {
                 continue;
             }
+            $processable[] = [$key, $provider, $module];
+        }
+
+        if ($importMode === 'replace') {
+            foreach ($processable as [$key, $provider]) {
+                if ($provider !== null && !$provider->supportsReplaceImport()) {
+                    throw new RuntimeException('Ersetzen-Modus wird vom Modul "' . $key . '" nicht unterstützt.');
+                }
+            }
+        }
+
+        $results = [];
+        foreach ($processable as [$key, $provider, $module]) {
             if ($provider === null) {
                 $results[$key] = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'warnings' => ['Zielmodul ist nicht verfügbar.']];
                 continue;
             }
             $payload = $this->loadModulePayload($reader, $module);
-            $results[$key] = $provider->import($payload, $module, $reader, $targetUserId);
+            $results[$key] = $provider->import($payload, $module, $reader, $targetUserId, $importMode);
         }
 
-        return ['manifest' => $manifest, 'results' => $results];
+        return ['manifest' => $manifest, 'import_mode' => $importMode, 'results' => $results];
     }
 
     public function resolveImportPath(string $token): string
@@ -256,6 +282,11 @@ final class DataPortabilityService
     {
         $scope = strtolower(trim($scope));
         return in_array($scope, ['admin', 'user'], true) ? $scope : 'admin';
+    }
+
+    private function normalizeImportMode(string $mode): string
+    {
+        return strtolower(trim($mode)) === 'replace' ? 'replace' : 'merge';
     }
 
     /**

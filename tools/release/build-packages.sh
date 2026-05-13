@@ -17,7 +17,7 @@ KEEP_WORK=0
 usage() {
     cat <<EOF
 Usage: $SCRIPT_NAME [--public-target /srv/http/modulnest] [--output /pfad] [--metadata /pfad]
-                   [--version 0.7.3] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
+                   [--version 0.7.4] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
 
 Baut installierbare ModulNest-ZIP-Pakete aus einem bereits bereinigten Public-Export.
 

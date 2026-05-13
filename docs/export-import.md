@@ -35,6 +35,8 @@ Importe sind nur im Adminbereich möglich und CSRF-geschützt. ZIP-Dateien werde
 - Dateien werden temporär unter `storage/data-portability` verarbeitet, nicht im öffentlichen Webroot.
 - Posterdateien werden nur als `jpg`, `jpeg`, `png` oder `webp` importiert.
 - Vor dem Schreiben zeigt ModulNest immer eine Import-Vorschau.
+- Standardmäßig werden Daten hinzugefügt oder zusammengeführt. Optional kann beim Import der Modus `Bestehende Moduldaten ersetzen` gewählt werden.
+- Der Ersetzen-Modus löscht nur Daten der ausgewählten Import-Module und erst nach ausdrücklicher Bestätigung in der Vorschau.
 
 Banking-Exporte enthalten persönliche Finanzdaten und müssen entsprechend geschützt aufbewahrt werden.
 
@@ -44,25 +46,27 @@ Banking-Exporte enthalten persönliche Finanzdaten und müssen entsprechend gesc
 
 Exportiert die Dashboard-Daten des aktuellen Benutzers, darunter Widgets, Link-Ordner, Links, Aufgaben und Notizen.
 
-Beim Import werden Daten dem aktuell angemeldeten Admin-User zugeordnet. Bestehende Dashboard-Daten werden nicht gelöscht. Da Dashboard-Widgets keinen stabilen instanzübergreifenden Schlüssel haben, werden sie in Version 1 als neue Widgets hinzugefügt.
+Beim Import werden Daten dem aktuell angemeldeten Zieluser zugeordnet. Im Standardmodus bleiben bestehende Dashboard-Daten erhalten. Im Ersetzen-Modus werden nur Dashboard-Daten dieses Zielusers gelöscht und danach aus dem Import neu angelegt.
 
 ### Banking
 
 Exportiert Konten, Kategorien, Import-Batches, Transaktionen und wiederkehrende Regeln des aktuellen Benutzers.
 
-Beim Import werden Daten dem aktuell angemeldeten Admin-User zugeordnet. Bestehende Daten werden nicht gelöscht. Transaktionen werden user-scoped über vorhandene Hashes, Legacy-IDs oder einen abgeleiteten Kernfeld-Hash dedupliziert.
+Beim Import werden Daten dem aktuell angemeldeten Zieluser zugeordnet. Im Standardmodus bleiben bestehende Daten erhalten. Transaktionen werden user-scoped über vorhandene Hashes, Legacy-IDs oder einen abgeleiteten Kernfeld-Hash dedupliziert. Wiederkehrende Regeln und Bedingungen werden nicht anhand gleicher Namen dedupliziert, weil gleiche Namen fachlich gültig sein können.
+
+Im Ersetzen-Modus werden nur Banking-Daten des Zielusers gelöscht und danach aus dem Import neu aufgebaut. Daten anderer Benutzer bleiben unangetastet.
 
 ### Sneak Preview
 
 Exportiert Sneak-Preview-Einträge, Einstellungen und lokale Posterdateien. Sneak Preview ist adminweit und nicht benutzerbezogen.
 
-Beim Import werden Einträge über TMDB-ID oder die Kombination aus Datum, Titel und Ort erkannt. Posterdateien werden sicher normalisiert und bei Namenskollisionen mit Suffix gespeichert.
+Beim Import werden Einträge über TMDB-ID oder die Kombination aus Datum, Titel und Ort erkannt. Posterdateien werden sicher normalisiert und bei Namenskollisionen mit Suffix gespeichert. Im Ersetzen-Modus werden Sneak-Preview-Einträge, Einstellungen und eindeutig zugeordnete Posterdateien des Moduls vor dem Import gelöscht.
 
 ### News
 
 Exportiert News- und Changelog-Einträge als Markdown-Quelldaten. Gerendertes HTML wird nicht exportiert.
 
-Beim Import werden Einträge über den Slug erkannt. Existierende Slugs werden aktualisiert, neue Slugs werden angelegt. Ungültige oder leere Slugs werden übersprungen. Bestehende News werden in Version 1 nicht gelöscht.
+Beim Import werden Einträge über den Slug erkannt. Existierende Slugs werden aktualisiert, neue Slugs werden angelegt. Ungültige oder leere Slugs werden übersprungen. Im Ersetzen-Modus werden bestehende News-Einträge vor dem Import gelöscht.
 
 ## Provider für neue Module
 

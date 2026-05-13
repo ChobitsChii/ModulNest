@@ -51,6 +51,11 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
         return 'Banking-Exporte enthalten persönliche Finanzdaten. ZIP-Datei sicher aufbewahren und nicht öffentlich teilen.';
     }
 
+    public function supportsReplaceImport(): bool
+    {
+        return true;
+    }
+
     public function scopes(): array
     {
         return ['admin', 'user'];
@@ -110,7 +115,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
         ];
     }
 
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array
     {
         $created = 0;
         $updated = 0;
@@ -132,9 +137,14 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
             'conditions_skipped_missing_rule' => 0,
             'invalid_rows_skipped' => 0,
         ];
+        $replaced = [];
 
         $this->pdo->beginTransaction();
         try {
+            if ($importMode === 'replace') {
+                $replaced = $this->clearTargetData($targetUserId);
+            }
+
             foreach (($payload['accounts']['accounts'] ?? []) as $account) {
                 if (!is_array($account)) {
                     $skipped++;
@@ -338,10 +348,44 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
             'created' => $created,
             'updated' => $updated,
             'skipped' => $skipped,
+            'import_mode' => $importMode,
+            'replaced' => $replaced,
             'details' => $details,
-            'summary' => $this->summary($details),
+            'summary' => $this->summary($details, $replaced),
             'warnings' => [],
         ];
+    }
+
+    /**
+     * @return array<string,int>
+     */
+    private function clearTargetData(int $targetUserId): array
+    {
+        $ruleIds = array_map('intval', array_column(
+            $this->fetchAll('SELECT id FROM banking_recurring_rules WHERE user_id = :user_id', ['user_id' => $targetUserId]),
+            'id'
+        ));
+        $counts = [
+            'accounts' => $this->countByUser('banking_accounts', $targetUserId),
+            'categories' => $this->countByUser('banking_categories', $targetUserId),
+            'import_batches' => $this->countByUser('banking_import_batches', $targetUserId),
+            'transactions' => $this->countByUser('banking_transactions', $targetUserId),
+            'recurring_rules' => count($ruleIds),
+            'conditions' => $this->countByUser('banking_recurring_rule_conditions', $targetUserId),
+            'dashboard_cache' => $this->countByUser('banking_dashboard_cache', $targetUserId),
+            'migration_runs' => $this->countByTargetUser('banking_migration_runs', $targetUserId),
+        ];
+
+        $this->deleteByUser('banking_dashboard_cache', $targetUserId);
+        $this->deleteByUser('banking_recurring_rule_conditions', $targetUserId);
+        $this->deleteByUser('banking_transactions', $targetUserId);
+        $this->deleteByUser('banking_import_batches', $targetUserId);
+        $this->deleteByUser('banking_recurring_rules', $targetUserId);
+        $this->deleteByUser('banking_categories', $targetUserId);
+        $this->deleteByUser('banking_accounts', $targetUserId);
+        $this->deleteByTargetUser('banking_migration_runs', $targetUserId);
+
+        return $counts;
     }
 
     /**
@@ -554,7 +598,7 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
     /**
      * @param array<string,int> $details
      */
-    private function summary(array $details): string
+    private function summary(array $details, array $replaced = []): string
     {
         $parts = [
             'Konten neu ' . $details['accounts_created'] . ', bestehend ' . $details['accounts_existing'],
@@ -571,6 +615,45 @@ final class BankingDataPortabilityProvider implements DataPortabilityProviderInt
             $parts[] = 'ungültige Zeilen übersprungen ' . $details['invalid_rows_skipped'];
         }
 
+        if ($replaced !== []) {
+            array_unshift(
+                $parts,
+                'ersetzt, gelöscht: Konten ' . (int) ($replaced['accounts'] ?? 0)
+                . ', Kategorien ' . (int) ($replaced['categories'] ?? 0)
+                . ', Buchungen ' . (int) ($replaced['transactions'] ?? 0)
+                . ', Regeln ' . (int) ($replaced['recurring_rules'] ?? 0)
+                . ', Filter/Bedingungen ' . (int) ($replaced['conditions'] ?? 0)
+            );
+        }
+
         return implode(', ', $parts);
+    }
+
+    private function countByUser(string $table, int $userId): int
+    {
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM ' . $table . ' WHERE user_id = :user_id');
+        $statement->execute(['user_id' => $userId]);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    private function countByTargetUser(string $table, int $userId): int
+    {
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM ' . $table . ' WHERE target_user_id = :user_id');
+        $statement->execute(['user_id' => $userId]);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    private function deleteByUser(string $table, int $userId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM ' . $table . ' WHERE user_id = :user_id');
+        $statement->execute(['user_id' => $userId]);
+    }
+
+    private function deleteByTargetUser(string $table, int $userId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM ' . $table . ' WHERE target_user_id = :user_id');
+        $statement->execute(['user_id' => $userId]);
     }
 }

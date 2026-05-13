@@ -341,13 +341,21 @@ copy_module_and_views() {
     copy_dir "app/Modules/$module" "$TARGET/app/Modules/$module"
     view_dir="$(module_view_dir "$module")"
     if [[ -n "$view_dir" ]]; then
-        copy_dir "app/Views/$view_dir" "$TARGET/app/Views/$view_dir"
+        if [[ "$module" == "User" ]] && ! is_in_array "FantasyCards" "${SELECTED_MODULES[@]}"; then
+            copy_dir "app/Views/$view_dir" "$TARGET/app/Views/$view_dir" \
+                --exclude='partials/fantasy-cards.php'
+        else
+            copy_dir "app/Views/$view_dir" "$TARGET/app/Views/$view_dir"
+        fi
     fi
 }
 
 copy_public_assets() {
     copy_dir "public/assets/css" "$TARGET/public/assets/css"
-    copy_dir "public/assets/js" "$TARGET/public/assets/js"
+    copy_dir "public/assets/js" "$TARGET/public/assets/js" \
+        --exclude='fantasycards-*.js' \
+        --exclude='mail-*.js' \
+        --exclude='modulon-overlay.js'
     copy_dir "public/assets/img" "$TARGET/public/assets/img"
     copy_dir "public/assets/vendor" "$TARGET/public/assets/vendor"
 
@@ -391,7 +399,7 @@ write_package_metadata() {
         $target = $argv[1];
         $core = array_values(array_filter(explode(",", $argv[2])));
         $selected = array_values(array_filter(explode(",", $argv[3])));
-        $version = "0.7.3";
+        $version = "0.7.4";
         if (is_file("app/Core/Env.php") && is_file("app/Config/version.php")) {
             require_once "app/Core/Env.php";
             $config = require "app/Config/version.php";
@@ -559,7 +567,7 @@ copy_project() {
         copy_module_and_views "$module"
     done
 
-    if is_in_array "FantasyCards" "${SELECTED_MODULES[@]}" || is_in_array "User" "${SELECTED_MODULES[@]}"; then
+    if is_in_array "FantasyCards" "${SELECTED_MODULES[@]}"; then
         mkdir -p "$TARGET/app/Views/user/partials"
         copy_file_if_exists "app/Views/user/partials/fantasy-cards.php" "$TARGET/app/Views/user/partials/fantasy-cards.php"
     fi

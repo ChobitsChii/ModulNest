@@ -10,6 +10,8 @@ $providerCount = count($providers);
 $previewModules = is_array($preview['modules'] ?? null) ? $preview['modules'] : [];
 $targetUserLabel = (string) ($targetUser['display_name'] ?? $targetUser['email'] ?? 'aktueller Admin-User');
 $targetUserId = (int) ($targetUser['id'] ?? 0);
+$importMode = (string) ($import_mode ?? ($preview['import_mode'] ?? 'merge'));
+$importMode = $importMode === 'replace' ? 'replace' : 'merge';
 $countLabel = static fn (string $name): string => [
     'accounts' => 'Konten',
     'categories' => 'Kategorien',
@@ -145,9 +147,17 @@ $countLabel = static fn (string $name): string => [
                             <?php if ($preview === null): ?>
                                 <p class="text-body-secondary small mb-0">Dieser Schritt wird nach einer erfolgreichen Prüfung freigeschaltet.</p>
                             <?php else: ?>
-                                <p class="text-body-secondary small mb-3">Die Vorschau ist bereit. Bestehende Daten werden nicht gelöscht.</p>
-                                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                                <p class="text-body-secondary small mb-3">
+                                    Die Vorschau ist bereit.
+                                    <?php if ($importMode === 'replace'): ?>
+                                        Bestehende Daten der enthaltenen Module werden vor dem Import ersetzt.
+                                    <?php else: ?>
+                                        Bestehende Daten werden nicht gelöscht.
+                                    <?php endif; ?>
+                                </p>
+                                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
                                     <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                                    <input type="hidden" name="import_mode" value="<?= $e($importMode) ?>">
                                     <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
                                 </form>
                             <?php endif; ?>
@@ -162,6 +172,19 @@ $countLabel = static fn (string $name): string => [
                         <input class="form-control" type="file" id="import_zip" name="import_zip" accept=".zip,application/zip" required>
                         <div class="form-text text-body-secondary">Temporäre Dateien werden unter <code>storage/data-portability</code> gespeichert, nicht im Webroot.</div>
                     </div>
+                    <fieldset class="data-portability-import-mode mb-3">
+                        <legend class="form-label mb-2">Importmodus</legend>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="import_mode" id="import_mode_merge" value="merge"<?= $importMode !== 'replace' ? ' checked' : '' ?>>
+                            <label class="form-check-label" for="import_mode_merge">Hinzufügen / Zusammenführen</label>
+                            <div class="form-text text-body-secondary">Bestehende Daten bleiben erhalten. Das ist der sichere Standard.</div>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="import_mode" id="import_mode_replace" value="replace"<?= $importMode === 'replace' ? ' checked' : '' ?>>
+                            <label class="form-check-label" for="import_mode_replace">Bestehende Moduldaten ersetzen</label>
+                            <div class="form-text text-warning">Bestehende Daten der ausgewählten Module werden vor dem Import gelöscht. Bitte vorher Backup erstellen.</div>
+                        </div>
+                    </fieldset>
                     <button class="btn btn-outline-primary" type="submit">Import prüfen</button>
                 </form>
 
@@ -191,6 +214,11 @@ $countLabel = static fn (string $name): string => [
                     <h2 class="h5 mb-1"><?= $e($preview['manifest']['product'] ?? 'Export') ?></h2>
                     <p class="text-body-secondary mb-0">
                         Format <?= (int) ($preview['manifest']['format_version'] ?? 0) ?> · App-Version <?= $e($preview['manifest']['app_version'] ?? '') ?>
+                    </p>
+                    <p class="mb-0 mt-2">
+                        <span class="badge <?= $importMode === 'replace' ? 'text-bg-warning' : 'text-bg-secondary' ?>">
+                            Importmodus: <?= $importMode === 'replace' ? 'Bestehende Moduldaten ersetzen' : 'Hinzufügen / Zusammenführen' ?>
+                        </span>
                     </p>
                 </div>
                 <div class="data-portability-preview-summary">
@@ -255,13 +283,23 @@ $countLabel = static fn (string $name): string => [
                 </table>
             </div>
 
+            <?php if ($importMode === 'replace'): ?>
+                <div class="alert alert-warning mt-4 mb-0" role="alert">
+                    Bestehende Daten der ausgewählten Module werden vor dem Import gelöscht. Bitte vorher Backup erstellen.
+                </div>
+            <?php endif; ?>
+
             <div class="data-portability-preview-action mt-4">
                 <div>
                     <h3 class="h6 mb-1">Import bereit</h3>
-                    <p class="text-body-secondary small mb-0">Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen. Bestehende Daten werden nicht gelöscht.</p>
+                    <p class="text-body-secondary small mb-0">
+                        Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen.
+                        <?= $importMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher die Daten der enthaltenen Module im Zielbereich.' : 'Bestehende Daten werden nicht gelöscht.' ?>
+                    </p>
                 </div>
-                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? Bestehende Daten werden nicht gelöscht.');">
+                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
                     <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                    <input type="hidden" name="import_mode" value="<?= $e($importMode) ?>">
                     <button class="btn btn-danger" type="submit">Import ausführen</button>
                 </form>
             </div>

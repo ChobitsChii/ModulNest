@@ -20,6 +20,8 @@ interface DataPortabilityProviderInterface
 
     public function sensitivityNote(): string;
 
+    public function supportsReplaceImport(): bool;
+
     /**
      * @return array<int,string> Erlaubte Oberflächen: admin, user
      */
@@ -42,5 +44,5 @@ interface DataPortabilityProviderInterface
      * @param array<string,mixed> $manifestModule
      * @return array{created:int,updated:int,skipped:int,warnings:array<int,string>}
      */
-    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId): array;
+    public function import(array $payload, array $manifestModule, DataPortabilityArchiveReader $archive, int $targetUserId, string $importMode = 'merge'): array;
 }
