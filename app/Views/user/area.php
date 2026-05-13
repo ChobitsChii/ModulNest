@@ -366,7 +366,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     <div class="alert alert-info small" role="status">
         Importierte Daten werden deinem aktuellen Benutzerkonto zugeordnet:
         <strong><?= htmlspecialchars($dataPortabilityTargetLabel, ENT_QUOTES, 'UTF-8') ?></strong>.
-        Bestehende Daten werden in v1 nicht gelöscht.
+        Standardmäßig werden Daten hinzugefügt; im Ersetzen-Modus werden nur deine eigenen Daten der ausgewählten Module vorher gelöscht.
     </div>
 
     <div class="row g-4 align-items-stretch">
@@ -445,9 +445,9 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                 <?php else: ?>
                                     <p class="text-body-secondary small mb-3">
                                         Die Vorschau ist bereit. Der Import wird deinem aktuellen Benutzerkonto zugeordnet.
-                                        <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Daten der enthaltenen Module werden vorher ersetzt.' : 'Bestehende Daten werden nicht gelöscht.' ?>
+                                        <?= $dataPortabilityImportMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher deine Daten der enthaltenen Module.' : 'Der Standardmodus fügt Daten hinzu oder führt sie zusammen.' ?>
                                     </p>
-                                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
+                                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
                                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                         <input type="hidden" name="import_mode" value="<?= htmlspecialchars($dataPortabilityImportMode, ENT_QUOTES, 'UTF-8') ?>">
                                         <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
@@ -575,10 +575,10 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         <h3 class="h6 mb-1">Import bereit</h3>
                         <p class="text-body-secondary small mb-0">
                             Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen.
-                            <?= $dataPortabilityImportMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher deine Daten der enthaltenen Module.' : 'Bestehende Daten werden nicht gelöscht.' ?>
+                            <?= $dataPortabilityImportMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher deine Daten der enthaltenen Module.' : 'Im Standardmodus werden Daten hinzugefügt oder zusammengeführt.' ?>
                         </p>
                     </div>
-                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
+                    <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <input type="hidden" name="import_mode" value="<?= htmlspecialchars($dataPortabilityImportMode, ENT_QUOTES, 'UTF-8') ?>">
                         <button class="btn btn-danger" type="submit">Import ausführen</button>

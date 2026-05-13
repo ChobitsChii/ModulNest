@@ -150,12 +150,12 @@ $countLabel = static fn (string $name): string => [
                                 <p class="text-body-secondary small mb-3">
                                     Die Vorschau ist bereit.
                                     <?php if ($importMode === 'replace'): ?>
-                                        Bestehende Daten der enthaltenen Module werden vor dem Import ersetzt.
+                                        Der Ersetzen-Modus löscht vorher Daten der enthaltenen Module im jeweiligen Zielbereich.
                                     <?php else: ?>
-                                        Bestehende Daten werden nicht gelöscht.
+                                        Der Standardmodus fügt Daten hinzu oder führt sie zusammen.
                                     <?php endif; ?>
                                 </p>
-                                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
+                                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
                                     <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
                                     <input type="hidden" name="import_mode" value="<?= $e($importMode) ?>">
                                     <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
@@ -190,7 +190,7 @@ $countLabel = static fn (string $name): string => [
 
                 <div class="data-portability-target">
                     <div>
-                        <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Ziel-User für v1</p>
+                        <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Zielbereich</p>
                         <p class="mb-0">
                             <strong><?= $e($targetUserLabel) ?></strong>
                             <?php if ($targetUserId > 0): ?>
@@ -294,10 +294,10 @@ $countLabel = static fn (string $name): string => [
                     <h3 class="h6 mb-1">Import bereit</h3>
                     <p class="text-body-secondary small mb-0">
                         Wenn die Vorschau korrekt aussieht, kannst du den Import jetzt ausführen.
-                        <?= $importMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher die Daten der enthaltenen Module im Zielbereich.' : 'Bestehende Daten werden nicht gelöscht.' ?>
+                        <?= $importMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher die Daten der enthaltenen Module im Zielbereich.' : 'Im Standardmodus werden Daten hinzugefügt oder zusammengeführt.' ?>
                     </p>
                 </div>
-                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Bestehende Daten werden nicht gelöscht.' ?>');">
+                <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
                     <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
                     <input type="hidden" name="import_mode" value="<?= $e($importMode) ?>">
                     <button class="btn btn-danger" type="submit">Import ausführen</button>

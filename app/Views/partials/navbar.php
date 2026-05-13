@@ -46,7 +46,7 @@ $isActive = static function (string $path) use ($currentPath): string {
                         ?>
                         <?php if ($hasChildren): ?>
                             <li class="nav-item dropdown">
-                                <a class="nav-link app-nav-link dropdown-toggle <?= $activeClass ?>" href="<?= htmlspecialchars($moduleUrl, ENT_QUOTES, 'UTF-8') ?>" id="module-nav-<?= htmlspecialchars((string) ($module['prefix'] ?? $moduleName), ENT_QUOTES, 'UTF-8') ?>" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <a class="nav-link app-nav-link dropdown-toggle <?= $activeClass ?>" href="<?= htmlspecialchars($moduleUrl, ENT_QUOTES, 'UTF-8') ?>" id="module-nav-<?= htmlspecialchars((string) ($module['prefix'] ?? $moduleName), ENT_QUOTES, 'UTF-8') ?>" role="button" data-bs-toggle="dropdown" data-app-nav-dropdown-link aria-expanded="false">
                                     <?= htmlspecialchars($moduleName, ENT_QUOTES, 'UTF-8') ?>
                                 </a>
                                 <ul class="dropdown-menu app-module-dropdown" aria-labelledby="module-nav-<?= htmlspecialchars((string) ($module['prefix'] ?? $moduleName), ENT_QUOTES, 'UTF-8') ?>">
@@ -78,7 +78,7 @@ $isActive = static function (string $path) use ($currentPath): string {
             <div class="app-header-right">
                 <?php if ($isAdmin): ?>
                     <div class="nav-item dropdown app-admin-nav">
-                        <a class="nav-link app-nav-link app-admin-link dropdown-toggle <?= $isActive('/admin') ?>" href="/admin/modules" id="admin-nav-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link app-nav-link app-admin-link dropdown-toggle <?= $isActive('/admin') ?>" href="/admin/modules" id="admin-nav-dropdown" role="button" data-bs-toggle="dropdown" data-app-nav-dropdown-link aria-expanded="false">
                             Admin
                         </a>
                         <ul class="dropdown-menu app-module-dropdown" aria-labelledby="admin-nav-dropdown">
