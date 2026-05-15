@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modulon\Modules\Admin;
 
 use Modulon\Core\AdminNavigationRegistry;
+use Modulon\Core\NativeModuleMigrationService;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Session;
@@ -12,7 +13,6 @@ use Modulon\Core\View;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\UserRepository;
 use Modulon\Modules\Modules\ModuleRepository;
-use RuntimeException;
 
 final class AdminController
 {
@@ -30,6 +30,7 @@ final class AdminController
         private readonly ?string $basePath = null,
         private readonly ?AdminNavigationRegistry $adminNavigation = null,
         private readonly array $nativeModuleBindings = [],
+        private readonly ?NativeModuleMigrationService $moduleMigrations = null,
     ) {
     }
 
@@ -429,6 +430,10 @@ final class AdminController
         }
 
         try {
+            if ($isActive && $handler === 'native') {
+                $this->runModuleActivationMigrations($routePrefix, $handler, false, true);
+            }
+
             $this->modules->createModule(
                 $name,
                 $description,
@@ -442,8 +447,8 @@ final class AdminController
                 $showInHeader,
                 $showOnHome,
             );
-        } catch (RuntimeException|\PDOException $exception) {
-            $this->session->flash('admin_error', 'Modul konnte nicht erstellt werden.');
+        } catch (\Throwable $exception) {
+            $this->session->flash('admin_error', 'Modul konnte nicht erstellt werden: ' . $exception->getMessage());
             return Response::redirect('/admin/modules');
         }
 
@@ -472,6 +477,12 @@ final class AdminController
 
         if ($moduleId <= 0) {
             $this->session->flash('admin_error', 'Ungültige Modul-ID.');
+            return Response::redirect('/admin/modules');
+        }
+
+        $currentModule = $this->modules->findById($moduleId);
+        if ($currentModule === null) {
+            $this->session->flash('admin_error', 'Modul nicht gefunden.');
             return Response::redirect('/admin/modules');
         }
 
@@ -526,20 +537,33 @@ final class AdminController
             return Response::redirect('/admin/modules/' . $moduleId . '/edit');
         }
 
-        $this->modules->updateModuleAdvanced(
-            $moduleId,
-            $name,
-            $description,
-            $routePrefix,
-            $access,
-            $handler,
-            $legacyEntry,
-            $adminEntry,
-            $enableOverlay,
-            $isActive,
-            $showInHeader,
-            $showOnHome,
-        );
+        try {
+            $this->runModuleActivationMigrations(
+                $routePrefix,
+                $handler,
+                (int) ($currentModule['is_active'] ?? 0) === 1,
+                $isActive,
+            );
+
+            $this->modules->updateModuleAdvanced(
+                $moduleId,
+                $name,
+                $description,
+                $routePrefix,
+                $access,
+                $handler,
+                $legacyEntry,
+                $adminEntry,
+                $enableOverlay,
+                $isActive,
+                $showInHeader,
+                $showOnHome,
+            );
+        } catch (\Throwable $exception) {
+            $this->session->flash('admin_error', 'Modul konnte nicht gespeichert werden: ' . $exception->getMessage());
+            return Response::redirect('/admin/modules/' . $moduleId . '/edit');
+        }
+
         $this->session->flash('admin_info', 'Modul gespeichert.');
 
         return Response::redirect('/admin/modules/' . $moduleId . '/edit');
@@ -582,6 +606,20 @@ final class AdminController
 
         $newOverlay = $field === 'enable_overlay' ? $enabled : ((int) ($module['enable_overlay'] ?? 0) === 1);
         $newActive = $field === 'is_active' ? $enabled : ((int) ($module['is_active'] ?? 0) === 1);
+        try {
+            $migrationResult = $this->runModuleActivationMigrations(
+                (string) ($module['route_prefix'] ?? ''),
+                $handler,
+                (int) ($module['is_active'] ?? 0) === 1,
+                $newActive,
+            );
+        } catch (\Throwable $exception) {
+            return $this->json([
+                'ok' => false,
+                'message' => 'Modul-Migrationen konnten nicht ausgeführt werden: ' . $exception->getMessage(),
+            ], 500);
+        }
+
         $this->modules->updateFlags($moduleId, $newOverlay, $newActive);
 
         return $this->json([
@@ -589,6 +627,7 @@ final class AdminController
             'module_id' => $moduleId,
             'enable_overlay' => $newOverlay,
             'is_active' => $newActive,
+            'migrations_executed' => count($migrationResult['executed'] ?? []),
         ]);
     }
 
@@ -714,6 +753,22 @@ final class AdminController
             'edit_user' => $user,
             'current_user_id' => (int) (($this->auth?->currentUser()['id'] ?? 0)),
         ])));
+    }
+
+    /**
+     * @return array{executed:array<int,array<string,mixed>>,skipped:array<int,array<string,mixed>>,errors:array<int,array<string,mixed>>}
+     */
+    private function runModuleActivationMigrations(string $routePrefix, string $handler, bool $wasActive, bool $willBeActive): array
+    {
+        if ($wasActive || !$willBeActive || strtolower($handler) !== 'native' || $this->moduleMigrations === null) {
+            return [
+                'executed' => [],
+                'skipped' => [],
+                'errors' => [],
+            ];
+        }
+
+        return $this->moduleMigrations->runForRoutePrefix($routePrefix);
     }
 
     /**

@@ -28,9 +28,17 @@ Der aktuelle Public-Export enthält:
 
 Weitere private oder experimentelle Module können im Entwicklungsstand existieren, werden aber nur dann öffentlich exportiert, wenn sie beim Release-Build ausgewählt wurden.
 
+Im Entwicklungsstand ist zusätzlich `Homepage` für den nächsten Public-Export vorbereitet: eine konfigurierbare Root-Startseite mit sicherem Fallback auf die Standard-Startseite. Sie wird nur dann live auf `/` genutzt, wenn sie im Adminbereich ausdrücklich veröffentlicht wird.
+
 ## Modul-Autodiscovery
 
 Neue native Modulordner unter `app/Modules` können in der Modulverwaltung erkannt werden. Initiale Metadaten kommen aus dem Modul selbst und können anschließend in der Modulverwaltung angepasst werden.
+
+## Homepage / Startseite
+
+Das Homepage-Modul bereitet eine konfigurierbare Startseite für `/` vor. Es rendert nur veröffentlichte, aktivierte Blöcke. Wenn das Modul deaktiviert ist, nicht veröffentlicht wurde, keine gültigen Blöcke vorhanden sind oder beim Rendern ein Fehler auftritt, wird automatisch die bisherige Standard-Startseite angezeigt.
+
+V1 unterstützt die Blocktypen `custom_content`, `feature_list` und `module_list`. Blöcke können im Adminbereich erstellt, bearbeitet, aktiviert/deaktiviert und sortiert werden. Für Inhaltsblöcke sind mehrere strukturierte Buttons möglich; Feature-Listen verwenden strukturierte Items statt freier HTML-Eingabe. Die Admin-Vorschau rendert Markdown, Feature-Listen und Modul-Listen zielgruppenbezogen für Gäste, User und Admins. Freie HTML-Eingabe ist nicht vorgesehen; Markdown-Inhalte werden über den Core-Markdown-Renderer sicher gerendert.
 
 ## Legacy-Anbindung
 

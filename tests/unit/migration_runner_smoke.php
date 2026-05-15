@@ -66,7 +66,7 @@ $server = new PDO("mysql:host={$host};port={$port};charset={$charset}", $user, $
     PDO::MYSQL_ATTR_MULTI_STATEMENTS => true,
 ]);
 
-$publicModules = ['Admin', 'Auth', 'Modules', 'User', 'Banking', 'Dashboard', 'DataPortability', 'Logs', 'News', 'SneakPreview', 'Systeminfo', 'Tools', 'Updates'];
+$publicModules = ['Admin', 'Auth', 'Modules', 'User', 'Banking', 'Dashboard', 'DataPortability', 'Homepage', 'Logs', 'News', 'SneakPreview', 'Systeminfo', 'Tools', 'Updates'];
 
 $dbName = 'modulnest_migration_smoke_' . bin2hex(random_bytes(4));
 $server->exec('CREATE DATABASE `' . str_replace('`', '``', $dbName) . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
@@ -75,14 +75,14 @@ try {
     $runner = new MigrationRunner($server, $basePath);
     $first = $runner->run($publicModules);
     migration_smoke_assert(count($first['errors']) === 0, 'Erster Migrationslauf enthält Fehler.');
-    migration_smoke_assert(count($first['executed']) === 5, 'Erster Migrationslauf sollte 5 Migrationen ausführen.');
+    migration_smoke_assert(count($first['executed']) === 9, 'Erster Migrationslauf sollte 9 Migrationen ausführen.');
 
     $second = $runner->run($publicModules);
     migration_smoke_assert(count($second['executed']) === 0, 'Zweiter Migrationslauf darf nichts erneut ausführen.');
-    migration_smoke_assert(count($second['skipped']) === 5, 'Zweiter Migrationslauf sollte 5 Migrationen überspringen.');
+    migration_smoke_assert(count($second['skipped']) === 9, 'Zweiter Migrationslauf sollte 9 Migrationen überspringen.');
 
     $tables = migration_smoke_tables($server);
-    foreach (['schema_migrations', 'users', 'modules', 'news_entries', 'dashboard_widgets', 'dashboard_tasks', 'dashboard_notes', 'banking_accounts', 'banking_transactions', 'banking_recurring_rules', 'sneak_preview_entries', 'sneak_preview_settings'] as $table) {
+    foreach (['schema_migrations', 'users', 'modules', 'news_entries', 'homepage_blocks', 'homepage_block_buttons', 'homepage_block_items', 'dashboard_widgets', 'dashboard_tasks', 'dashboard_notes', 'banking_accounts', 'banking_transactions', 'banking_recurring_rules', 'sneak_preview_entries', 'sneak_preview_settings'] as $table) {
         migration_smoke_assert(in_array($table, $tables, true), "Tabelle fehlt nach Migration: {$table}");
     }
     foreach (['mail_accounts', 'mail_message_index', 'card_sets', 'cards', 'user_cards', 'fantasy_card_user_state'] as $table) {
@@ -90,7 +90,7 @@ try {
     }
 
     $executedCount = (int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
-    migration_smoke_assert($executedCount === 5, 'schema_migrations sollte 5 Einträge enthalten.');
+    migration_smoke_assert($executedCount === 9, 'schema_migrations sollte 9 Einträge enthalten.');
 } finally {
     $server->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $dbName) . '`');
 }
@@ -107,7 +107,7 @@ try {
     $result = $runner->run($publicModules);
     migration_smoke_assert(count($result['errors']) === 0, 'Migration über bestehendes Gesamtschema enthält Fehler.');
     migration_smoke_assert((string) $server->query("SELECT `value` FROM app_settings WHERE `key` = 'migration_smoke_marker'")->fetchColumn() === 'keep', 'Bestehende Daten wurden verändert.');
-    migration_smoke_assert((int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 5, 'Migrationen wurden in alter DB nicht markiert.');
+    migration_smoke_assert((int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 9, 'Migrationen wurden in alter DB nicht markiert.');
 } finally {
     $server->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $oldDbName) . '`');
 }

@@ -2,9 +2,9 @@
     "schema": 1,
     "product": "ModulNest",
     "core": "Modulon",
-    "version": "0.7.5",
+    "version": "0.8.0",
     "channel": "alpha",
-    "generated_at": "2026-05-13T11:50:18+00:00",
+    "generated_at": "2026-05-15T15:00:39+00:00",
     "required_modules": [
         "Admin",
         "Auth",
@@ -12,15 +12,16 @@
         "User"
     ],
     "optional_modules": [
+        "Banking",
         "Dashboard",
         "DataPortability",
+        "Homepage",
+        "Logs",
         "News",
-        "Systeminfo",
-        "Updates",
-        "Banking",
         "SneakPreview",
+        "Systeminfo",
         "Tools",
-        "Logs"
+        "Updates"
     ],
     "modules": [
         {
@@ -80,6 +81,20 @@
             "view_dir": "user"
         },
         {
+            "directory": "Banking",
+            "key": "banking",
+            "name": "Banking",
+            "route_prefix": "banking",
+            "access_level": "user",
+            "description": "Native Banking-Übersicht.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "banking"
+        },
+        {
             "directory": "Dashboard",
             "key": "dashboard",
             "name": "Dashboard",
@@ -108,6 +123,34 @@
             "view_dir": "data-portability"
         },
         {
+            "directory": "Homepage",
+            "key": "homepage",
+            "name": "Startseite",
+            "route_prefix": "homepage",
+            "access_level": "admin",
+            "description": "Konfigurierbare Root-Startseite vorbereiten und veröffentlichen.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "homepage"
+        },
+        {
+            "directory": "Logs",
+            "key": "logs",
+            "name": "Logs",
+            "route_prefix": "logs",
+            "access_level": "admin",
+            "description": "Admin-Logviewer für Modulon-Logdateien.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "logs"
+        },
+        {
             "directory": "News",
             "key": "news",
             "name": "News",
@@ -120,48 +163,6 @@
             "show_in_header": true,
             "show_on_home": true,
             "view_dir": "news"
-        },
-        {
-            "directory": "Systeminfo",
-            "key": "systeminfo",
-            "name": "Systeminfo",
-            "route_prefix": "systeminfo",
-            "access_level": "admin",
-            "description": "Systeminformationen und Healthchecks.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": true,
-            "view_dir": "systeminfo"
-        },
-        {
-            "directory": "Updates",
-            "key": "updates",
-            "name": "Updates",
-            "route_prefix": "updates",
-            "access_level": "admin",
-            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": false,
-            "show_on_home": false,
-            "view_dir": null
-        },
-        {
-            "directory": "Banking",
-            "key": "banking",
-            "name": "Banking",
-            "route_prefix": "banking",
-            "access_level": "user",
-            "description": "Native Banking-Übersicht.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": true,
-            "view_dir": "banking"
         },
         {
             "directory": "SneakPreview",
@@ -178,6 +179,20 @@
             "view_dir": "sneak-preview"
         },
         {
+            "directory": "Systeminfo",
+            "key": "systeminfo",
+            "name": "Systeminfo",
+            "route_prefix": "systeminfo",
+            "access_level": "admin",
+            "description": "Systeminformationen und Healthchecks.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "systeminfo"
+        },
+        {
             "directory": "Tools",
             "key": "tools",
             "name": "Tools",
@@ -192,18 +207,18 @@
             "view_dir": "tools"
         },
         {
-            "directory": "Logs",
-            "key": "logs",
-            "name": "Logs",
-            "route_prefix": "logs",
+            "directory": "Updates",
+            "key": "updates",
+            "name": "Updates",
+            "route_prefix": "updates",
             "access_level": "admin",
-            "description": "Admin-Logviewer für Modulon-Logdateien.",
+            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
             "required": false,
             "default_enabled": true,
             "native": true,
             "show_in_header": false,
             "show_on_home": false,
-            "view_dir": "logs"
+            "view_dir": null
         }
     ]
 }

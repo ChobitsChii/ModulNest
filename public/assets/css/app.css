@@ -2676,6 +2676,214 @@ body.is-mail-resizing {
     resize: vertical;
 }
 
+.homepage-block {
+    overflow: hidden;
+}
+
+.homepage-module-list-section {
+    width: 100%;
+}
+
+.homepage-module-list-header {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+}
+
+.homepage-module-list-header:empty {
+    display: none;
+}
+
+.homepage-markdown > :last-child {
+    margin-bottom: 0;
+}
+
+.homepage-markdown {
+    color: var(--app-muted);
+}
+
+.homepage-markdown h1,
+.homepage-markdown h2,
+.homepage-markdown h3,
+.homepage-markdown h4,
+.homepage-markdown h5,
+.homepage-markdown h6,
+.homepage-markdown strong {
+    color: var(--app-text);
+}
+
+.homepage-module-card {
+    border-color: var(--app-border) !important;
+    background: var(--app-surface);
+}
+
+.homepage-button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.homepage-block-inline-right .card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.homepage-content-inline .homepage-button-row {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+@media (min-width: 992px) {
+    .homepage-content-inline {
+        flex: 1;
+        min-height: 100%;
+        align-items: center !important;
+    }
+
+    .homepage-content-inline > .col-lg-auto {
+        display: flex;
+        align-items: center;
+        align-self: stretch;
+    }
+
+    .homepage-content-inline .homepage-button-row {
+        width: 100%;
+        align-items: center;
+        justify-content: flex-end;
+    }
+}
+
+.homepage-feature-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.homepage-feature-item {
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 0.5rem;
+    background: color-mix(in srgb, var(--app-surface-2) 34%, transparent);
+}
+
+.homepage-feature-item .homepage-markdown {
+    color: var(--app-muted);
+}
+
+.homepage-repeater {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.homepage-repeater-row {
+    border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: color-mix(in srgb, var(--app-surface-2) 22%, transparent);
+}
+
+.homepage-repeater-row [data-homepage-remove-row] {
+    white-space: nowrap;
+    min-width: 6.75rem;
+}
+
+.homepage-repeater-action {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.homepage-status-stack {
+    min-width: 13rem;
+}
+
+.homepage-preview-group {
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--app-surface-2) 28%, transparent);
+}
+
+.homepage-preview-block {
+    border: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    background: color-mix(in srgb, var(--app-surface) 82%, transparent);
+}
+
+.homepage-preview-block:last-child {
+    margin-bottom: 0;
+}
+
+.homepage-preview-toolbar {
+    margin-bottom: 0;
+}
+
+.homepage-preview-stage {
+    padding: 0;
+    background: transparent;
+}
+
+.homepage-preview-stage .row {
+    align-items: flex-start;
+}
+
+.homepage-preview-block-shell {
+    display: grid;
+    grid-template-rows: auto auto;
+    align-self: flex-start;
+    gap: 0.75rem;
+    height: auto;
+}
+
+.homepage-preview-block-shell.is-disabled .homepage-block {
+    opacity: 0.62;
+}
+
+.homepage-preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    align-self: flex-start;
+    gap: 0.55rem 1rem;
+    width: 100%;
+    height: auto;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--app-surface-2) 28%, transparent);
+    min-width: 0;
+}
+
+.homepage-preview-meta-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.homepage-preview-meta-label {
+    margin-right: 0.15rem;
+    color: var(--app-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.homepage-preview-empty {
+    border: 1px dashed var(--app-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    color: var(--app-muted);
+    background: color-mix(in srgb, var(--app-surface-2) 20%, transparent);
+}
+
+.homepage-ajax-message:empty {
+    display: none;
+}
+
 @keyframes fantasycards-pack-open {
     0% {
         transform: translateY(0) scale(0.96);

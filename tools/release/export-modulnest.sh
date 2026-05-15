@@ -4,7 +4,7 @@ set -Eeuo pipefail
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly DEFAULT_TARGET="/srv/http/modulnest"
 readonly CORE_MODULES=("Admin" "Auth" "Modules" "User")
-readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Logs" "News" "SneakPreview" "Systeminfo" "Tools" "Updates")
+readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "SneakPreview" "Systeminfo" "Tools" "Updates")
 
 TARGET="$DEFAULT_TARGET"
 ASSUME_YES=0
@@ -320,6 +320,7 @@ module_view_dir() {
         DataPortability) printf 'data-portability' ;;
         Dashboard) printf 'dashboard' ;;
         FantasyCards) printf 'fantasy-cards' ;;
+        Homepage) printf 'homepage' ;;
         Logs) printf 'logs' ;;
         Mail) printf 'mail' ;;
         News) printf 'news' ;;
@@ -399,7 +400,7 @@ write_package_metadata() {
         $target = $argv[1];
         $core = array_values(array_filter(explode(",", $argv[2])));
         $selected = array_values(array_filter(explode(",", $argv[3])));
-        $version = "0.7.5";
+        $version = "0.8.0";
         if (is_file("app/Core/Env.php") && is_file("app/Config/version.php")) {
             require_once "app/Core/Env.php";
             $config = require "app/Config/version.php";
@@ -420,6 +421,7 @@ write_package_metadata() {
             "DataPortability" => "data-portability",
             "Dashboard" => "dashboard",
             "FantasyCards" => "fantasy-cards",
+            "Homepage" => "homepage",
             "Logs" => "logs",
             "Mail" => "mail",
             "News" => "news",

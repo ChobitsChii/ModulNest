@@ -12,6 +12,7 @@ use Modulon\Core\HealthCheckRegistry;
 use Modulon\Core\ModuleContext;
 use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleLoader;
+use Modulon\Core\NativeModuleMigrationService;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Router;
@@ -173,6 +174,7 @@ $adminController = new AdminController(
     $basePath,
     $adminNavigationRegistry,
     $nativeModuleBindings,
+    $pdo instanceof PDO ? new NativeModuleMigrationService($pdo, $basePath) : null,
 );
 
 $accessibleModulesForUser = static function (?array $user, bool $isAdmin, string $placement = 'all', string $currentPath = '/') use ($moduleRepository, $moduleSubnavigationRegistry, $activeNativePrefixes): array {
@@ -272,7 +274,7 @@ $router->setAccessGuard(function (Request $request, string $access) use ($authSe
     return null;
 });
 
-$router->get('/', function (Request $request) use ($pdo, $authService, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck): Response {
+$router->get('/', function (Request $request) use ($pdo, $authService, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck, $nativeModules): Response {
     $message = 'Modulon Grundsystem läuft';
     if ($pdo !== null) {
         $message .= ' (DB verbunden)';
@@ -288,7 +290,7 @@ $router->get('/', function (Request $request) use ($pdo, $authService, $session,
         $healthSummary = is_array($health['summary'] ?? null) ? $health['summary'] : [];
     }
 
-    return new Response(View::render('home', [
+    $homeData = [
         'title' => 'Start',
         'current_path' => $request->path(),
         'message' => $message,
@@ -297,7 +299,24 @@ $router->get('/', function (Request $request) use ($pdo, $authService, $session,
         'available_modules' => $availableModules,
         'public_registration_enabled' => $publicRegistrationEnabled,
         'health_summary' => $healthSummary,
-    ]));
+    ];
+
+    try {
+        $homepageModule = $nativeModules['homepage'] ?? null;
+        if ($homepageModule instanceof \Modulon\Modules\Homepage\HomepageModule) {
+            $homepage = $homepageModule->renderer()->build($user, $isAdmin, $availableModules);
+            if ($homepage !== null) {
+                return new Response(View::render('homepage/render', array_merge($homeData, [
+                    'homepage_blocks' => $homepage['blocks'],
+                    'homepage_audience' => $homepage['audience'],
+                ])));
+            }
+        }
+    } catch (\Throwable $throwable) {
+        error_log('Homepage root fallback: ' . $throwable->getMessage());
+    }
+
+    return new Response(View::render('home', $homeData));
 });
 $router->get('/login', [$authController, 'showLoginForm']);
 $router->post('/login', [$authController, 'login']);

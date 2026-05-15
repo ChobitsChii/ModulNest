@@ -160,155 +160,6 @@ CREATE TABLE IF NOT EXISTS recovery_codes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- Source: app/Modules/Dashboard/Database/schema.sql
--- Dashboard-Grundlage (usergebundene, mehrfach einbindbare Widgets)
-CREATE TABLE IF NOT EXISTS dashboard_widgets (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    widget_type ENUM('links', 'tasks', 'notes') NOT NULL,
-    title VARCHAR(120) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    layout_width TINYINT UNSIGNED NOT NULL DEFAULT 6,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_dashboard_widgets_user
-        FOREIGN KEY (user_id) REFERENCES users(id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    INDEX idx_dashboard_widgets_user (user_id),
-    INDEX idx_dashboard_widgets_user_sort (user_id, sort_order),
-    INDEX idx_dashboard_widgets_user_type (user_id, widget_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS dashboard_link_folders (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    widget_id BIGINT UNSIGNED NOT NULL,
-    name VARCHAR(120) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    is_default TINYINT(1) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_dashboard_link_folders_widget
-        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    INDEX idx_dashboard_link_folders_widget (widget_id),
-    INDEX idx_dashboard_link_folders_widget_sort (widget_id, sort_order)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS dashboard_links (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    widget_id BIGINT UNSIGNED NOT NULL,
-    folder_id BIGINT UNSIGNED NULL,
-    title VARCHAR(180) NOT NULL,
-    url VARCHAR(2048) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    favicon_url VARCHAR(2048) NULL,
-    favicon_host VARCHAR(190) NULL,
-    favicon_last_checked_at TIMESTAMP NULL DEFAULT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_dashboard_links_widget
-        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_dashboard_links_folder
-        FOREIGN KEY (folder_id) REFERENCES dashboard_link_folders(id)
-        ON DELETE SET NULL ON UPDATE CASCADE,
-    INDEX idx_dashboard_links_widget (widget_id),
-    INDEX idx_dashboard_links_widget_sort (widget_id, sort_order),
-    INDEX idx_dashboard_links_folder (folder_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS dashboard_tasks (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    widget_id BIGINT UNSIGNED NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    details TEXT NULL,
-    link_url VARCHAR(2048) NULL,
-    priority TINYINT UNSIGNED NOT NULL DEFAULT 0,
-    due_at TIMESTAMP NULL DEFAULT NULL,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    is_done TINYINT(1) NOT NULL DEFAULT 0,
-    done_at TIMESTAMP NULL DEFAULT NULL,
-    repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none',
-    repeat_time TIME NULL DEFAULT NULL,
-    repeat_weekday TINYINT UNSIGNED NULL,
-    repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL,
-    repeat_month_day TINYINT UNSIGNED NULL,
-    repeat_month_ordinal TINYINT UNSIGNED NULL,
-    repeat_month_weekday TINYINT UNSIGNED NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_dashboard_tasks_widget
-        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    INDEX idx_dashboard_tasks_widget (widget_id),
-    INDEX idx_dashboard_tasks_widget_done_sort (widget_id, is_done, sort_order)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE dashboard_tasks
-    ADD COLUMN IF NOT EXISTS link_url VARCHAR(2048) NULL AFTER details,
-    ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER due_at,
-    ADD COLUMN IF NOT EXISTS repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none' AFTER done_at,
-    ADD COLUMN IF NOT EXISTS repeat_time TIME NULL DEFAULT NULL AFTER repeat_type,
-    ADD COLUMN IF NOT EXISTS repeat_weekday TINYINT UNSIGNED NULL AFTER repeat_time,
-    ADD COLUMN IF NOT EXISTS repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL AFTER repeat_weekday,
-    ADD COLUMN IF NOT EXISTS repeat_month_day TINYINT UNSIGNED NULL AFTER repeat_month_mode,
-    ADD COLUMN IF NOT EXISTS repeat_month_ordinal TINYINT UNSIGNED NULL AFTER repeat_month_day,
-    ADD COLUMN IF NOT EXISTS repeat_month_weekday TINYINT UNSIGNED NULL AFTER repeat_month_ordinal;
-
-ALTER TABLE dashboard_tasks
-    MODIFY COLUMN repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL;
-
-CREATE TABLE IF NOT EXISTS dashboard_notes (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    widget_id BIGINT UNSIGNED NOT NULL,
-    title VARCHAR(180) NULL,
-    content MEDIUMTEXT NOT NULL,
-    textarea_height INT UNSIGNED NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    is_pinned TINYINT(1) NOT NULL DEFAULT 0,
-    is_archived TINYINT(1) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_dashboard_notes_widget
-        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    INDEX idx_dashboard_notes_widget (widget_id),
-    INDEX idx_dashboard_notes_widget_sort (widget_id, is_pinned, sort_order)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE dashboard_notes
-    ADD COLUMN IF NOT EXISTS textarea_height INT UNSIGNED NULL AFTER content;
-
-
--- Source: app/Modules/News/Database/schema.sql
-CREATE TABLE IF NOT EXISTS news_entries (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(180) NOT NULL,
-    slug VARCHAR(180) NOT NULL UNIQUE,
-    excerpt VARCHAR(400) NOT NULL,
-    content MEDIUMTEXT NOT NULL,
-    type ENUM('news', 'update', 'release', 'note') NOT NULL DEFAULT 'news',
-    version VARCHAR(30) NULL,
-    status ENUM('draft', 'published') NOT NULL DEFAULT 'draft',
-    published_at TIMESTAMP NULL DEFAULT NULL,
-    created_by BIGINT UNSIGNED NULL,
-    updated_by BIGINT UNSIGNED NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_news_entries_created_by
-        FOREIGN KEY (created_by) REFERENCES users(id)
-        ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT fk_news_entries_updated_by
-        FOREIGN KEY (updated_by) REFERENCES users(id)
-        ON DELETE SET NULL ON UPDATE CASCADE,
-    INDEX idx_news_entries_status_published (status, published_at),
-    INDEX idx_news_entries_type (type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
 -- Source: app/Modules/Banking/Database/schema.sql
 -- Banking-Modul Zielstruktur (native, usergebundene Migration aus Legacy-Banking)
 CREATE TABLE IF NOT EXISTS banking_migration_runs (
@@ -547,6 +398,231 @@ CREATE TABLE IF NOT EXISTS banking_dashboard_cache (
         ON DELETE CASCADE ON UPDATE CASCADE,
     UNIQUE KEY uq_banking_dashboard_cache_scope (user_id, cache_scope, period_key),
     INDEX idx_banking_dashboard_cache_user_updated (user_id, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Source: app/Modules/Dashboard/Database/schema.sql
+-- Dashboard-Grundlage (usergebundene, mehrfach einbindbare Widgets)
+CREATE TABLE IF NOT EXISTS dashboard_widgets (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    widget_type ENUM('links', 'tasks', 'notes') NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    layout_width TINYINT UNSIGNED NOT NULL DEFAULT 6,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dashboard_widgets_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_dashboard_widgets_user (user_id),
+    INDEX idx_dashboard_widgets_user_sort (user_id, sort_order),
+    INDEX idx_dashboard_widgets_user_type (user_id, widget_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS dashboard_link_folders (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    widget_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_default TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dashboard_link_folders_widget
+        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_dashboard_link_folders_widget (widget_id),
+    INDEX idx_dashboard_link_folders_widget_sort (widget_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS dashboard_links (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    widget_id BIGINT UNSIGNED NOT NULL,
+    folder_id BIGINT UNSIGNED NULL,
+    title VARCHAR(180) NOT NULL,
+    url VARCHAR(2048) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    favicon_url VARCHAR(2048) NULL,
+    favicon_host VARCHAR(190) NULL,
+    favicon_last_checked_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dashboard_links_widget
+        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_dashboard_links_folder
+        FOREIGN KEY (folder_id) REFERENCES dashboard_link_folders(id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_dashboard_links_widget (widget_id),
+    INDEX idx_dashboard_links_widget_sort (widget_id, sort_order),
+    INDEX idx_dashboard_links_folder (folder_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS dashboard_tasks (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    widget_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    details TEXT NULL,
+    link_url VARCHAR(2048) NULL,
+    priority TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    due_at TIMESTAMP NULL DEFAULT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    is_done TINYINT(1) NOT NULL DEFAULT 0,
+    done_at TIMESTAMP NULL DEFAULT NULL,
+    repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none',
+    repeat_time TIME NULL DEFAULT NULL,
+    repeat_weekday TINYINT UNSIGNED NULL,
+    repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL,
+    repeat_month_day TINYINT UNSIGNED NULL,
+    repeat_month_ordinal TINYINT UNSIGNED NULL,
+    repeat_month_weekday TINYINT UNSIGNED NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dashboard_tasks_widget
+        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_dashboard_tasks_widget (widget_id),
+    INDEX idx_dashboard_tasks_widget_done_sort (widget_id, is_done, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE dashboard_tasks
+    ADD COLUMN IF NOT EXISTS link_url VARCHAR(2048) NULL AFTER details,
+    ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER due_at,
+    ADD COLUMN IF NOT EXISTS repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none' AFTER done_at,
+    ADD COLUMN IF NOT EXISTS repeat_time TIME NULL DEFAULT NULL AFTER repeat_type,
+    ADD COLUMN IF NOT EXISTS repeat_weekday TINYINT UNSIGNED NULL AFTER repeat_time,
+    ADD COLUMN IF NOT EXISTS repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL AFTER repeat_weekday,
+    ADD COLUMN IF NOT EXISTS repeat_month_day TINYINT UNSIGNED NULL AFTER repeat_month_mode,
+    ADD COLUMN IF NOT EXISTS repeat_month_ordinal TINYINT UNSIGNED NULL AFTER repeat_month_day,
+    ADD COLUMN IF NOT EXISTS repeat_month_weekday TINYINT UNSIGNED NULL AFTER repeat_month_ordinal;
+
+ALTER TABLE dashboard_tasks
+    MODIFY COLUMN repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL;
+
+CREATE TABLE IF NOT EXISTS dashboard_notes (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    widget_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(180) NULL,
+    content MEDIUMTEXT NOT NULL,
+    textarea_height INT UNSIGNED NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+    is_archived TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dashboard_notes_widget
+        FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_dashboard_notes_widget (widget_id),
+    INDEX idx_dashboard_notes_widget_sort (widget_id, is_pinned, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE dashboard_notes
+    ADD COLUMN IF NOT EXISTS textarea_height INT UNSIGNED NULL AFTER content;
+
+
+-- Source: app/Modules/Homepage/Database/schema.sql
+CREATE TABLE IF NOT EXISTS homepage_blocks (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    type ENUM('custom_content', 'module_list', 'feature_list') NOT NULL DEFAULT 'custom_content',
+    title VARCHAR(190) NOT NULL,
+    show_title TINYINT(1) NOT NULL DEFAULT 1,
+    content_markdown MEDIUMTEXT NULL,
+    button_label VARCHAR(120) NULL,
+    button_url VARCHAR(255) NULL,
+    button_layout ENUM('below_text', 'inline_right') NOT NULL DEFAULT 'below_text',
+    visibility_guest TINYINT(1) NOT NULL DEFAULT 1,
+    visibility_user TINYINT(1) NOT NULL DEFAULT 1,
+    visibility_admin TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    column_span ENUM('full', 'half', 'two_thirds', 'one_third') NOT NULL DEFAULT 'full',
+    is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_homepage_blocks_enabled_sort (is_enabled, sort_order, id),
+    INDEX idx_homepage_blocks_type (type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE homepage_blocks
+    ADD COLUMN IF NOT EXISTS type ENUM('custom_content', 'module_list', 'feature_list') NOT NULL DEFAULT 'custom_content',
+    ADD COLUMN IF NOT EXISTS title VARCHAR(190) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS show_title TINYINT(1) NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS content_markdown MEDIUMTEXT NULL,
+    ADD COLUMN IF NOT EXISTS button_label VARCHAR(120) NULL,
+    ADD COLUMN IF NOT EXISTS button_url VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS button_layout ENUM('below_text', 'inline_right') NOT NULL DEFAULT 'below_text',
+    ADD COLUMN IF NOT EXISTS visibility_guest TINYINT(1) NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS visibility_user TINYINT(1) NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS visibility_admin TINYINT(1) NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS column_span ENUM('full', 'half', 'two_thirds', 'one_third') NOT NULL DEFAULT 'full',
+    ADD COLUMN IF NOT EXISTS is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+ALTER TABLE homepage_blocks
+    MODIFY COLUMN type ENUM('custom_content', 'module_list', 'feature_list') NOT NULL DEFAULT 'custom_content',
+    MODIFY COLUMN button_layout ENUM('below_text', 'inline_right') NOT NULL DEFAULT 'below_text',
+    MODIFY COLUMN column_span ENUM('full', 'half', 'two_thirds', 'one_third') NOT NULL DEFAULT 'full';
+
+CREATE TABLE IF NOT EXISTS homepage_block_buttons (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    block_id BIGINT UNSIGNED NOT NULL,
+    label VARCHAR(120) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    variant ENUM('primary', 'secondary') NOT NULL DEFAULT 'primary',
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_homepage_block_buttons_block
+        FOREIGN KEY (block_id) REFERENCES homepage_blocks(id)
+        ON DELETE CASCADE,
+    INDEX idx_homepage_block_buttons_block_sort (block_id, sort_order, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS homepage_block_items (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    block_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(190) NOT NULL,
+    content_markdown MEDIUMTEXT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_homepage_block_items_block
+        FOREIGN KEY (block_id) REFERENCES homepage_blocks(id)
+        ON DELETE CASCADE,
+    INDEX idx_homepage_block_items_block_sort (block_id, sort_order, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO app_settings (`key`, `value`) VALUES ('homepage.is_published', '0');
+
+
+-- Source: app/Modules/News/Database/schema.sql
+CREATE TABLE IF NOT EXISTS news_entries (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(180) NOT NULL,
+    slug VARCHAR(180) NOT NULL UNIQUE,
+    excerpt VARCHAR(400) NOT NULL,
+    content MEDIUMTEXT NOT NULL,
+    type ENUM('news', 'update', 'release', 'note') NOT NULL DEFAULT 'news',
+    version VARCHAR(30) NULL,
+    status ENUM('draft', 'published') NOT NULL DEFAULT 'draft',
+    published_at TIMESTAMP NULL DEFAULT NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_news_entries_created_by
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_news_entries_updated_by
+        FOREIGN KEY (updated_by) REFERENCES users(id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX idx_news_entries_status_published (status, published_at),
+    INDEX idx_news_entries_type (type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

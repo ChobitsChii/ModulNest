@@ -1,20 +1,20 @@
 {
-    "latest": "0.7.5",
+    "latest": "0.8.0",
     "channel": "alpha",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.5/modulnest-source-0.7.5.zip",
-            "sha256": "04f98c44ef46bbf15a3623916d474af691dcf4f07137331991bcfbc713d8853a",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.8.0/modulnest-source-0.8.0.zip",
+            "sha256": "280a743b377410835b59efbcf694073c1f2b8919f322a63f72b964d60bb9b965",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.7.5/modulnest-bundled-0.7.5.zip",
-            "sha256": "e4c25191832958671092e5b6c94d8f9a4b4dcf27de0370dca60c72f3aae3391d",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.8.0/modulnest-bundled-0.8.0.zip",
+            "sha256": "fb508f022025f10cd91327ce9d6c0e93fc25ec2c5f3f5859f18535a0577b4b54",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.7.5",
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.8.0",
     "requires_migrations": true,
     "package_metadata": "modulnest-package.json",
     "modules": [
@@ -75,6 +75,20 @@
             "view_dir": "user"
         },
         {
+            "directory": "Banking",
+            "key": "banking",
+            "name": "Banking",
+            "route_prefix": "banking",
+            "access_level": "user",
+            "description": "Native Banking-Übersicht.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "banking"
+        },
+        {
             "directory": "Dashboard",
             "key": "dashboard",
             "name": "Dashboard",
@@ -103,6 +117,34 @@
             "view_dir": "data-portability"
         },
         {
+            "directory": "Homepage",
+            "key": "homepage",
+            "name": "Startseite",
+            "route_prefix": "homepage",
+            "access_level": "admin",
+            "description": "Konfigurierbare Root-Startseite vorbereiten und veröffentlichen.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "homepage"
+        },
+        {
+            "directory": "Logs",
+            "key": "logs",
+            "name": "Logs",
+            "route_prefix": "logs",
+            "access_level": "admin",
+            "description": "Admin-Logviewer für Modulon-Logdateien.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": false,
+            "show_on_home": false,
+            "view_dir": "logs"
+        },
+        {
             "directory": "News",
             "key": "news",
             "name": "News",
@@ -115,48 +157,6 @@
             "show_in_header": true,
             "show_on_home": true,
             "view_dir": "news"
-        },
-        {
-            "directory": "Systeminfo",
-            "key": "systeminfo",
-            "name": "Systeminfo",
-            "route_prefix": "systeminfo",
-            "access_level": "admin",
-            "description": "Systeminformationen und Healthchecks.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": true,
-            "view_dir": "systeminfo"
-        },
-        {
-            "directory": "Updates",
-            "key": "updates",
-            "name": "Updates",
-            "route_prefix": "updates",
-            "access_level": "admin",
-            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": false,
-            "show_on_home": false,
-            "view_dir": null
-        },
-        {
-            "directory": "Banking",
-            "key": "banking",
-            "name": "Banking",
-            "route_prefix": "banking",
-            "access_level": "user",
-            "description": "Native Banking-Übersicht.",
-            "required": false,
-            "default_enabled": true,
-            "native": true,
-            "show_in_header": true,
-            "show_on_home": true,
-            "view_dir": "banking"
         },
         {
             "directory": "SneakPreview",
@@ -173,6 +173,20 @@
             "view_dir": "sneak-preview"
         },
         {
+            "directory": "Systeminfo",
+            "key": "systeminfo",
+            "name": "Systeminfo",
+            "route_prefix": "systeminfo",
+            "access_level": "admin",
+            "description": "Systeminformationen und Healthchecks.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": true,
+            "view_dir": "systeminfo"
+        },
+        {
             "directory": "Tools",
             "key": "tools",
             "name": "Tools",
@@ -187,19 +201,19 @@
             "view_dir": "tools"
         },
         {
-            "directory": "Logs",
-            "key": "logs",
-            "name": "Logs",
-            "route_prefix": "logs",
+            "directory": "Updates",
+            "key": "updates",
+            "name": "Updates",
+            "route_prefix": "updates",
             "access_level": "admin",
-            "description": "Admin-Logviewer für Modulon-Logdateien.",
+            "description": "Offizielle ModulNest-Updates prüfen, vorbereiten und installieren.",
             "required": false,
             "default_enabled": true,
             "native": true,
             "show_in_header": false,
             "show_on_home": false,
-            "view_dir": "logs"
+            "view_dir": null
         }
     ],
-    "generated_at": "2026-05-13T11:50:35+00:00"
+    "generated_at": "2026-05-15T15:01:04+00:00"
 }
