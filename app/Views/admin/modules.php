@@ -130,7 +130,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
                             <td class="ps-4 module-sort-column">
                                 <button
                                     type="button"
-                                    class="module-sort-handle js-module-row-handle"
+                                    class="app-sort-handle module-sort-handle js-module-row-handle"
                                     aria-label="Modul sortieren"
                                     title="Per Drag & Drop sortieren"
                                 >⋮⋮</button>

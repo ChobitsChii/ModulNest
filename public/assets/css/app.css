@@ -926,12 +926,13 @@ body.is-mail-resizing {
     width: 74px;
 }
 
-.module-sort-handle {
+.app-sort-handle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 32px;
     height: 28px;
+    padding: 0;
     border-radius: 6px;
     border: 1px solid var(--app-border);
     background: var(--app-surface-2);
@@ -941,15 +942,26 @@ body.is-mail-resizing {
     cursor: grab;
 }
 
-.module-sort-handle:hover,
-.module-sort-handle:focus-visible {
+button.app-sort-handle {
+    display: inline-flex !important;
+    cursor: grab !important;
+}
+
+.app-sort-handle:hover,
+.app-sort-handle:focus-visible {
     color: var(--app-text);
     border-color: color-mix(in srgb, var(--app-primary) 42%, var(--app-border));
     background: color-mix(in srgb, var(--app-primary) 10%, var(--app-surface-2));
+    outline: none;
+    box-shadow: 0 0 0 0.12rem color-mix(in srgb, var(--app-primary) 22%, transparent);
 }
 
 #js-module-sortable-body.is-sorting .module-sort-handle {
     cursor: grabbing;
+}
+
+#js-module-sortable-body.is-sorting button.module-sort-handle {
+    cursor: grabbing !important;
 }
 
 .module-sort-ghost {
@@ -1215,6 +1227,37 @@ body.is-mail-resizing {
 
 .modulon-task-item.is-done strong {
     text-decoration: line-through;
+}
+
+.modulon-task-item.is-archived,
+.dashboard-note-item.is-archived {
+    background: color-mix(in srgb, var(--app-surface-2) 62%, transparent);
+    border-color: color-mix(in srgb, var(--app-border) 82%, transparent);
+    opacity: 0.92;
+}
+
+.dashboard-archive-panel {
+    border-top: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
+    padding-top: 0.75rem;
+}
+
+.dashboard-archive-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--app-muted);
+    cursor: pointer;
+    font-size: 0.875rem;
+    user-select: none;
+}
+
+.dashboard-archive-summary:hover,
+.dashboard-archive-summary:focus-visible {
+    color: var(--app-text);
+}
+
+.dashboard-note-item .js-dashboard-note-archive-submit {
+    white-space: nowrap;
 }
 
 .modulon-news-content {
@@ -1809,20 +1852,20 @@ body.is-mail-resizing {
     cursor: grabbing;
 }
 
+.dashboard-active-count-badge {
+    font-weight: 600;
+}
+
 .dashboard-widget-grip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.15rem;
-    color: var(--app-muted);
-    font-size: 1rem;
-    opacity: 0.58;
-    transition: color 0.15s ease, opacity 0.15s ease;
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .dashboard-widget-titlebar:hover .dashboard-widget-grip {
-    color: var(--app-primary);
-    opacity: 0.95;
+    color: var(--app-text);
+    border-color: color-mix(in srgb, var(--app-primary) 42%, var(--app-border));
+    background: color-mix(in srgb, var(--app-primary) 10%, var(--app-surface-2));
 }
 
 .dashboard-widget-window-actions {
@@ -1850,6 +1893,14 @@ body.is-mail-resizing {
 .dashboard-widget-shell.is-dragging {
     opacity: 0.55;
     cursor: grabbing;
+}
+
+.dashboard-widget-shell.is-dragging .dashboard-widget-grip {
+    cursor: grabbing;
+}
+
+.dashboard-widget-shell.is-dragging button.dashboard-widget-grip {
+    cursor: grabbing !important;
 }
 
 .dashboard-widget-shell.is-dragging .dashboard-widget-window {

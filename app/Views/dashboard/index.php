@@ -7,10 +7,13 @@ $activeWidgets = is_array($active_widgets ?? null) ? $active_widgets : [];
 $foldersByWidget = is_array($folders_by_widget ?? null) ? $folders_by_widget : [];
 $linksByWidget = is_array($links_by_widget ?? null) ? $links_by_widget : [];
 $tasksByWidget = is_array($tasks_by_widget ?? null) ? $tasks_by_widget : [];
+$archivedTasksByWidget = is_array($archived_tasks_by_widget ?? null) ? $archived_tasks_by_widget : [];
 $notesByWidget = is_array($notes_by_widget ?? null) ? $notes_by_widget : [];
+$archivedNotesByWidget = is_array($archived_notes_by_widget ?? null) ? $archived_notes_by_widget : [];
 $formState = is_array($form_state ?? null) ? $form_state : [];
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
+$dashboardCsrfToken = (string) ($dashboard_csrf_token ?? '');
 $dashboardNowUtc = (string) ($dashboard_now_utc ?? '');
 $dashboardTimezoneName = (string) ($dashboard_timezone_name ?? 'UTC');
 $dashboardAutoRefreshEnabled = (bool) ($dashboard_auto_refresh_enabled ?? true);
@@ -195,6 +198,11 @@ $taskRepeatLabel = static function (array $task): string {
                 'notes' => '+ Notiz anlegen',
                 default => '+ Neu',
             };
+            $activeItemCount = match ($widgetType) {
+                'tasks' => count(is_array($tasksByWidget[$widgetId] ?? null) ? $tasksByWidget[$widgetId] : []),
+                'notes' => count(is_array($notesByWidget[$widgetId] ?? null) ? $notesByWidget[$widgetId] : []),
+                default => null,
+            };
             ?>
             <div
                 id="widget-<?= $widgetId ?>"
@@ -205,11 +213,21 @@ $taskRepeatLabel = static function (array $task): string {
                 <section class="card shadow-sm border-0 app-card dashboard-widget-window">
                     <div class="dashboard-widget-titlebar" title="Widget verschieben">
                         <div class="d-flex align-items-center gap-2 flex-wrap min-w-0">
-                            <span class="dashboard-widget-grip" aria-hidden="true">
-                                <i class="bi bi-grip-horizontal"></i>
-                            </span>
+                            <button
+                                type="button"
+                                class="app-sort-handle dashboard-widget-grip"
+                                aria-label="Widget verschieben"
+                                title="Per Drag & Drop verschieben"
+                            >⋮⋮</button>
                             <h2 class="h6 text-uppercase text-body-secondary mb-0 text-truncate js-widget-title"><?= htmlspecialchars($widgetTitle, ENT_QUOTES, 'UTF-8') ?></h2>
                             <span class="badge text-bg-secondary"><?= htmlspecialchars($widgetType, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php if ($activeItemCount !== null): ?>
+                                <span
+                                    class="badge text-bg-secondary dashboard-active-count-badge"
+                                    data-dashboard-active-count="<?= htmlspecialchars($widgetType, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-widget-id="<?= $widgetId ?>"
+                                ><span class="js-dashboard-active-count"><?= $activeItemCount ?></span> aktiv</span>
+                            <?php endif; ?>
                         </div>
                         <div class="dashboard-widget-window-actions">
                             <button type="button" class="btn btn-sm btn-outline-secondary dashboard-window-btn js-widget-collapse" title="Einklappen" aria-label="Widget einklappen">
@@ -423,6 +441,7 @@ $taskRepeatLabel = static function (array $task): string {
                             </div>
                         <?php elseif ($widgetType === 'tasks'): ?>
                             <?php $tasks = is_array($tasksByWidget[$widgetId] ?? null) ? $tasksByWidget[$widgetId] : []; ?>
+                            <?php $archivedTasks = is_array($archivedTasksByWidget[$widgetId] ?? null) ? $archivedTasksByWidget[$widgetId] : []; ?>
                             <div id="widget-form-<?= $widgetId ?>" class="js-widget-form-block mb-3">
                             <div class="border rounded-2 p-3">
                                 <h3 class="h6 text-uppercase text-body-secondary mb-2">Aufgabe erfassen</h3>
@@ -504,9 +523,9 @@ $taskRepeatLabel = static function (array $task): string {
                             </div>
                             </div>
 
-                            <div class="vstack gap-2">
+                            <div class="vstack gap-2 js-dashboard-active-list" data-dashboard-list="tasks" data-widget-id="<?= $widgetId ?>">
                                 <?php if ($tasks === []): ?>
-                                    <p class="small text-body-secondary mb-0">Noch keine Aufgaben vorhanden.</p>
+                                    <p class="small text-body-secondary mb-0 js-dashboard-empty-state">Noch keine aktiven Aufgaben vorhanden.</p>
                                 <?php else: ?>
                                     <?php foreach ($tasks as $task): ?>
                                         <?php
@@ -546,7 +565,7 @@ $taskRepeatLabel = static function (array $task): string {
                                         $taskIsActive = (int) ($task['is_active'] ?? 1) === 1;
                                         $taskEditBlockId = 'task-edit-' . $taskId;
                                         ?>
-                                        <div class="border rounded-2 p-2 modulon-task-item<?= $isDone ? ' is-done' : '' ?>" data-task-item="<?= $taskId ?>">
+                                        <div class="border rounded-2 p-2 modulon-task-item<?= $isDone ? ' is-done' : '' ?>" data-dashboard-archive-item="task" data-task-item="<?= $taskId ?>">
                                             <div class="d-flex align-items-start gap-2">
                                                 <input class="form-check-input mt-1 js-task-toggle" type="checkbox" data-task-id="<?= $taskId ?>"<?= $isDone ? ' checked' : '' ?>>
                                                 <div class="flex-grow-1">
@@ -582,6 +601,18 @@ $taskRepeatLabel = static function (array $task): string {
                                                         <form method="post" action="/dashboard/tasks/delete" class="m-0" onsubmit="return window.confirm('Aufgabe wirklich löschen?');">
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                                        </form>
+                                                        <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form" data-dashboard-archive-kind="task" data-dashboard-archive-state="1">
+                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="task_id" value="<?= $taskId ?>">
+                                                            <input type="hidden" name="archived" value="1">
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
+                                                        </form>
+                                                        <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="task" data-dashboard-archive-state="0">
+                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="task_id" value="<?= $taskId ?>">
+                                                            <input type="hidden" name="archived" value="0">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
                                                         </form>
                                                     </div>
 
@@ -675,8 +706,56 @@ $taskRepeatLabel = static function (array $task): string {
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>
+                            <details class="dashboard-archive-panel mt-3" data-dashboard-archive-panel="tasks" data-widget-id="<?= $widgetId ?>">
+                                <summary class="dashboard-archive-summary">
+                                    Archivierte Aufgaben anzeigen
+                                    <span class="badge text-bg-secondary js-dashboard-archive-count"><?= count($archivedTasks) ?></span>
+                                </summary>
+                                <div class="vstack gap-2 mt-2 js-dashboard-archive-list" data-dashboard-list="tasks" data-widget-id="<?= $widgetId ?>">
+                                    <?php if ($archivedTasks === []): ?>
+                                        <p class="small text-body-secondary mb-0 js-dashboard-empty-state">Keine archivierten Aufgaben.</p>
+                                    <?php else: ?>
+                                        <?php foreach ($archivedTasks as $task): ?>
+                                            <?php
+                                            $taskId = (int) ($task['id'] ?? 0);
+                                            $isDone = (int) ($task['is_done'] ?? 0) === 1;
+                                            $taskTitle = (string) ($task['title'] ?? 'Aufgabe');
+                                            ?>
+                                            <div class="border rounded-2 p-2 modulon-task-item is-archived<?= $isDone ? ' is-done' : '' ?>" data-dashboard-archive-item="task" data-task-item="<?= $taskId ?>">
+                                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                                    <div class="min-w-0">
+                                                        <div class="d-flex align-items-center gap-2 flex-wrap js-task-title-row">
+                                                            <strong><?= htmlspecialchars($taskTitle, ENT_QUOTES, 'UTF-8') ?></strong>
+                                                            <span class="badge text-bg-secondary"><?= htmlspecialchars($taskRepeatLabel($task), ENT_QUOTES, 'UTF-8') ?></span>
+                                                            <?php if ($isDone): ?>
+                                                                <span class="badge text-bg-success js-task-done-badge">Erledigt</span>
+                                                            <?php endif; ?>
+                                                            <span class="badge text-bg-dark">Archiv</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                        <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="task" data-dashboard-archive-state="1">
+                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="task_id" value="<?= $taskId ?>">
+                                                            <input type="hidden" name="archived" value="1">
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
+                                                        </form>
+                                                        <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form" data-dashboard-archive-kind="task" data-dashboard-archive-state="0">
+                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="task_id" value="<?= $taskId ?>">
+                                                            <input type="hidden" name="archived" value="0">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </details>
                         <?php elseif ($widgetType === 'notes'): ?>
                             <?php $notes = is_array($notesByWidget[$widgetId] ?? null) ? $notesByWidget[$widgetId] : []; ?>
+                            <?php $archivedNotes = is_array($archivedNotesByWidget[$widgetId] ?? null) ? $archivedNotesByWidget[$widgetId] : []; ?>
                             <div id="widget-form-<?= $widgetId ?>" class="js-widget-form-block mb-3">
                             <div class="border rounded-2 p-3">
                                 <h3 class="h6 text-uppercase text-body-secondary mb-2">Neue Notiz</h3>
@@ -698,9 +777,9 @@ $taskRepeatLabel = static function (array $task): string {
                             </div>
                             </div>
 
-                            <div class="vstack gap-2">
+                            <div class="vstack gap-2 js-dashboard-active-list" data-dashboard-list="notes" data-widget-id="<?= $widgetId ?>">
                                 <?php if ($notes === []): ?>
-                                    <p class="small text-body-secondary mb-0">Noch keine Notizen vorhanden.</p>
+                                    <p class="small text-body-secondary mb-0 js-dashboard-empty-state">Noch keine aktiven Notizen vorhanden.</p>
                                 <?php else: ?>
                                     <?php foreach ($notes as $note): ?>
                                         <?php
@@ -710,7 +789,7 @@ $taskRepeatLabel = static function (array $task): string {
                                         $noteTextareaHeight = max(0, (int) ($note['textarea_height'] ?? 0));
                                         $noteTextareaStyle = $noteTextareaHeight > 0 ? ' style="height: ' . $noteTextareaHeight . 'px;"' : '';
                                         ?>
-                                        <div class="border rounded-2 p-2">
+                                        <div class="border rounded-2 p-2 dashboard-note-item" data-dashboard-archive-item="note" data-note-item="<?= $noteId ?>">
                                             <form method="post" action="/dashboard/notes/update" class="row g-2">
                                                 <input type="hidden" name="note_id" value="<?= $noteId ?>">
                                                 <input type="hidden" name="textarea_height" value="<?= $noteTextareaHeight > 0 ? $noteTextareaHeight : '' ?>" class="js-dashboard-note-height">
@@ -722,13 +801,70 @@ $taskRepeatLabel = static function (array $task): string {
                                                 </div>
                                                 <div class="col-12 d-flex gap-2">
                                                     <button type="submit" class="btn btn-sm btn-outline-primary">Speichern</button>
+                                                    <button formaction="/dashboard/notes/archive" formmethod="post" name="archived" value="1" type="submit" class="btn btn-sm btn-outline-secondary js-dashboard-note-archive-submit">Archivieren</button>
                                                     <button formaction="/dashboard/notes/delete" formmethod="post" type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Notiz wirklich löschen?');">Löschen</button>
                                                 </div>
+                                                <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                            </form>
+                                            <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="note" data-dashboard-archive-state="1">
+                                                <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                <input type="hidden" name="note_id" value="<?= $noteId ?>">
+                                                <input type="hidden" name="archived" value="1">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
+                                            </form>
+                                            <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="note" data-dashboard-archive-state="0">
+                                                <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                <input type="hidden" name="note_id" value="<?= $noteId ?>">
+                                                <input type="hidden" name="archived" value="0">
+                                                <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
                                             </form>
                                         </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>
+                            <details class="dashboard-archive-panel mt-3" data-dashboard-archive-panel="notes" data-widget-id="<?= $widgetId ?>">
+                                <summary class="dashboard-archive-summary">
+                                    Archivierte Notizen anzeigen
+                                    <span class="badge text-bg-secondary js-dashboard-archive-count"><?= count($archivedNotes) ?></span>
+                                </summary>
+                                <div class="vstack gap-2 mt-2 js-dashboard-archive-list" data-dashboard-list="notes" data-widget-id="<?= $widgetId ?>">
+                                    <?php if ($archivedNotes === []): ?>
+                                        <p class="small text-body-secondary mb-0 js-dashboard-empty-state">Keine archivierten Notizen.</p>
+                                    <?php else: ?>
+                                        <?php foreach ($archivedNotes as $note): ?>
+                                            <?php
+                                            $noteId = (int) ($note['id'] ?? 0);
+                                            $noteTitle = (string) ($note['title'] ?? '');
+                                            $noteContent = (string) ($note['content'] ?? '');
+                                            ?>
+                                            <div class="border rounded-2 p-2 dashboard-note-item is-archived" data-dashboard-archive-item="note" data-note-item="<?= $noteId ?>">
+                                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                                    <div class="min-w-0">
+                                                        <?php if ($noteTitle !== ''): ?>
+                                                            <strong><?= htmlspecialchars($noteTitle, ENT_QUOTES, 'UTF-8') ?></strong>
+                                                        <?php endif; ?>
+                                                        <div class="small text-body-secondary"><?= nl2br(htmlspecialchars(mb_substr($noteContent, 0, 240), ENT_QUOTES, 'UTF-8')) ?><?= mb_strlen($noteContent) > 240 ? ' ...' : '' ?></div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                        <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="note" data-dashboard-archive-state="1">
+                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="note_id" value="<?= $noteId ?>">
+                                                            <input type="hidden" name="archived" value="1">
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
+                                                        </form>
+                                                        <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form" data-dashboard-archive-kind="note" data-dashboard-archive-state="0">
+                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <input type="hidden" name="note_id" value="<?= $noteId ?>">
+                                                            <input type="hidden" name="archived" value="0">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </details>
                         <?php else: ?>
                             <p class="text-body-secondary mb-0">Dieser Widget-Typ ist in diesem Schritt noch nicht implementiert.</p>
                         <?php endif; ?>
@@ -1519,6 +1655,161 @@ $taskRepeatLabel = static function (array $task): string {
             } finally {
                 toggle.disabled = false;
             }
+        });
+    });
+
+    const parseDashboardJsonResponse = async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.redirected || !contentType.includes('application/json')) {
+            throw new Error('Sitzung abgelaufen oder Antwort ungültig. Bitte Seite neu laden.');
+        }
+
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+            throw new Error(payload.message || 'Aktion konnte nicht ausgeführt werden.');
+        }
+
+        return payload;
+    };
+
+    const dashboardArchiveEmptyText = (listType, archived) => {
+        if (listType === 'tasks') {
+            return archived ? 'Keine archivierten Aufgaben.' : 'Noch keine aktiven Aufgaben vorhanden.';
+        }
+
+        return archived ? 'Keine archivierten Notizen.' : 'Noch keine aktiven Notizen vorhanden.';
+    };
+
+    const ensureArchiveEmptyState = (list, listType, archived) => {
+        const items = list.querySelectorAll('[data-dashboard-archive-item]');
+        let empty = list.querySelector('.js-dashboard-empty-state');
+        if (items.length > 0) {
+            if (empty) empty.remove();
+            return;
+        }
+
+        if (!empty) {
+            empty = document.createElement('p');
+            empty.className = 'small text-body-secondary mb-0 js-dashboard-empty-state';
+            list.appendChild(empty);
+        }
+        empty.textContent = dashboardArchiveEmptyText(listType, archived);
+    };
+
+    const updateDashboardArchiveButtons = (item, archived) => {
+        item.classList.toggle('is-archived', archived);
+        const hasInlineNoteArchive = item.querySelector('.js-dashboard-note-archive-submit') !== null;
+        item.querySelectorAll('.js-dashboard-archive-form').forEach((form) => {
+            const state = Number(form.dataset.dashboardArchiveState || 0) === 1;
+            const isInlineNoteFallback = hasInlineNoteArchive && String(form.dataset.dashboardArchiveKind || '') === 'note' && state;
+            form.classList.toggle('d-none', isInlineNoteFallback || state === archived);
+        });
+        item.querySelectorAll('.js-dashboard-note-archive-submit').forEach((button) => {
+            button.classList.toggle('d-none', archived);
+        });
+    };
+
+    const refreshDashboardArchiveCount = (widgetId, listType) => {
+        const archiveList = document.querySelector(`.js-dashboard-archive-list[data-dashboard-list="${listType}"][data-widget-id="${widgetId}"]`);
+        const panel = document.querySelector(`[data-dashboard-archive-panel="${listType}"][data-widget-id="${widgetId}"]`);
+        if (!archiveList || !panel) return;
+
+        const count = archiveList.querySelectorAll('[data-dashboard-archive-item]').length;
+        const badge = panel.querySelector('.js-dashboard-archive-count');
+        if (badge) badge.textContent = String(count);
+    };
+
+    const refreshDashboardActiveCount = (widgetId, listType) => {
+        const activeList = document.querySelector(`.js-dashboard-active-list[data-dashboard-list="${listType}"][data-widget-id="${widgetId}"]`);
+        const badge = document.querySelector(`[data-dashboard-active-count="${listType}"][data-widget-id="${widgetId}"] .js-dashboard-active-count`);
+        if (!activeList || !badge) return;
+
+        const count = activeList.querySelectorAll('[data-dashboard-archive-item]').length;
+        badge.textContent = String(count);
+    };
+
+    const applyDashboardArchiveResult = (payload) => {
+        const kind = String(payload.type || '');
+        const widgetId = Number(payload.widget_id || 0);
+        const archived = Number(payload.archived || 0) === 1;
+        const listType = kind === 'task' ? 'tasks' : 'notes';
+        const itemSelector = kind === 'task'
+            ? `[data-dashboard-archive-item="task"][data-task-item="${Number(payload.id || 0)}"]`
+            : `[data-dashboard-archive-item="note"][data-note-item="${Number(payload.id || 0)}"]`;
+        const item = document.querySelector(itemSelector);
+        const activeList = document.querySelector(`.js-dashboard-active-list[data-dashboard-list="${listType}"][data-widget-id="${widgetId}"]`);
+        const archiveList = document.querySelector(`.js-dashboard-archive-list[data-dashboard-list="${listType}"][data-widget-id="${widgetId}"]`);
+        if (!item || !activeList || !archiveList) {
+            return;
+        }
+
+        const sourceList = item.parentElement;
+        const targetList = archived ? archiveList : activeList;
+        const targetEmpty = targetList.querySelector('.js-dashboard-empty-state');
+        if (targetEmpty) targetEmpty.remove();
+
+        updateDashboardArchiveButtons(item, archived);
+        targetList.appendChild(item);
+
+        if (sourceList instanceof HTMLElement) {
+            ensureArchiveEmptyState(sourceList, listType, sourceList.classList.contains('js-dashboard-archive-list'));
+        }
+        ensureArchiveEmptyState(targetList, listType, archived);
+        refreshDashboardActiveCount(widgetId, listType);
+        refreshDashboardArchiveCount(widgetId, listType);
+    };
+
+    const submitDashboardArchive = async (form, submitter = null) => {
+        const button = submitter instanceof HTMLButtonElement ? submitter : form.querySelector('button[type="submit"]');
+        if (button instanceof HTMLButtonElement) {
+            button.disabled = true;
+        }
+
+        const formData = new FormData(form);
+        let action = form.action;
+        if (submitter instanceof HTMLButtonElement) {
+            action = submitter.formAction || action;
+            if (submitter.name) {
+                formData.set(submitter.name, submitter.value);
+            }
+        }
+
+        try {
+            const response = await fetch(action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const payload = await parseDashboardJsonResponse(response);
+            applyDashboardArchiveResult(payload);
+            setFeedback(payload.message || 'Archiv aktualisiert.');
+        } catch (error) {
+            setFeedback(error instanceof Error ? error.message : 'Archiv-Aktion fehlgeschlagen.', true);
+        } finally {
+            if (button instanceof HTMLButtonElement) {
+                button.disabled = false;
+            }
+        }
+    };
+
+    document.querySelectorAll('.js-dashboard-archive-form').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            submitDashboardArchive(form);
+        });
+    });
+
+    document.querySelectorAll('.js-dashboard-note-archive-submit').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            const form = button.form;
+            if (!(form instanceof HTMLFormElement)) return;
+            event.preventDefault();
+            submitDashboardArchive(form, button);
         });
     });
 

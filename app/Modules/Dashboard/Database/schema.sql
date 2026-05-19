@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS dashboard_tasks (
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     is_done TINYINT(1) NOT NULL DEFAULT 0,
     done_at TIMESTAMP NULL DEFAULT NULL,
+    archived_at DATETIME NULL DEFAULT NULL,
     repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none',
     repeat_time TIME NULL DEFAULT NULL,
     repeat_weekday TINYINT UNSIGNED NULL,
@@ -81,13 +82,15 @@ CREATE TABLE IF NOT EXISTS dashboard_tasks (
         FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
         ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX idx_dashboard_tasks_widget (widget_id),
-    INDEX idx_dashboard_tasks_widget_done_sort (widget_id, is_done, sort_order)
+    INDEX idx_dashboard_tasks_widget_done_sort (widget_id, is_done, sort_order),
+    INDEX idx_dashboard_tasks_widget_archive_sort (widget_id, archived_at, is_done, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE dashboard_tasks
     ADD COLUMN IF NOT EXISTS link_url VARCHAR(2048) NULL AFTER details,
     ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER due_at,
-    ADD COLUMN IF NOT EXISTS repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none' AFTER done_at,
+    ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL DEFAULT NULL AFTER done_at,
+    ADD COLUMN IF NOT EXISTS repeat_type ENUM('none', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'none' AFTER archived_at,
     ADD COLUMN IF NOT EXISTS repeat_time TIME NULL DEFAULT NULL AFTER repeat_type,
     ADD COLUMN IF NOT EXISTS repeat_weekday TINYINT UNSIGNED NULL AFTER repeat_time,
     ADD COLUMN IF NOT EXISTS repeat_month_mode ENUM('first_day', 'middle_day', 'last_day', 'fixed_day', 'ordinal_weekday') NULL AFTER repeat_weekday,
@@ -107,14 +110,22 @@ CREATE TABLE IF NOT EXISTS dashboard_notes (
     sort_order INT NOT NULL DEFAULT 0,
     is_pinned TINYINT(1) NOT NULL DEFAULT 0,
     is_archived TINYINT(1) NOT NULL DEFAULT 0,
+    archived_at DATETIME NULL DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_dashboard_notes_widget
         FOREIGN KEY (widget_id) REFERENCES dashboard_widgets(id)
         ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX idx_dashboard_notes_widget (widget_id),
-    INDEX idx_dashboard_notes_widget_sort (widget_id, is_pinned, sort_order)
+    INDEX idx_dashboard_notes_widget_sort (widget_id, is_pinned, sort_order),
+    INDEX idx_dashboard_notes_widget_archive_sort (widget_id, archived_at, is_pinned, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE dashboard_notes
-    ADD COLUMN IF NOT EXISTS textarea_height INT UNSIGNED NULL AFTER content;
+    ADD COLUMN IF NOT EXISTS textarea_height INT UNSIGNED NULL AFTER content,
+    ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL DEFAULT NULL AFTER is_archived;
+
+UPDATE dashboard_notes
+SET archived_at = COALESCE(updated_at, CURRENT_TIMESTAMP)
+WHERE is_archived = 1
+  AND archived_at IS NULL;

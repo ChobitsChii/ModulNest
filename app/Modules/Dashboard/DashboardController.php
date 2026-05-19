@@ -17,6 +17,7 @@ use DateTimeZone;
 final class DashboardController
 {
     private const FORM_STATE_KEY = 'dashboard_links_form_state';
+    private const CSRF_TOKEN_KEY = 'dashboard_csrf_token';
     private const MAX_HTML_BYTES = 1200000;
     private const MAX_IMAGE_BYTES = 800000;
     private const MAX_UPLOAD_BYTES = 1048576;
@@ -71,7 +72,9 @@ final class DashboardController
         $foldersByWidget = $this->dashboard->listFoldersByWidgetIds($widgetIds);
         $linksByWidget = $this->dashboard->listLinksByWidgetIds($widgetIds);
         $tasksByWidget = $this->dashboard->listTasksByWidgetIds($widgetIds);
+        $archivedTasksByWidget = $this->dashboard->listArchivedTasksByWidgetIds($widgetIds);
         $notesByWidget = $this->dashboard->listNotesByWidgetIds($widgetIds);
+        $archivedNotesByWidget = $this->dashboard->listArchivedNotesByWidgetIds($widgetIds);
         $dashboardTimezoneName = $this->auth instanceof AuthService
             ? $this->auth->resolveUserTimezoneName($user)
             : 'UTC';
@@ -92,7 +95,9 @@ final class DashboardController
             'folders_by_widget' => $foldersByWidget,
             'links_by_widget' => $linksByWidget,
             'tasks_by_widget' => $tasksByWidget,
+            'archived_tasks_by_widget' => $archivedTasksByWidget,
             'notes_by_widget' => $notesByWidget,
+            'archived_notes_by_widget' => $archivedNotesByWidget,
             'form_state' => $this->pullFormState(),
             'message' => $this->session->pullFlash('dashboard_info'),
             'error' => $this->session->pullFlash('dashboard_error'),
@@ -102,6 +107,7 @@ final class DashboardController
             'dashboard_auto_refresh_interval_minutes' => $autoRefreshMinutes,
             'dashboard_auto_refresh_interval_min' => self::DASHBOARD_AUTO_REFRESH_MIN_MINUTES,
             'dashboard_auto_refresh_interval_max' => self::DASHBOARD_AUTO_REFRESH_MAX_MINUTES,
+            'dashboard_csrf_token' => $this->csrfToken(),
         ]));
     }
 
@@ -399,6 +405,50 @@ final class DashboardController
         ]);
     }
 
+    public function archiveTask(Request $request): Response
+    {
+        $wantsJson = $this->requestWantsJson();
+        $csrfResponse = $this->validateArchiveCsrf($request, $wantsJson);
+        if ($csrfResponse instanceof Response) {
+            return $csrfResponse;
+        }
+
+        $user = $this->auth?->currentUser();
+        if (!is_array($user)) {
+            return $this->archiveAuthResponse($wantsJson);
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $taskId = (int) $request->inputRaw('task_id', 0);
+        $archived = $this->toBool($request->inputRaw('archived', 1));
+        if ($taskId <= 0) {
+            return $this->archiveErrorResponse($wantsJson, 'Ungültige Task-ID.', 422);
+        }
+
+        $task = $this->dashboard->findTaskForUser($taskId, $userId);
+        if (!is_array($task)) {
+            return $this->archiveErrorResponse($wantsJson, 'Aufgabe nicht gefunden.', 404);
+        }
+
+        $this->dashboard->setTaskArchived($taskId, $archived);
+        $message = $archived ? 'Aufgabe archiviert.' : 'Aufgabe wiederhergestellt.';
+        $widgetId = (int) ($task['widget_id'] ?? 0);
+
+        if (!$wantsJson) {
+            $this->session->flash('dashboard_info', $message);
+            return Response::redirect('/dashboard#widget-' . $widgetId);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'type' => 'task',
+            'id' => $taskId,
+            'widget_id' => $widgetId,
+            'archived' => $archived ? 1 : 0,
+            'message' => $message,
+        ]);
+    }
+
     public function createNote(Request $request): Response
     {
         $user = $this->auth?->currentUser();
@@ -493,6 +543,50 @@ final class DashboardController
         $this->dashboard->deleteNote($noteId);
         $this->session->flash('dashboard_info', 'Notiz gelöscht.');
         return Response::redirect('/dashboard#widget-' . (int) ($note['widget_id'] ?? 0));
+    }
+
+    public function archiveNote(Request $request): Response
+    {
+        $wantsJson = $this->requestWantsJson();
+        $csrfResponse = $this->validateArchiveCsrf($request, $wantsJson);
+        if ($csrfResponse instanceof Response) {
+            return $csrfResponse;
+        }
+
+        $user = $this->auth?->currentUser();
+        if (!is_array($user)) {
+            return $this->archiveAuthResponse($wantsJson);
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $noteId = (int) $request->inputRaw('note_id', 0);
+        $archived = $this->toBool($request->inputRaw('archived', 1));
+        if ($noteId <= 0) {
+            return $this->archiveErrorResponse($wantsJson, 'Ungültige Notiz-ID.', 422);
+        }
+
+        $note = $this->dashboard->findNoteForUser($noteId, $userId);
+        if (!is_array($note)) {
+            return $this->archiveErrorResponse($wantsJson, 'Notiz nicht gefunden.', 404);
+        }
+
+        $this->dashboard->setNoteArchived($noteId, $archived);
+        $message = $archived ? 'Notiz archiviert.' : 'Notiz wiederhergestellt.';
+        $widgetId = (int) ($note['widget_id'] ?? 0);
+
+        if (!$wantsJson) {
+            $this->session->flash('dashboard_info', $message);
+            return Response::redirect('/dashboard#widget-' . $widgetId);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'type' => 'note',
+            'id' => $noteId,
+            'widget_id' => $widgetId,
+            'archived' => $archived ? 1 : 0,
+            'message' => $message,
+        ]);
     }
 
     public function analyzeLink(Request $request): Response
@@ -892,6 +986,55 @@ final class DashboardController
         }
 
         $this->session->flash($ok ? 'dashboard_info' : 'dashboard_error', $message);
+        return Response::redirect('/dashboard');
+    }
+
+    private function csrfToken(): string
+    {
+        $token = $this->session->get(self::CSRF_TOKEN_KEY, '');
+        if (is_string($token) && $token !== '') {
+            return $token;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        $this->session->set(self::CSRF_TOKEN_KEY, $token);
+
+        return $token;
+    }
+
+    private function validateArchiveCsrf(Request $request, bool $wantsJson): ?Response
+    {
+        $expected = $this->session->get(self::CSRF_TOKEN_KEY, '');
+        $provided = $request->input('dashboard_csrf_token', '');
+        if (is_string($expected) && $expected !== '' && is_string($provided) && hash_equals($expected, $provided)) {
+            return null;
+        }
+
+        if ($wantsJson) {
+            return $this->json(['ok' => false, 'message' => 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.'], 419);
+        }
+
+        $this->session->flash('dashboard_error', 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.');
+        return Response::redirect('/dashboard');
+    }
+
+    private function archiveAuthResponse(bool $wantsJson): Response
+    {
+        if ($wantsJson) {
+            return $this->json(['ok' => false, 'message' => 'Nicht eingeloggt. Bitte Seite neu laden.'], 401);
+        }
+
+        $this->session->flash('dashboard_error', 'Bitte erneut einloggen.');
+        return Response::redirect('/login');
+    }
+
+    private function archiveErrorResponse(bool $wantsJson, string $message, int $status): Response
+    {
+        if ($wantsJson) {
+            return $this->json(['ok' => false, 'message' => $message], $status);
+        }
+
+        $this->session->flash('dashboard_error', $message);
         return Response::redirect('/dashboard');
     }
 

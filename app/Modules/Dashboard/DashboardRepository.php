@@ -557,17 +557,38 @@ final class DashboardRepository
      */
     public function listTasksByWidgetIds(array $widgetIds): array
     {
+        return $this->listTasksByWidgetIdsAndArchiveState($widgetIds, false);
+    }
+
+    /**
+     * @param array<int, int> $widgetIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    public function listArchivedTasksByWidgetIds(array $widgetIds): array
+    {
+        return $this->listTasksByWidgetIdsAndArchiveState($widgetIds, true);
+    }
+
+    /**
+     * @param array<int, int> $widgetIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function listTasksByWidgetIdsAndArchiveState(array $widgetIds, bool $archived): array
+    {
         $widgetIds = array_values(array_filter(array_map('intval', $widgetIds), static fn (int $id): bool => $id > 0));
         if ($widgetIds === []) {
             return [];
         }
 
         $placeholders = implode(',', array_fill(0, count($widgetIds), '?'));
+        $archiveCondition = $archived ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
         $statement = $this->pdo->prepare(
             "SELECT id, widget_id, title, details, link_url, priority, due_at, is_active, is_done, done_at, sort_order,
-                    repeat_type, repeat_time, repeat_weekday, repeat_month_mode, repeat_month_day, repeat_month_ordinal, repeat_month_weekday
+                    repeat_type, repeat_time, repeat_weekday, repeat_month_mode, repeat_month_day, repeat_month_ordinal, repeat_month_weekday,
+                    archived_at
              FROM dashboard_tasks
              WHERE widget_id IN ($placeholders)
+               AND {$archiveCondition}
              ORDER BY widget_id ASC, is_done ASC, sort_order ASC, id ASC"
         );
         $statement->execute($widgetIds);
@@ -644,7 +665,8 @@ final class DashboardRepository
     {
         $statement = $this->pdo->prepare(
             "SELECT t.id, t.widget_id, t.title, t.details, t.link_url, t.priority, t.due_at, t.is_active, t.is_done, t.done_at, t.sort_order,
-                    t.repeat_type, t.repeat_time, t.repeat_weekday, t.repeat_month_mode, t.repeat_month_day, t.repeat_month_ordinal, t.repeat_month_weekday
+                    t.repeat_type, t.repeat_time, t.repeat_weekday, t.repeat_month_mode, t.repeat_month_day, t.repeat_month_ordinal, t.repeat_month_weekday,
+                    t.archived_at
              FROM dashboard_tasks t
              INNER JOIN dashboard_widgets w ON w.id = t.widget_id
              WHERE t.id = :task_id
@@ -731,6 +753,20 @@ final class DashboardRepository
         $statement->execute(['id' => $taskId]);
     }
 
+    public function setTaskArchived(int $taskId, bool $archived): void
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE dashboard_tasks
+             SET archived_at = :archived_at,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id"
+        );
+        $statement->execute([
+            'id' => $taskId,
+            'archived_at' => $archived ? gmdate('Y-m-d H:i:s') : null,
+        ]);
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -743,6 +779,7 @@ final class DashboardRepository
              WHERE w.user_id = :user_id
                AND t.is_active = 1
                AND t.is_done = 1
+               AND t.archived_at IS NULL
                AND t.repeat_type <> 'none'"
         );
         $statement->execute(['user_id' => $userId]);
@@ -757,17 +794,37 @@ final class DashboardRepository
      */
     public function listNotesByWidgetIds(array $widgetIds): array
     {
+        return $this->listNotesByWidgetIdsAndArchiveState($widgetIds, false);
+    }
+
+    /**
+     * @param array<int, int> $widgetIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    public function listArchivedNotesByWidgetIds(array $widgetIds): array
+    {
+        return $this->listNotesByWidgetIdsAndArchiveState($widgetIds, true);
+    }
+
+    /**
+     * @param array<int, int> $widgetIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function listNotesByWidgetIdsAndArchiveState(array $widgetIds, bool $archived): array
+    {
         $widgetIds = array_values(array_filter(array_map('intval', $widgetIds), static fn (int $id): bool => $id > 0));
         if ($widgetIds === []) {
             return [];
         }
 
         $placeholders = implode(',', array_fill(0, count($widgetIds), '?'));
+        $archiveCondition = $archived ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
         $statement = $this->pdo->prepare(
-            "SELECT id, widget_id, title, content, textarea_height, sort_order, is_pinned, is_archived, created_at, updated_at
+            "SELECT id, widget_id, title, content, textarea_height, sort_order, is_pinned, is_archived, archived_at, created_at, updated_at
              FROM dashboard_notes
              WHERE widget_id IN ($placeholders)
-             ORDER BY widget_id ASC, is_archived ASC, is_pinned DESC, sort_order ASC, id ASC"
+               AND {$archiveCondition}
+             ORDER BY widget_id ASC, is_pinned DESC, sort_order ASC, id ASC"
         );
         $statement->execute($widgetIds);
         $rows = $statement->fetchAll();
@@ -804,8 +861,8 @@ final class DashboardRepository
         $nextSort = (is_array($sortRow) ? (int) ($sortRow['max_sort'] ?? 0) : 0) + 10;
 
         $insert = $this->pdo->prepare(
-            "INSERT INTO dashboard_notes (widget_id, title, content, textarea_height, sort_order, is_pinned, is_archived)
-             VALUES (:widget_id, :title, :content, :textarea_height, :sort_order, 0, 0)"
+            "INSERT INTO dashboard_notes (widget_id, title, content, textarea_height, sort_order, is_pinned, is_archived, archived_at)
+             VALUES (:widget_id, :title, :content, :textarea_height, :sort_order, 0, 0, NULL)"
         );
         $insert->execute([
             'widget_id' => $widgetId,
@@ -824,7 +881,7 @@ final class DashboardRepository
     public function findNoteForUser(int $noteId, int $userId): ?array
     {
         $statement = $this->pdo->prepare(
-            "SELECT n.id, n.widget_id, n.title, n.content, n.textarea_height, n.sort_order, n.is_pinned, n.is_archived
+            "SELECT n.id, n.widget_id, n.title, n.content, n.textarea_height, n.sort_order, n.is_pinned, n.is_archived, n.archived_at
              FROM dashboard_notes n
              INNER JOIN dashboard_widgets w ON w.id = n.widget_id
              WHERE n.id = :note_id
@@ -862,5 +919,21 @@ final class DashboardRepository
     {
         $statement = $this->pdo->prepare('DELETE FROM dashboard_notes WHERE id = :id');
         $statement->execute(['id' => $noteId]);
+    }
+
+    public function setNoteArchived(int $noteId, bool $archived): void
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE dashboard_notes
+             SET is_archived = :is_archived,
+                 archived_at = :archived_at,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id"
+        );
+        $statement->execute([
+            'id' => $noteId,
+            'is_archived' => $archived ? 1 : 0,
+            'archived_at' => $archived ? gmdate('Y-m-d H:i:s') : null,
+        ]);
     }
 }

@@ -97,10 +97,12 @@ final class DashboardModule implements NativeModuleInterface, HealthCheckProvide
         $router->post('/dashboard/tasks/update', [$this->controller, 'updateTask'], 'user');
         $router->post('/dashboard/tasks/delete', [$this->controller, 'deleteTask'], 'user');
         $router->post('/dashboard/tasks/toggle', [$this->controller, 'toggleTask'], 'user');
+        $router->post('/dashboard/tasks/archive', [$this->controller, 'archiveTask'], 'user');
         $router->post('/dashboard/settings/auto-refresh', [$this->controller, 'updateAutoRefreshSettings'], 'user');
         $router->post('/dashboard/notes/create', [$this->controller, 'createNote'], 'user');
         $router->post('/dashboard/notes/update', [$this->controller, 'updateNote'], 'user');
         $router->post('/dashboard/notes/delete', [$this->controller, 'deleteNote'], 'user');
+        $router->post('/dashboard/notes/archive', [$this->controller, 'archiveNote'], 'user');
     }
 
     public function registerAdminRoutes(Router $router): void
@@ -114,7 +116,7 @@ final class DashboardModule implements NativeModuleInterface, HealthCheckProvide
             'internal_name' => 'Dashboard',
             'controller' => DashboardController::class,
             'implementation_path' => 'app/Modules/Dashboard/DashboardController.php',
-            'route_binding' => 'GET /dashboard, POST /dashboard/widgets/*, POST /dashboard/links/*, POST /dashboard/tasks/create, POST /dashboard/tasks/toggle, POST /dashboard/notes/*',
+            'route_binding' => 'GET /dashboard, POST /dashboard/widgets/*, POST /dashboard/links/*, POST /dashboard/tasks/create, POST /dashboard/tasks/toggle, POST /dashboard/tasks/archive, POST /dashboard/notes/*',
         ];
     }
 }

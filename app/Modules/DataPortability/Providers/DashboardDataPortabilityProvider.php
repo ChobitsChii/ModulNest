@@ -65,22 +65,30 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
     {
         $widgets = $this->fetchAll('SELECT * FROM dashboard_widgets WHERE user_id = :user_id ORDER BY sort_order, id', ['user_id' => $userId]);
         $widgetIds = array_column($widgets, 'id');
+        $folders = $this->fetchByWidgetIds('dashboard_link_folders', $widgetIds);
+        $links = $this->fetchByWidgetIds('dashboard_links', $widgetIds);
+        $tasks = $this->fetchByWidgetIds('dashboard_tasks', $widgetIds);
+        $notes = $this->fetchByWidgetIds('dashboard_notes', $widgetIds);
 
         return [
             'files' => [
                 'data.json' => [
                     'schema_version' => $this->schemaVersion(),
                     'widgets' => $this->withRefs($widgets, 'widget'),
-                    'folders' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_link_folders', $widgetIds), 'folder'),
-                    'links' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_links', $widgetIds), 'link'),
-                    'tasks' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_tasks', $widgetIds), 'task'),
-                    'notes' => $this->withWidgetRefs($this->fetchByWidgetIds('dashboard_notes', $widgetIds), 'note'),
+                    'folders' => $this->withWidgetRefs($folders, 'folder'),
+                    'links' => $this->withWidgetRefs($links, 'link'),
+                    'tasks' => $this->withWidgetRefs($tasks, 'task'),
+                    'notes' => $this->withWidgetRefs($notes, 'note'),
                 ],
             ],
             'counts' => [
                 'widgets' => count($widgets),
-                'folders' => count($widgetIds) > 0 ? count($this->fetchByWidgetIds('dashboard_link_folders', $widgetIds)) : 0,
-                'links' => count($widgetIds) > 0 ? count($this->fetchByWidgetIds('dashboard_links', $widgetIds)) : 0,
+                'folders' => count($folders),
+                'links' => count($links),
+                'tasks' => count($tasks),
+                'notes' => count($notes),
+                'archived_tasks' => count(array_filter($tasks, static fn (array $task): bool => ($task['archived_at'] ?? null) !== null && (string) ($task['archived_at'] ?? '') !== '')),
+                'archived_notes' => count(array_filter($notes, static fn (array $note): bool => ($note['archived_at'] ?? null) !== null && (string) ($note['archived_at'] ?? '') !== '')),
             ],
             'warnings' => [],
         ];
@@ -202,6 +210,7 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
                     'is_active' => (int) ($task['is_active'] ?? 1),
                     'is_done' => (int) ($task['is_done'] ?? 0),
                     'done_at' => $this->nullable($task['done_at'] ?? null),
+                    'archived_at' => $this->nullable($task['archived_at'] ?? null),
                     'repeat_type' => $this->nullable($task['repeat_type'] ?? null),
                     'repeat_time' => $this->nullable($task['repeat_time'] ?? null),
                     'repeat_weekday' => $this->nullable($task['repeat_weekday'] ?? null),
@@ -230,6 +239,7 @@ final class DashboardDataPortabilityProvider implements DataPortabilityProviderI
                     'sort_order' => (int) ($note['sort_order'] ?? 0),
                     'is_pinned' => (int) ($note['is_pinned'] ?? 0),
                     'is_archived' => (int) ($note['is_archived'] ?? 0),
+                    'archived_at' => $this->nullable($note['archived_at'] ?? null),
                     'created_at' => $this->now(),
                     'updated_at' => $this->now(),
                 ]);
