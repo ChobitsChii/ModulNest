@@ -671,7 +671,7 @@ final class AuthService
         return json_decode(json_encode($args), true, flags: JSON_THROW_ON_ERROR);
     }
 
-    public function finishWebAuthnLogin(array $payload): bool
+    public function finishWebAuthnLogin(array $payload, bool $rememberMe = false): bool
     {
         $mode = $this->session->get(self::SESSION_WEBAUTHN_MODE);
         $expectedUserId = $this->session->get(self::SESSION_WEBAUTHN_EXPECTED_USER_ID);
@@ -723,9 +723,22 @@ final class AuthService
         );
 
         if (is_int($expectedUserId) && $expectedUserId > 0) {
+            $pendingRemember = $this->session->get(self::SESSION_PENDING_REMEMBER) === true;
             $this->completePendingLogin($credentialUserId);
+            $this->logAuthEvent('auth_webauthn_login', [
+                'status' => 'success',
+                'reason' => 'two_factor_success',
+                'user_id' => $credentialUserId,
+                'remember_requested' => $pendingRemember,
+            ]);
         } else {
-            $this->signIn($credentialUserId, false);
+            $this->signIn($credentialUserId, $rememberMe);
+            $this->logAuthEvent('auth_webauthn_login', [
+                'status' => 'success',
+                'reason' => 'passkey_login_success',
+                'user_id' => $credentialUserId,
+                'remember_requested' => $rememberMe,
+            ]);
         }
 
         $this->session->remove(self::SESSION_WEBAUTHN_MODE);

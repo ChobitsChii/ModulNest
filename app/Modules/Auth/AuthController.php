@@ -155,8 +155,9 @@ final class AuthController
             'signature' => (string) $request->input('signature', ''),
             'userHandle' => (string) $request->input('userHandle', ''),
         ];
+        $rememberMe = $request->input('remember_me') === '1';
 
-        if (!$this->auth->finishWebAuthnLogin($payload)) {
+        if (!$this->auth->finishWebAuthnLogin($payload, $rememberMe)) {
             return $this->json(['success' => false, 'message' => 'Passkey-Verifizierung fehlgeschlagen.'], 400);
         }
 

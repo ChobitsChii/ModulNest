@@ -56,7 +56,8 @@ async function loginWithPasskey(){
             clientDataJSON:ab2b64(cred.response.clientDataJSON),
             authenticatorData:ab2b64(cred.response.authenticatorData),
             signature:ab2b64(cred.response.signature),
-            userHandle:cred.response.userHandle?ab2b64(cred.response.userHandle):''
+            userHandle:cred.response.userHandle?ab2b64(cred.response.userHandle):'',
+            remember_me:document.getElementById('remember_me')?.checked?'1':'0'
         };
         const verifyRes=await fetch('/webauthn/login/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const verify=await verifyRes.json();
