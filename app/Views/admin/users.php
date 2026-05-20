@@ -8,8 +8,6 @@ $registrationEnabled = (bool) ($public_registration_enabled ?? true);
 $adminSection = (string) ($admin_section ?? 'users');
 $currentUserId = (int) ($current_user_id ?? 0);
 ?>
-<?php require __DIR__ . '/partials/nav.php'; ?>
-
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Admin / Benutzer</h1>
 </div>

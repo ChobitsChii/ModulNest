@@ -10,8 +10,6 @@ $delete_token = (string) ($delete_token ?? '');
 <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css">
 
-<?php require __DIR__ . '/../admin/partials/nav.php'; ?>
-
 <section class="app-card p-4 sneak-preview-page">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
         <div>

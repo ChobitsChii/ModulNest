@@ -21,8 +21,6 @@ $showInHeader = (int) ($module['show_in_header'] ?? 1) === 1;
 $showOnHome = (int) ($module['show_on_home'] ?? 1) === 1;
 $nativeBinding = is_array($native_binding ?? null) ? $native_binding : null;
 ?>
-<?php require __DIR__ . '/partials/nav.php'; ?>
-
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Modul bearbeiten</h1>
     <a href="/admin/modules" class="btn btn-outline-secondary btn-sm">Zurück zur Übersicht</a>

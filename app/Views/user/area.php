@@ -42,6 +42,8 @@ $webauthnEnabled = (bool) ($webauthn_enabled ?? false);
 $pendingTotp = is_array($pending_totp ?? null) ? $pending_totp : null;
 $recoveryCodes = is_array($recovery_codes ?? null) ? $recovery_codes : [];
 $recoveryCount = (int) ($recovery_count ?? 0);
+$securityCsrfToken = (string) ($security_csrf_token ?? '');
+$securityDownloadUser = (string) ($profileUser['email'] ?? $profileUser['username'] ?? $profileUser['name'] ?? 'user');
 $credentials = is_array($credentials ?? null) ? $credentials : [];
 ?>
 <?php require __DIR__ . '/partials/nav.php'; ?>
@@ -99,7 +101,27 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
             <?php endif; ?>
         </div>
     <?php endif; ?>
+    <?php if ($recoveryCodes !== []): ?>
+        <section class="alert alert-warning mb-4" role="status" data-recovery-download-source data-recovery-user="<?= htmlspecialchars($securityDownloadUser, ENT_QUOTES, 'UTF-8') ?>">
+            <div>
+                <h2 class="h6 mb-2">Neue Recovery Codes</h2>
+                <p class="mb-3">Speichere diese Codes jetzt. Sie werden später nicht erneut im Klartext angezeigt.</p>
+                <div class="row g-2">
+                    <?php foreach ($recoveryCodes as $code): ?>
+                        <div class="col-6 col-md-3">
+                            <code class="security-recovery-code js-recovery-code"><?= htmlspecialchars((string) $code, ENT_QUOTES, 'UTF-8') ?></code>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-primary btn-sm js-recovery-download">Als TXT herunterladen</button>
+                    <div class="small mt-2">Speichere die Datei an einem sicheren Ort.</div>
+                </div>
+            </div>
+        </section>
+    <?php endif; ?>
     <div id="security-inline-feedback" class="module-toggle-feedback small mb-3" aria-live="polite"></div>
+    <input type="hidden" id="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
     <div class="row g-4 modulon-security-grid">
         <div class="col-12 col-lg-6">
@@ -108,6 +130,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <h2 class="h6 text-uppercase text-body-secondary mb-3">Passwort</h2>
                     <p class="small text-body-secondary mb-3">Zum Ändern wird dein aktuelles Passwort zur Bestätigung benötigt.</p>
                     <form method="post" action="/profil/password" class="row g-3">
+                        <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <div class="col-12">
                             <label class="form-label mb-1" for="current_password">Aktuelles Passwort</label>
                             <input id="current_password" class="form-control" type="password" name="current_password" required autocomplete="current-password">
@@ -137,24 +160,26 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <h2 class="h6 text-uppercase text-body-secondary mb-3">TOTP</h2>
                     <p>Status: <strong><?= $totpEnabled ? 'Aktiv' : 'Inaktiv' ?></strong></p>
 
-                    <?php if ($pendingTotp !== null): ?>
+                    <?php if ($totpEnabled): ?>
+                        <p class="small text-body-secondary mb-3">TOTP ist aktiv. QR-Code und Secret werden aus Sicherheitsgründen nicht dauerhaft angezeigt.</p>
+                        <form method="post" action="/account/security/totp/disable" class="mt-3">
+                            <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <button type="submit" class="btn btn-outline-danger">TOTP deaktivieren</button>
+                        </form>
+                    <?php elseif ($pendingTotp !== null): ?>
                         <p class="small text-body-secondary mb-2">Secret</p>
                         <p><code><?= htmlspecialchars((string) ($pendingTotp['secret'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></p>
-                        <img class="img-fluid rounded border mb-3" src="<?= htmlspecialchars((string) ($pendingTotp['qr_data_uri'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="TOTP QR">
+                        <img class="security-totp-qr rounded border mb-3" src="<?= htmlspecialchars((string) ($pendingTotp['qr_data_uri'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="TOTP QR">
                         <form method="post" action="/account/security/totp/confirm" class="vstack gap-2">
+                            <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                             <label class="form-label mb-0" for="totp_confirm">Bestätigungscode</label>
                             <input id="totp_confirm" class="form-control" type="text" name="code" inputmode="numeric" required>
                             <button type="submit" class="btn btn-primary">TOTP aktivieren</button>
                         </form>
                     <?php else: ?>
                         <form method="post" action="/account/security/totp/start">
+                            <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                             <button type="submit" class="btn btn-primary">TOTP einrichten</button>
-                        </form>
-                    <?php endif; ?>
-
-                    <?php if ($totpEnabled): ?>
-                        <form method="post" action="/account/security/totp/disable" class="mt-3">
-                            <button type="submit" class="btn btn-outline-danger">TOTP deaktivieren</button>
                         </form>
                     <?php endif; ?>
                 </div>
@@ -192,6 +217,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                         <td><?= htmlspecialchars((string) ($credential['last_used_at'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                                         <td class="text-end">
                                             <form method="post" action="/account/security/webauthn/delete" class="d-inline">
+                                                <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                                 <input type="hidden" name="credential_id" value="<?= (int) ($credential['id'] ?? 0) ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">Entfernen</button>
                                             </form>
@@ -211,20 +237,15 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                 <div class="card-body p-4">
                     <h2 class="h6 text-uppercase text-body-secondary mb-3">Recovery Codes</h2>
                     <p class="mb-3">Aktive Recovery Codes: <strong><?= $recoveryCount ?></strong></p>
-                    <form method="post" action="/account/security/recovery/regenerate" class="mb-3">
+                    <p class="small text-body-secondary mb-3">Neu generieren ersetzt alle vorhandenen Recovery Codes.</p>
+                    <form method="post" action="/account/security/recovery/regenerate" class="mb-3" onsubmit="return confirm('Vorhandene Recovery Codes werden ungültig. Neue Codes jetzt erzeugen?');">
+                        <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <button type="submit" class="btn btn-outline-secondary">Neu generieren</button>
                     </form>
 
                     <?php if ($recoveryCodes !== []): ?>
-                        <div class="alert alert-warning">
-                            Neue Codes werden nur jetzt angezeigt. Bitte sicher speichern.
-                        </div>
-                        <div class="row g-2">
-                            <?php foreach ($recoveryCodes as $code): ?>
-                                <div class="col-6 col-md-3">
-                                    <code><?= htmlspecialchars((string) $code, ENT_QUOTES, 'UTF-8') ?></code>
-                                </div>
-                            <?php endforeach; ?>
+                        <div class="alert alert-warning mb-0">
+                            Die neuen Codes werden oben auf dieser Seite angezeigt und können dort als TXT gespeichert werden.
                         </div>
                     <?php endif; ?>
                 </div>
@@ -236,6 +257,18 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     function b64ToAb(v){const p='='.repeat((4-v.length%4)%4);const b=atob((v+p).replace(/-/g,'+').replace(/_/g,'/'));const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++){a[i]=b.charCodeAt(i);}return a.buffer;}
     function fromBase64(pk){if(pk.challenge){pk.challenge=b64ToAb(pk.challenge);}if(pk.user&&pk.user.id){pk.user.id=b64ToAb(pk.user.id);}if(Array.isArray(pk.excludeCredentials)){pk.excludeCredentials=pk.excludeCredentials.map(c=>({...c,id:b64ToAb(c.id)}));}if(Array.isArray(pk.allowCredentials)){pk.allowCredentials=pk.allowCredentials.map(c=>({...c,id:b64ToAb(c.id)}));}return pk;}
     function ab2b64(ab){const bytes=new Uint8Array(ab);let str='';for(const b of bytes){str+=String.fromCharCode(b);}return btoa(str);}
+    function securityCsrfToken(){const field=document.getElementById('security_csrf_token');return field?field.value:'';}
+    async function securityJsonResponse(response){
+        const type=response.headers.get('content-type')||'';
+        if(!type.includes('application/json')){
+            throw new Error(response.status===401||response.status===403||response.status===419?'Sitzung oder Sicherheits-Token ungültig. Bitte Seite neu laden.':'Unerwartete Serverantwort. Bitte Seite neu laden.');
+        }
+        const payload=await response.json();
+        if(!response.ok||!payload.success){
+            throw new Error(payload.message||'Aktion fehlgeschlagen.');
+        }
+        return payload;
+    }
     function setSecurityInlineFeedback(text, isError){
         const feedback = document.getElementById('security-inline-feedback');
         if(!feedback){return;}
@@ -253,18 +286,54 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     async function registerPasskey(){
         try{
             const label=document.getElementById('credential_label').value||'Passkey';
-            const optionsRes=await fetch('/account/security/webauthn/options',{method:'POST'});
-            const options=await optionsRes.json();
-            if(!options.success){throw new Error(options.message||'Optionen fehlgeschlagen.');}
+            const optionsRes=await fetch('/account/security/webauthn/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({security_csrf_token:securityCsrfToken()})});
+            const options=await securityJsonResponse(optionsRes);
             const publicKey=fromBase64(options.publicKey);
             const cred=await navigator.credentials.create({publicKey});
-            const payload={label:label,transports:cred.response.getTransports?cred.response.getTransports():[],clientDataJSON:ab2b64(cred.response.clientDataJSON),attestationObject:ab2b64(cred.response.attestationObject)};
+            const payload={label:label,security_csrf_token:securityCsrfToken(),transports:cred.response.getTransports?cred.response.getTransports():[],clientDataJSON:ab2b64(cred.response.clientDataJSON),attestationObject:ab2b64(cred.response.attestationObject)};
             const verifyRes=await fetch('/account/security/webauthn/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-            const verify=await verifyRes.json();
-            if(!verify.success){throw new Error(verify.message||'Passkey-Registrierung fehlgeschlagen.');}
+            await securityJsonResponse(verifyRes);
             window.location='/profil/security';
         }catch(e){setSecurityInlineFeedback(e.message||'Passkey-Registrierung fehlgeschlagen.', true);}
     }
+    function safeRecoveryFilenamePart(value){
+        return String(value||'').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').replace(/\s+/g,' ').trim()||'user';
+    }
+    document.querySelectorAll('.js-recovery-download').forEach((button)=>{
+        button.addEventListener('click',()=>{
+            const source=button.closest('[data-recovery-download-source]');
+            const codes=Array.from(document.querySelectorAll('.js-recovery-code')).map((node)=>node.textContent.trim()).filter(Boolean);
+            if(!source||codes.length===0){
+                setSecurityInlineFeedback('Keine neuen Recovery Codes zum Herunterladen gefunden.', true);
+                return;
+            }
+            const host=window.location.hostname||'modulnest';
+            const user=source.dataset.recoveryUser||'user';
+            const created=new Intl.DateTimeFormat('de-DE',{dateStyle:'medium',timeStyle:'short'}).format(new Date());
+            const content=[
+                'ModulNest Recovery Codes',
+                '',
+                'Domain/Host: '+host,
+                'Benutzer/Login: '+user,
+                'Erstellt: '+created,
+                '',
+                'Codes:',
+                ...codes.map((code)=>'- '+code),
+                '',
+                'Hinweis: Jeder Code kann nur einmal verwendet werden.',
+                ''
+            ].join('\n');
+            const blob=new Blob([content],{type:'text/plain;charset=utf-8'});
+            const url=URL.createObjectURL(blob);
+            const link=document.createElement('a');
+            link.href=url;
+            link.download=safeRecoveryFilenamePart(host)+' recovery codes - '+safeRecoveryFilenamePart(user)+'.txt';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        });
+    });
     </script>
 <?php elseif ($userTab === 'settings'): ?>
     <div class="d-flex align-items-center justify-content-between mb-4">

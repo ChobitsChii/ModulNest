@@ -7,8 +7,6 @@ $modules = is_array($modules ?? null) ? $modules : [];
 $legacyEntries = is_array($legacy_entries ?? null) ? $legacy_entries : [];
 $adminSection = (string) ($admin_section ?? 'modules');
 ?>
-<?php require __DIR__ . '/partials/nav.php'; ?>
-
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Admin / Module</h1>
 </div>
@@ -133,7 +131,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
                                     class="app-sort-handle module-sort-handle js-module-row-handle"
                                     aria-label="Modul sortieren"
                                     title="Per Drag & Drop sortieren"
-                                >⋮⋮</button>
+                                ><span class="app-sort-handle-dots" aria-hidden="true"></span></button>
                             </td>
                             <td class="ps-4 fw-medium">
                                 <?= htmlspecialchars((string) ($row['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>

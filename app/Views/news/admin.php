@@ -6,8 +6,6 @@ $error = (string) ($error ?? '');
 $entries = is_array($entries ?? null) ? $entries : [];
 $adminSection = (string) ($admin_section ?? 'news');
 ?>
-<?php require __DIR__ . '/../admin/partials/nav.php'; ?>
-
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Admin / News</h1>
     <a href="/admin/news/create" class="btn btn-primary btn-sm">Neuen Eintrag erstellen</a>

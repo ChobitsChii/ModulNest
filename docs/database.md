@@ -24,7 +24,7 @@ Wichtige Tabellen im aktuellen Stand:
 - `webauthn_credentials`
 - `recovery_codes`
 - `news_entries`
-- Dashboard-Tabellen für Widgets, Links, Aufgaben und Notizen
+- Dashboard-Tabellen für Widgets, Links, Aufgaben und Notizen; Aufgaben und Notizen verwenden `archived_at` für den Archivstatus
 - Mail-Tabellen, falls das Mail-Modul in einem Release enthalten ist
 - Banking-Tabellen, falls das Banking-Modul in einem Release enthalten ist
 
@@ -39,7 +39,7 @@ Seit der 0.7.0-Vorbereitung gibt es eine erste echte Migrationsgrundlage:
 - Modul-Migrationen: `app/Modules/<Modul>/Database/Migrations/*.php`
 - Zentraler Runner: `Modulon\Core\Database\MigrationRunner`
 
-Migrationen sind PHP-Dateien, führen idempotente Strukturänderungen aus und werden über `migration_key` nur einmal markiert. Für 0.7.0 sichern sie Core/Auth/User/Modules sowie News, Dashboard, Banking und SneakPreview ab. Mail und FantasyCards gehören nicht zum Public-Default und werden nur migriert, wenn ihre Modul-Migrationen ausdrücklich im Paket/Modulset enthalten sind.
+Migrationen sind PHP-Dateien, führen idempotente Strukturänderungen aus und werden über `migration_key` nur einmal markiert. Für 0.7.0 sichern sie Core/Auth/User/Modules sowie News, Dashboard, Banking und SneakPreview ab. Seit 0.8.1 ergänzt eine Dashboard-Migration `archived_at` für Aufgaben und Notizen. Mail und FantasyCards gehören nicht zum Public-Default und werden nur migriert, wenn ihre Modul-Migrationen ausdrücklich im Paket/Modulset enthalten sind.
 
 Der Bootstrap-Installer führt weiterhin Core-Schema, ausgewählte Modul-Schemas, Core-Seeds und ausgewählte Modul-Seeds aus. Der Updater führt nach dem Dateiupdate während Maintenance den MigrationRunner aus, sofern eine Datenbankverbindung verfügbar ist.
 

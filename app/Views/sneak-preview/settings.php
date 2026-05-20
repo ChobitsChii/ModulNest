@@ -12,8 +12,6 @@ $error = (string) ($error ?? '');
 $e = static fn (mixed $value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
 $areas = ['table' => 'Tabelle', 'lightbox' => 'Lightbox', 'admin' => 'Admin'];
 ?>
-<?php require __DIR__ . '/../admin/partials/nav.php'; ?>
-
 <section class="app-card p-4">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
         <div>

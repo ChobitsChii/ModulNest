@@ -178,9 +178,17 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->invalidSecurityTokenRedirect();
+        }
 
-        $this->auth->startTotpSetup((int) $user['id']);
-        $this->session->flash('security_info', 'TOTP-Secret erzeugt. Bitte QR-Code scannen und Code bestätigen.');
+        try {
+            $this->auth->startTotpSetup((int) $user['id']);
+            $this->session->flash('security_info', 'TOTP-Secret erzeugt. Bitte QR-Code scannen und Code bestätigen.');
+        } catch (RuntimeException $exception) {
+            $this->session->flash('security_error', $exception->getMessage());
+        }
+
         return Response::redirect('/profil/security');
     }
 
@@ -194,14 +202,22 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->invalidSecurityTokenRedirect();
+        }
 
-        $codes = $this->auth->confirmTotpSetup((int) $user['id'], (string) $request->input('code', ''));
-        if ($codes === null) {
+        $result = $this->auth->confirmTotpSetup((int) $user['id'], (string) $request->input('code', ''));
+        if ($result === null) {
             $this->session->flash('security_error', 'TOTP-Code ungültig.');
             return Response::redirect('/profil/security');
         }
 
-        $this->session->flash('security_info', 'TOTP aktiviert und Recovery Codes erstellt.');
+        $this->session->flash(
+            'security_info',
+            ($result['recovery_codes_created'] ?? false)
+                ? 'TOTP aktiviert und Recovery Codes erstellt.'
+                : 'TOTP aktiviert. Bestehende Recovery Codes bleiben gültig.'
+        );
         return Response::redirect('/profil/security');
     }
 
@@ -214,6 +230,9 @@ final class AuthController
         $user = $this->auth->currentUser();
         if ($user === null) {
             return Response::redirect('/login');
+        }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->invalidSecurityTokenRedirect();
         }
 
         $this->auth->disableTotp((int) $user['id']);
@@ -231,9 +250,12 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->invalidSecurityTokenRedirect();
+        }
 
         $this->auth->regenerateRecoveryCodes((int) $user['id']);
-        $this->session->flash('security_info', 'Recovery Codes neu generiert.');
+        $this->session->flash('security_info', 'Neue Recovery Codes erstellt. Vorherige Codes sind jetzt ungültig.');
         return Response::redirect('/profil/security');
     }
 
@@ -246,6 +268,9 @@ final class AuthController
         $user = $this->auth->currentUser();
         if ($user === null) {
             return $this->json(['success' => false, 'message' => 'Nicht eingeloggt.'], 401);
+        }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->json(['success' => false, 'message' => 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.'], 419);
         }
 
         try {
@@ -265,6 +290,9 @@ final class AuthController
         $user = $this->auth->currentUser();
         if ($user === null) {
             return $this->json(['success' => false, 'message' => 'Nicht eingeloggt.'], 401);
+        }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->json(['success' => false, 'message' => 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.'], 419);
         }
 
         $payload = [
@@ -290,6 +318,9 @@ final class AuthController
         $user = $this->auth->currentUser();
         if ($user === null) {
             return Response::redirect('/login');
+        }
+        if (!$this->hasValidSecurityToken($request)) {
+            return $this->invalidSecurityTokenRedirect();
         }
 
         $credentialId = (int) $request->input('credential_id', '0');
@@ -395,5 +426,20 @@ final class AuthController
             View::render('errors/500', $this->viewData($request, ['title' => 'Service Unavailable'])),
             503,
         );
+    }
+
+    private function hasValidSecurityToken(Request $request): bool
+    {
+        if ($this->auth === null) {
+            return false;
+        }
+
+        return $this->auth->validateSecurityCsrfToken((string) $request->input('security_csrf_token', ''));
+    }
+
+    private function invalidSecurityTokenRedirect(): Response
+    {
+        $this->session->flash('security_error', 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.');
+        return Response::redirect('/profil/security');
     }
 }

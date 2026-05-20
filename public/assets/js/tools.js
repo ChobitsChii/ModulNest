@@ -11,6 +11,18 @@
         }
     }
 
+    function setOutput(selector, value) {
+        const node = $(selector);
+        if (!node) {
+            return;
+        }
+        if ('value' in node) {
+            node.value = value;
+            return;
+        }
+        node.textContent = value;
+    }
+
     function escapeHtml(value) {
         return String(value)
             .replaceAll('&', '&amp;')
@@ -24,18 +36,91 @@
         return escapeHtml(value).replace(/\n/g, '<br>');
     }
 
-    function initSearch() {
+    function initFilters() {
         const input = $('#tools-search');
-        if (!input) {
+        const cards = $$('[data-tool-card]');
+        const tabs = $$('[data-tools-category-tab]');
+        if (!input && tabs.length === 0) {
             return;
         }
-        input.addEventListener('input', () => {
-            const query = input.value.trim().toLowerCase();
-            $$('[data-tool-card]').forEach((card) => {
+
+        const knownCategories = new Set(tabs.map((tab) => String(tab.dataset.toolsCategoryTab || '')).filter(Boolean));
+        let activeCategory = 'overview';
+
+        function categoryFromHash() {
+            const rawHash = decodeURIComponent(window.location.hash || '').replace(/^#/, '');
+            if (rawHash === '' || rawHash === 'tools-uebersicht' || rawHash === 'tools-overview') {
+                return 'overview';
+            }
+            if (!rawHash.startsWith('tools-')) {
+                return 'overview';
+            }
+            const category = rawHash.slice('tools-'.length);
+            return knownCategories.has(category) ? category : 'overview';
+        }
+
+        function setActiveTab() {
+            tabs.forEach((candidate) => {
+                const isActive = String(candidate.dataset.toolsCategoryTab || '') === activeCategory;
+                candidate.classList.toggle('active', isActive);
+                candidate.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        }
+
+        function apply() {
+            const query = input ? input.value.trim().toLowerCase() : '';
+            let visibleCards = 0;
+            cards.forEach((card) => {
                 const haystack = String(card.dataset.toolSearch || '');
-                card.hidden = query !== '' && !haystack.includes(query);
+                const category = String(card.dataset.toolCategorySlug || '');
+                const categoryMatches = activeCategory === 'overview' || category === activeCategory;
+                const queryMatches = query === '' || haystack.includes(query);
+                const visible = categoryMatches && queryMatches;
+                card.hidden = !visible;
+                if (visible) {
+                    visibleCards += 1;
+                }
+            });
+
+            $$('[data-tools-category]').forEach((section) => {
+                const sectionCards = $$('[data-tool-card]', section);
+                section.hidden = sectionCards.length > 0 && sectionCards.every((card) => card.hidden);
+            });
+
+            const empty = $('[data-tools-empty]');
+            if (empty) {
+                empty.classList.toggle('d-none', visibleCards > 0);
+            }
+            setActiveTab();
+        }
+
+        function applyHash(keepAtTop) {
+            activeCategory = categoryFromHash();
+            apply();
+            if (keepAtTop) {
+                window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+            }
+        }
+
+        if (input) {
+            input.addEventListener('input', apply);
+        }
+
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', (event) => {
+                event.preventDefault();
+                activeCategory = String(tab.dataset.toolsCategoryTab || 'overview');
+                apply();
+                if (history.replaceState) {
+                    const hash = activeCategory === 'overview' ? 'tools-uebersicht' : 'tools-' + activeCategory;
+                    const url = window.location.pathname + '#' + hash;
+                    history.replaceState(null, '', url);
+                }
             });
         });
+
+        window.addEventListener('hashchange', () => applyHash(true));
+        applyHash(Boolean(window.location.hash));
     }
 
     function initTextCounter() {
@@ -57,22 +142,45 @@
 
     function initTextCleaner() {
         const input = $('#tools-clean-input');
+        const output = $('#tools-clean-output');
         if (!input) {
             return;
         }
+
+        const locale = 'de-DE';
+        const cleanWhitespace = (value) => value
+            .replace(/[ \t]{2,}/g, ' ')
+            .replace(/(?:\r?\n\s*){2,}/g, '\n')
+            .trim();
+        const titleCase = (value) => value
+            .toLocaleLowerCase(locale)
+            .replace(/(^|[\s([{/"'„‚-])(\p{L})/gu, (match, prefix, char) => prefix + char.toLocaleUpperCase(locale));
+        const sentenceCase = (value) => value
+            .toLocaleLowerCase(locale)
+            .replace(/(^\s*|[.!?]\s+)(\p{L})/gu, (match, prefix, char) => prefix + char.toLocaleUpperCase(locale));
+
         $$('[data-clean-action]').forEach((button) => {
             button.addEventListener('click', () => {
                 const action = button.dataset.cleanAction;
-                if (action === 'spaces') {
-                    input.value = input.value.replace(/[ \t]{2,}/g, ' ');
+                let result = input.value;
+                if (action === 'clean') {
+                    result = cleanWhitespace(result);
                 }
-                if (action === 'blank-lines') {
-                    input.value = input.value.replace(/(?:\r?\n\s*){2,}/g, '\n');
+                if (action === 'lower') {
+                    result = result.toLocaleLowerCase(locale);
                 }
-                if (action === 'trim') {
-                    input.value = input.value.trim();
+                if (action === 'title') {
+                    result = titleCase(result);
                 }
-                input.dispatchEvent(new Event('input'));
+                if (action === 'sentence') {
+                    result = sentenceCase(result);
+                }
+                if (output) {
+                    output.value = result;
+                } else {
+                    input.value = result;
+                    input.dispatchEvent(new Event('input'));
+                }
             });
         });
     }
@@ -155,7 +263,7 @@
 
     function initGenerators() {
         $('#tools-uuid-generate')?.addEventListener('click', () => {
-            const uuid = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+            const uuid = window.crypto?.randomUUID ? window.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
                 const random = Math.random() * 16 | 0;
                 const value = char === 'x' ? random : (random & 0x3 | 0x8);
                 return value.toString(16);
@@ -164,12 +272,60 @@
         });
 
         $('#tools-password-generate')?.addEventListener('click', () => {
+            const status = $('#tools-password-status');
             const length = Math.max(8, Math.min(128, parseInt($('#tools-password-length')?.value || '24', 10)));
-            const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*+-_=.?';
-            const bytes = new Uint32Array(length);
-            crypto.getRandomValues(bytes);
-            const password = Array.from(bytes, (value) => alphabet[value % alphabet.length]).join('');
-            setText('#tools-password-output', password);
+            const count = Math.max(1, Math.min(100, parseInt($('#tools-password-count')?.value || '1', 10)));
+            const groups = [
+                $('#tools-password-lower')?.checked ? 'abcdefghijkmnopqrstuvwxyz' : '',
+                $('#tools-password-upper')?.checked ? 'ABCDEFGHJKLMNPQRSTUVWXYZ' : '',
+                $('#tools-password-numbers')?.checked ? '23456789' : '',
+                $('#tools-password-symbols')?.checked ? '!@#$%&*+-_=.?' : ''
+            ].filter(Boolean);
+
+            if (groups.length === 0) {
+                if (status) {
+                    status.className = 'small mt-2 text-danger';
+                    status.textContent = 'Bitte mindestens eine Zeichengruppe auswählen.';
+                }
+                setOutput('#tools-password-output', '');
+                return;
+            }
+            if (!window.crypto?.getRandomValues) {
+                if (status) {
+                    status.className = 'small mt-2 text-danger';
+                    status.textContent = 'Sichere Zufallswerte werden von diesem Browser nicht unterstützt.';
+                }
+                return;
+            }
+
+            const alphabet = groups.join('');
+            const randomIndex = (max) => {
+                const bytes = new Uint32Array(1);
+                window.crypto.getRandomValues(bytes);
+                return bytes[0] % max;
+            };
+            const shuffle = (chars) => {
+                for (let index = chars.length - 1; index > 0; index -= 1) {
+                    const swapIndex = randomIndex(index + 1);
+                    [chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]];
+                }
+                return chars;
+            };
+            const makePassword = () => {
+                const chars = [];
+                groups.forEach((group) => chars.push(group[randomIndex(group.length)]));
+                while (chars.length < length) {
+                    chars.push(alphabet[randomIndex(alphabet.length)]);
+                }
+                return shuffle(chars).join('');
+            };
+
+            const passwords = Array.from({ length: count }, makePassword);
+            setOutput('#tools-password-output', passwords.join('\n'));
+            if (status) {
+                status.className = 'small mt-2 text-success';
+                status.textContent = count === 1 ? 'Passwort erzeugt.' : count + ' Passwörter erzeugt.';
+            }
         });
     }
 
@@ -199,20 +355,129 @@
         });
     }
 
+    function sha256Fallback(value) {
+        const bytes = Array.from(new TextEncoder().encode(value));
+        const bitLength = bytes.length * 8;
+        bytes.push(0x80);
+        while ((bytes.length % 64) !== 56) {
+            bytes.push(0);
+        }
+        for (let shift = 56; shift >= 0; shift -= 8) {
+            bytes.push(Math.floor(bitLength / (2 ** shift)) & 0xff);
+        }
+
+        const rightRotate = (number, amount) => (number >>> amount) | (number << (32 - amount));
+        const primes = [
+            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+            0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+            0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+            0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+            0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+            0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+        ];
+        let hash = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+
+        for (let chunk = 0; chunk < bytes.length; chunk += 64) {
+            const words = new Array(64);
+            for (let index = 0; index < 16; index += 1) {
+                const offset = chunk + index * 4;
+                words[index] = ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+            }
+            for (let index = 16; index < 64; index += 1) {
+                const s0 = rightRotate(words[index - 15], 7) ^ rightRotate(words[index - 15], 18) ^ (words[index - 15] >>> 3);
+                const s1 = rightRotate(words[index - 2], 17) ^ rightRotate(words[index - 2], 19) ^ (words[index - 2] >>> 10);
+                words[index] = (words[index - 16] + s0 + words[index - 7] + s1) >>> 0;
+            }
+
+            let [a, b, c, d, e, f, g, h] = hash;
+            for (let index = 0; index < 64; index += 1) {
+                const s1 = rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25);
+                const ch = (e & f) ^ (~e & g);
+                const temp1 = (h + s1 + ch + primes[index] + words[index]) >>> 0;
+                const s0 = rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22);
+                const maj = (a & b) ^ (a & c) ^ (b & c);
+                const temp2 = (s0 + maj) >>> 0;
+                h = g;
+                g = f;
+                f = e;
+                e = (d + temp1) >>> 0;
+                d = c;
+                c = b;
+                b = a;
+                a = (temp1 + temp2) >>> 0;
+            }
+            hash = hash.map((value, index) => (value + [a, b, c, d, e, f, g, h][index]) >>> 0);
+        }
+
+        return hash.map((value) => value.toString(16).padStart(8, '0')).join('');
+    }
+
     async function digestHex(algorithm, value) {
-        const buffer = await crypto.subtle.digest(algorithm, new TextEncoder().encode(value));
-        return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, '0')).join('');
+        if (window.crypto?.subtle) {
+            const buffer = await window.crypto.subtle.digest(algorithm, new TextEncoder().encode(value));
+            return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, '0')).join('');
+        }
+        if (algorithm === 'SHA-256') {
+            return sha256Fallback(value);
+        }
+        throw new Error('Web Crypto API unavailable');
+    }
+
+    function initCopyButtons() {
+        $$('[data-copy-target]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const target = $(String(button.dataset.copyTarget || ''));
+                if (!target) {
+                    return;
+                }
+                const value = 'value' in target ? target.value : target.textContent;
+                if (!value) {
+                    return;
+                }
+                try {
+                    await navigator.clipboard.writeText(value);
+                    const original = button.textContent;
+                    button.textContent = 'Kopiert';
+                    setTimeout(() => {
+                        button.textContent = original;
+                    }, 1200);
+                } catch (error) {
+                    const original = button.textContent;
+                    button.textContent = 'Nicht kopiert';
+                    setTimeout(() => {
+                        button.textContent = original;
+                    }, 1600);
+                }
+            });
+        });
     }
 
     function initHash() {
         const input = $('#tools-hash-input');
-        if (!input || !crypto.subtle) {
+        const button = $('#tools-hash-generate');
+        const algorithm = $('#tools-hash-algorithm');
+        if (!input || !button || !algorithm) {
             return;
         }
-        $('#tools-hash-generate')?.addEventListener('click', async () => {
-            const sha256 = await digestHex('SHA-256', input.value);
-            const sha512 = await digestHex('SHA-512', input.value);
-            setText('#tools-hash-output', 'SHA-256:\n' + sha256 + '\n\nSHA-512:\n' + sha512);
+        button.addEventListener('click', async () => {
+            const selected = String(algorithm.value || 'SHA-256');
+            if (!window.crypto?.subtle && selected !== 'SHA-256') {
+                setText('#tools-hash-output', 'Dieser Algorithmus benötigt die Web Crypto API. Bitte HTTPS oder localhost verwenden.');
+                return;
+            }
+
+            button.disabled = true;
+            setText('#tools-hash-output', selected + ' wird erzeugt...');
+            try {
+                const hash = await digestHex(selected, input.value);
+                setText('#tools-hash-output', selected + ':\n' + hash);
+            } catch (error) {
+                setText('#tools-hash-output', 'Hash konnte nicht erzeugt werden. Der Algorithmus wird möglicherweise nicht unterstützt.');
+            } finally {
+                button.disabled = false;
+            }
         });
     }
 
@@ -509,13 +774,14 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initSearch();
+        initFilters();
         initTextCounter();
         initTextCleaner();
         initCodecs();
         initJson();
         initGenerators();
         initTimestamp();
+        initCopyButtons();
         initHash();
         initQr();
         initMarkdown();

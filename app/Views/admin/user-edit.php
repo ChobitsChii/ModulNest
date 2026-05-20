@@ -11,8 +11,6 @@ $isCurrent = $userId > 0 && $userId === $currentUserId;
 $role = (string) ($editUser['role_name'] ?? 'user');
 $isBlocked = (int) ($editUser['is_blocked'] ?? 0) === 1;
 ?>
-<?php require __DIR__ . '/partials/nav.php'; ?>
-
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Benutzer bearbeiten</h1>
     <a class="btn btn-outline-secondary btn-sm" href="/admin/users">Zurück zur Übersicht</a>

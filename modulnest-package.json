@@ -2,9 +2,9 @@
     "schema": 1,
     "product": "ModulNest",
     "core": "Modulon",
-    "version": "0.8.1",
+    "version": "0.8.2",
     "channel": "alpha",
-    "generated_at": "2026-05-19T22:51:29+00:00",
+    "generated_at": "2026-05-20T13:37:41+00:00",
     "required_modules": [
         "Admin",
         "Auth",

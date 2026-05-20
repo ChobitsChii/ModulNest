@@ -96,8 +96,6 @@ $renderLogFields = static function (array $items, array $skip = []) use ($e, $la
 };
 ?>
 
-<?php require __DIR__ . '/../admin/partials/nav.php'; ?>
-
 <section class="app-card p-4">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
         <div>

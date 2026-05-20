@@ -28,7 +28,7 @@ Für die Installer-Version gilt:
 - Minor-Versionen für neue Installer-Funktionen wie Pakettypen, Modulauswahl, AJAX-Prüfungen oder verbesserte Systemchecks.
 - Major-Versionen später für stabile oder inkompatible Änderungen am Installer-Verhalten.
 
-Der nächste Public-/Alpha-Patchstand ist `0.6.1`. Für diesen Stand werden App-Version und Bootstrap-Installer-Version bewusst beide auf `0.6.1` gesetzt.
+Vor einem Release werden App-Version und Bootstrap-Installer-Version bewusst geprüft und bei öffentlichen ModulNest-Releases synchron auf die Zielversion gesetzt.
 
 ## Zwei Modul-Auswahl-Ebenen
 
@@ -49,11 +49,18 @@ Core-/Pflichtordner werden immer exportiert:
 - `Auth`
 - `Modules`
 
-Optionale Module werden per `dialog`/`whiptail`, CLI-Fallback oder `--modules` ausgewählt. Nichtinteraktiv sind defensiv nur die sicheren öffentlichen Module vorausgewählt:
+Optionale Module werden per `dialog`/`whiptail`, CLI-Fallback oder `--modules` ausgewählt. Nichtinteraktiv sind die aktuellen Public-Default-Module vorausgewählt:
 
+- `Banking`
 - `Dashboard`
+- `DataPortability`
+- `Homepage`
+- `Logs`
 - `News`
+- `SneakPreview`
 - `Systeminfo`
+- `Tools`
+- `Updates`
 - `User`
 
 Der Export schreibt `modulnest-package.json`. Diese Datei beschreibt, welche Module wirklich im Public-Export enthalten sind und welche davon erforderlich oder optional sind.

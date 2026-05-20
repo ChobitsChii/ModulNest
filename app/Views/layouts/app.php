@@ -18,6 +18,13 @@ $assetVersion = rawurlencode((string) ($app_version ?? ''));
 
 <main class="py-4 py-md-5">
     <div class="container app-container">
+        <?php
+        $layoutCurrentPath = '/' . trim((string) ($current_path ?? ''), '/');
+        $layoutAdminNavItems = is_array($admin_nav_items ?? null) ? $admin_nav_items : [];
+        if (($layoutCurrentPath === '/admin' || str_starts_with($layoutCurrentPath, '/admin/')) && $layoutAdminNavItems !== []) {
+            require dirname(__DIR__) . '/admin/partials/nav.php';
+        }
+        ?>
         <?= $content ?? '' ?>
     </div>
 </main>

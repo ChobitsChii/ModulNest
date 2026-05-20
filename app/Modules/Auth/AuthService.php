@@ -28,6 +28,7 @@ final class AuthService
     private const SESSION_WEBAUTHN_MODE = 'auth_webauthn_mode';
     private const SESSION_WEBAUTHN_EXPECTED_USER_ID = 'auth_webauthn_expected_user_id';
     private const SESSION_RECOVERY_CODES_PLAIN = 'auth_recovery_codes_plain';
+    private const SESSION_SECURITY_CSRF = 'auth_security_csrf_token';
     private const DEFAULT_REMEMBER_COOKIE = 'modulon_remember';
 
     public function __construct(
@@ -402,6 +403,25 @@ final class AuthService
         return $cookie !== '' ? $cookie : self::DEFAULT_REMEMBER_COOKIE;
     }
 
+    public function securityCsrfToken(): string
+    {
+        $token = $this->session->get(self::SESSION_SECURITY_CSRF);
+        if (is_string($token) && $token !== '') {
+            return $token;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        $this->session->set(self::SESSION_SECURITY_CSRF, $token);
+
+        return $token;
+    }
+
+    public function validateSecurityCsrfToken(string $token): bool
+    {
+        $expected = $this->session->get(self::SESSION_SECURITY_CSRF);
+        return is_string($expected) && $expected !== '' && hash_equals($expected, $token);
+    }
+
     /**
      * @return array{secret:string,qr_data_uri:string,otpauth_url:string}
      */
@@ -410,6 +430,10 @@ final class AuthService
         $user = $this->users->findById($userId);
         if ($user === null) {
             throw new RuntimeException('Benutzer nicht gefunden.');
+        }
+        if ((int) ($user['totp_enabled'] ?? 0) === 1) {
+            $this->session->remove(self::SESSION_TOTP_SETUP . '_' . $userId);
+            throw new RuntimeException('TOTP ist bereits aktiv.');
         }
 
         $tfa = $this->buildTotp();
@@ -440,6 +464,10 @@ final class AuthService
         if ($user === null) {
             return null;
         }
+        if ((int) ($user['totp_enabled'] ?? 0) === 1) {
+            $this->session->remove(self::SESSION_TOTP_SETUP . '_' . $userId);
+            return null;
+        }
 
         $tfa = $this->buildTotp();
         $label = (string) ($user['email'] ?? ('user-' . $userId));
@@ -452,7 +480,7 @@ final class AuthService
     }
 
     /**
-     * @return array<int, string>|null
+     * @return array{recovery_codes_created:bool,recovery_codes:array<int, string>}|null
      */
     public function confirmTotpSetup(int $userId, string $code): ?array
     {
@@ -465,10 +493,21 @@ final class AuthService
             return null;
         }
 
+        $hasActiveRecoveryCodes = $this->recoveryCodes->activeCount($userId) > 0;
         $this->users->setTotp($userId, $secret, true);
         $this->session->remove(self::SESSION_TOTP_SETUP . '_' . $userId);
 
-        return $this->regenerateRecoveryCodes($userId);
+        if ($hasActiveRecoveryCodes) {
+            return [
+                'recovery_codes_created' => false,
+                'recovery_codes' => [],
+            ];
+        }
+
+        return [
+            'recovery_codes_created' => true,
+            'recovery_codes' => $this->regenerateRecoveryCodes($userId),
+        ];
     }
 
     public function disableTotp(int $userId): void

@@ -20,8 +20,6 @@ $status = (string) ($entry['status'] ?? 'draft');
 $publishedAtRaw = (string) ($entry['published_at'] ?? '');
 $publishedAtInput = $publishedAtRaw !== '' ? substr(str_replace(' ', 'T', $publishedAtRaw), 0, 16) : '';
 ?>
-<?php require __DIR__ . '/../admin/partials/nav.php'; ?>
-
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0"><?= $isEdit ? 'News bearbeiten' : 'News erstellen' ?></h1>
     <a href="/admin/news" class="btn btn-outline-secondary btn-sm">Zur Übersicht</a>

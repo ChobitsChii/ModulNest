@@ -19,16 +19,19 @@ Der aktuelle Public-Export enthält:
 - `Admin`: Admin-Grundbereich
 - `Auth`: Login, Sessions, Remember-Me, 2FA und Passkeys
 - `Modules`: Modulverwaltung und Auto-Discovery
-- `Dashboard`: persönliche Widgets
+- `Dashboard`: persönliche Widgets, Links, Aufgaben und Notizen; Aufgaben/Notizen können archiviert und wiederhergestellt werden
 - `DataPortability`: Adminbereich für Export und Import von Moduldaten
+- `Homepage`: konfigurierbare Root-Startseite mit sicherem Fallback
 - `News`: öffentliche News und Admin-Verwaltung
+- `Banking`: persönliche Konten, Transaktionen, Kategorien, Import und wiederkehrende Regeln
+- `SneakPreview`: öffentliche Sneak-Preview-Liste mit Adminpflege
 - `Systeminfo`: Systeminformationen und Systemcheck
+- `Tools`: kleine Werkzeuge und Hilfsfunktionen
+- `Logs`: Admin-Logviewer
 - `Updates`: Adminbereich für offizielle ModulNest-Updates aus `stable.json`
 - `User`: Profil, Sicherheit und Einstellungen
 
 Weitere private oder experimentelle Module können im Entwicklungsstand existieren, werden aber nur dann öffentlich exportiert, wenn sie beim Release-Build ausgewählt wurden.
-
-Im Entwicklungsstand ist zusätzlich `Homepage` für den nächsten Public-Export vorbereitet: eine konfigurierbare Root-Startseite mit sicherem Fallback auf die Standard-Startseite. Sie wird nur dann live auf `/` genutzt, wenn sie im Adminbereich ausdrücklich veröffentlicht wird.
 
 ## Modul-Autodiscovery
 
@@ -39,6 +42,14 @@ Neue native Modulordner unter `app/Modules` können in der Modulverwaltung erkan
 Das Homepage-Modul bereitet eine konfigurierbare Startseite für `/` vor. Es rendert nur veröffentlichte, aktivierte Blöcke. Wenn das Modul deaktiviert ist, nicht veröffentlicht wurde, keine gültigen Blöcke vorhanden sind oder beim Rendern ein Fehler auftritt, wird automatisch die bisherige Standard-Startseite angezeigt.
 
 V1 unterstützt die Blocktypen `custom_content`, `feature_list` und `module_list`. Blöcke können im Adminbereich erstellt, bearbeitet, aktiviert/deaktiviert und sortiert werden. Für Inhaltsblöcke sind mehrere strukturierte Buttons möglich; Feature-Listen verwenden strukturierte Items statt freier HTML-Eingabe. Die Admin-Vorschau rendert Markdown, Feature-Listen und Modul-Listen zielgruppenbezogen für Gäste, User und Admins. Freie HTML-Eingabe ist nicht vorgesehen; Markdown-Inhalte werden über den Core-Markdown-Renderer sicher gerendert.
+
+Homepage ist seit ModulNest `0.8.0 alpha` im Public-Default enthalten. Sie übernimmt `/` nach Clean Install oder Update nicht automatisch, weil `homepage.is_published` standardmäßig deaktiviert bleibt.
+
+## Dashboard
+
+Das Dashboard bietet userbezogene Widgets für Links, Aufgaben und Notizen. Aufgaben und Notizen unterstützen seit ModulNest `0.8.1 alpha` einen Archivstatus über `archived_at`: aktive Listen zeigen nur nicht archivierte Einträge, archivierte Einträge bleiben wiederherstellbar im Archivbereich. Aktive und archivierte Einträge werden im Widget gezählt.
+
+DataPortability übernimmt den Archivstatus für Dashboard-Aufgaben und -Notizen beim Export/Import. Ältere Exporte ohne `archived_at` bleiben importierbar; fehlende Werte gelten als nicht archiviert.
 
 ## Legacy-Anbindung
 
@@ -68,6 +79,12 @@ Das Mail-Modul ist nicht Teil des aktuellen defensiven Public-Exports, aber vorb
 
 Die PHP-Extension `imap` ist nicht erforderlich.
 
-## Banking und weitere Module
+## Nicht Im Public Release
 
-Banking, Tools, FantasyCards und andere Module können in späteren Releases freigegeben werden. Release-Pakete enthalten nur Module, die beim Export ausdrücklich ausgewählt wurden.
+Nicht Teil des aktuellen Public Releases sind:
+
+- `Mail`
+- `FantasyCards`
+- Legacy-Module
+
+Release-Pakete enthalten nur Module, die beim Export ausdrücklich ausgewählt wurden.

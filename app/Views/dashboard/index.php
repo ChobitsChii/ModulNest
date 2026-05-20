@@ -218,7 +218,7 @@ $taskRepeatLabel = static function (array $task): string {
                                 class="app-sort-handle dashboard-widget-grip"
                                 aria-label="Widget verschieben"
                                 title="Per Drag & Drop verschieben"
-                            >⋮⋮</button>
+                            ><span class="app-sort-handle-dots" aria-hidden="true"></span></button>
                             <h2 class="h6 text-uppercase text-body-secondary mb-0 text-truncate js-widget-title"><?= htmlspecialchars($widgetTitle, ENT_QUOTES, 'UTF-8') ?></h2>
                             <span class="badge text-bg-secondary"><?= htmlspecialchars($widgetType, ENT_QUOTES, 'UTF-8') ?></span>
                             <?php if ($activeItemCount !== null): ?>

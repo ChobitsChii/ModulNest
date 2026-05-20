@@ -28,14 +28,34 @@ final class ToolsController
     public function index(Request $request): Response
     {
         $tools = $this->registry->publicTools();
+        $path = rtrim($request->path(), '/') ?: '/';
+        $selectedTool = null;
+
+        if ($path !== '/tools') {
+            if (!preg_match('#^/tools/([^/]+)$#', $path, $matches)) {
+                return $this->publicNotFound($request);
+            }
+
+            foreach ($tools as $tool) {
+                if (($tool['key'] ?? '') === $matches[1]) {
+                    $selectedTool = $tool;
+                    break;
+                }
+            }
+
+            if ($selectedTool === null) {
+                return $this->publicNotFound($request);
+            }
+        }
 
         return new Response(View::render('tools/index', [
-            'title' => 'Tools',
+            'title' => $selectedTool !== null ? (string) ($selectedTool['label'] ?? 'Tool') : 'Tools',
             'current_path' => $request->path(),
             'module_nav_items' => $this->navigation->items($request->path()),
             'module_nav_label' => 'Tools-Navigation',
             'tools' => $tools,
             'tool_groups' => $this->registry->grouped($tools),
+            'selected_tool' => $selectedTool,
             'auth' => $this->authData(),
         ]));
     }
@@ -212,6 +232,15 @@ final class ToolsController
                 'auth' => $this->authData(),
             ]), 404);
         }
+    }
+
+    private function publicNotFound(Request $request): Response
+    {
+        return new Response(View::render('errors/404', [
+            'title' => '404 Not Found',
+            'current_path' => $request->path(),
+            'auth' => $this->authData(),
+        ]), 404);
     }
 
     private function token(): string
