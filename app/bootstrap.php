@@ -29,6 +29,7 @@ use Modulon\Modules\Auth\RememberTokenRepository;
 use Modulon\Modules\Auth\UserRepository;
 use Modulon\Modules\Auth\WebAuthnCredentialRepository;
 use Modulon\Modules\Modules\ModuleRepository;
+use Modulon\Modules\Pages\PagesRepository;
 
 // Projektpfad bestimmen und Konfiguration laden.
 $basePath = dirname(__DIR__);
@@ -147,6 +148,19 @@ $moduleContext = new ModuleContext(
     ],
 );
 $nativeModules = NativeModuleLoader::createActiveModules($basePath, $moduleContext);
+$pagesModuleActive = isset($nativeModules['pages']);
+$pagesHeaderLinks = [];
+$pagesFooterLinks = [];
+if ($pagesModuleActive && $pdo !== null) {
+    try {
+        $pagesRepo = new PagesRepository($pdo);
+        $pagesHeaderLinks = $pagesRepo->listPublicHeaderPages();
+        $pagesFooterLinks = $pagesRepo->listPublicFooterPages();
+    } catch (\Throwable) {
+        $pagesHeaderLinks = [];
+        $pagesFooterLinks = [];
+    }
+}
 $nativeModuleBindings = [];
 foreach (NativeModuleLoader::discover($basePath) as $moduleClass) {
     $module = $moduleClass::create($moduleContext);
@@ -224,10 +238,34 @@ $accessibleModulesForUser = static function (?array $user, bool $isAdmin, string
     return $modules;
 };
 
-View::setComposer(static function (array $data) use ($authService, $accessibleModulesForUser, $publicRegistrationEnabled, $adminNavigationRegistry, $userNavigationRegistry, $moduleFeatures, $versionConfig): array {
+View::setComposer(static function (array $data) use ($authService, $accessibleModulesForUser, $publicRegistrationEnabled, $adminNavigationRegistry, $userNavigationRegistry, $moduleFeatures, $versionConfig, $pagesModuleActive, $pagesHeaderLinks, $pagesFooterLinks): array {
     $currentPath = (string) ($data['current_path'] ?? '/');
     $user = $authService?->currentUser();
     $isAdmin = $authService?->isAdmin() ?? false;
+    $pagesNavUngrouped = [];
+    $pagesNavGroups = [];
+    if ($pagesModuleActive) {
+        foreach ($pagesHeaderLinks as $page) {
+            $title = trim((string) ($page['title'] ?? ''));
+            $slug = trim((string) ($page['slug'] ?? ''));
+            $group = trim((string) ($page['menu_group'] ?? ''));
+            if ($title === '' || $slug === '') {
+                continue;
+            }
+            $item = [
+                'title' => $title,
+                'url' => '/pages/' . $slug,
+            ];
+            if ($group === '') {
+                $pagesNavUngrouped[] = $item;
+                continue;
+            }
+            if (!isset($pagesNavGroups[$group])) {
+                $pagesNavGroups[$group] = [];
+            }
+            $pagesNavGroups[$group][] = $item;
+        }
+    }
 
     return [
         'current_path' => $currentPath,
@@ -243,6 +281,16 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
         'public_registration_enabled' => $publicRegistrationEnabled,
         'app_version' => (string) ($versionConfig['version'] ?? '0.0.0'),
         'product_meta' => $versionConfig,
+        'pages_module_active' => $pagesModuleActive,
+        'pages_header_ungrouped' => $pagesNavUngrouped,
+        'pages_header_groups' => $pagesNavGroups,
+        'pages_footer_links' => $pagesModuleActive ? array_values(array_map(static function (array $page): array {
+            return [
+                'title' => (string) ($page['title'] ?? ''),
+                'url' => '/pages/' . (string) ($page['slug'] ?? ''),
+                'slug' => (string) ($page['slug'] ?? ''),
+            ];
+        }, $pagesFooterLinks)) : [],
     ];
 });
 

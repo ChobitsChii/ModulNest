@@ -4,7 +4,7 @@ set -Eeuo pipefail
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly DEFAULT_TARGET="/srv/http/modulnest"
 readonly CORE_MODULES=("Admin" "Auth" "Modules" "User")
-readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "SneakPreview" "Systeminfo" "Tools" "Updates")
+readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "Pages" "SneakPreview" "Systeminfo" "Tools" "Updates")
 
 TARGET="$DEFAULT_TARGET"
 ASSUME_YES=0
@@ -324,6 +324,7 @@ module_view_dir() {
         Logs) printf 'logs' ;;
         Mail) printf 'mail' ;;
         News) printf 'news' ;;
+        Pages) printf 'pages' ;;
         SneakPreview) printf 'sneak-preview' ;;
         Systeminfo) printf 'systeminfo' ;;
         Tools) printf 'tools' ;;
@@ -425,6 +426,7 @@ write_package_metadata() {
             "Logs" => "logs",
             "Mail" => "mail",
             "News" => "news",
+            "Pages" => "pages",
             "SneakPreview" => "sneak-preview",
             "Systeminfo" => "systeminfo",
             "Tools" => "tools",

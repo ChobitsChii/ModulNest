@@ -637,6 +637,29 @@ CREATE TABLE IF NOT EXISTS news_entries (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- Source: app/Modules/Pages/Database/schema.sql
+CREATE TABLE IF NOT EXISTS pages_entries (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(180) NOT NULL,
+    slug VARCHAR(180) NOT NULL,
+    content_markdown MEDIUMTEXT NOT NULL,
+    visibility VARCHAR(20) NOT NULL DEFAULT 'public',
+    menu_group VARCHAR(120) NOT NULL DEFAULT '',
+    show_in_header TINYINT(1) NOT NULL DEFAULT 0,
+    show_in_footer TINYINT(1) NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 100,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_pages_entries_slug (slug),
+    KEY idx_pages_entries_visibility_active (visibility, is_active),
+    KEY idx_pages_entries_menu_group (menu_group),
+    KEY idx_pages_entries_header (show_in_header, visibility, is_active),
+    KEY idx_pages_entries_footer (show_in_footer, visibility, is_active),
+    KEY idx_pages_entries_sort_order (sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- Source: app/Modules/SneakPreview/Database/schema.sql
 CREATE TABLE IF NOT EXISTS sneak_preview_entries (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -887,4 +910,42 @@ ON DUPLICATE KEY UPDATE
     published_at = VALUES(published_at),
     updated_by = VALUES(updated_by),
     updated_at = CURRENT_TIMESTAMP;
+
+
+-- Source: app/Modules/Pages/Database/seeds.sql
+INSERT INTO pages_entries (title, slug, content_markdown, visibility, menu_group, show_in_header, show_in_footer, is_active, sort_order)
+VALUES
+    (
+        'Impressum',
+        'impressum',
+        '## Impressum
+
+Bitte trage hier die rechtlich erforderlichen Angaben deiner Instanz ein.',
+        'public',
+        'Rechtliches',
+        0,
+        1,
+        1,
+        10
+    ),
+    (
+        'Datenschutz',
+        'datenschutz',
+        '## Datenschutz
+
+Bitte trage hier deine Datenschutzhinweise ein.',
+        'public',
+        'Rechtliches',
+        0,
+        1,
+        1,
+        20
+    )
+ON DUPLICATE KEY UPDATE
+    title = VALUES(title),
+    visibility = VALUES(visibility),
+    menu_group = VALUES(menu_group),
+    show_in_header = VALUES(show_in_header),
+    show_in_footer = VALUES(show_in_footer),
+    is_active = VALUES(is_active);
 

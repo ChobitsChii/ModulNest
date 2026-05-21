@@ -10,6 +10,9 @@ $navModules = is_array($nav_modules ?? null) ? $nav_modules : [];
 $publicRegistrationEnabled = (bool) ($public_registration_enabled ?? true);
 $adminItems = is_array($admin_nav_items ?? null) ? $admin_nav_items : [];
 $userItems = is_array($user_nav_items ?? null) ? $user_nav_items : [];
+$pagesModuleActive = (bool) ($pages_module_active ?? false);
+$pagesHeaderUngrouped = is_array($pages_header_ungrouped ?? null) ? $pages_header_ungrouped : [];
+$pagesHeaderGroups = is_array($pages_header_groups ?? null) ? $pages_header_groups : [];
 $productMeta = is_array($product_meta ?? null) ? $product_meta : [];
 $productName = (string) ($productMeta['product_name'] ?? 'Modulon');
 
@@ -72,6 +75,67 @@ $isActive = static function (string $path) use ($currentPath): string {
                             </li>
                         <?php endif; ?>
                     <?php endforeach; ?>
+                    <?php if ($pagesModuleActive): ?>
+                        <?php foreach ($pagesHeaderUngrouped as $page): ?>
+                            <?php
+                            $pageUrl = (string) ($page['url'] ?? '/pages');
+                            $pageTitle = (string) ($page['title'] ?? 'Seite');
+                            ?>
+                            <li class="nav-item">
+                                <a class="nav-link app-nav-link <?= $isActive($pageUrl) ?>" href="<?= htmlspecialchars($pageUrl, ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                        <?php foreach ($pagesHeaderGroups as $groupName => $items): ?>
+                            <?php
+                            $groupItems = is_array($items) ? array_values($items) : [];
+                            if ($groupItems === []) {
+                                continue;
+                            }
+                            if (count($groupItems) === 1) {
+                                $single = $groupItems[0];
+                                $singleUrl = (string) ($single['url'] ?? '/pages');
+                                $singleTitle = (string) ($single['title'] ?? (string) $groupName);
+                                ?>
+                                <li class="nav-item">
+                                    <a class="nav-link app-nav-link <?= $isActive($singleUrl) ?>" href="<?= htmlspecialchars($singleUrl, ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars($singleTitle, ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                </li>
+                                <?php
+                                continue;
+                            }
+
+                            $groupActive = '';
+                            foreach ($groupItems as $groupItem) {
+                                $groupItemUrl = (string) ($groupItem['url'] ?? '/pages');
+                                if ($isActive($groupItemUrl) !== '') {
+                                    $groupActive = 'active';
+                                    break;
+                                }
+                            }
+                            ?>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link app-nav-link dropdown-toggle <?= $groupActive ?>" href="/pages" id="pages-group-<?= htmlspecialchars((string) md5((string) $groupName), ENT_QUOTES, 'UTF-8') ?>" role="button" data-bs-toggle="dropdown" data-app-nav-dropdown-link aria-expanded="false">
+                                    <?= htmlspecialchars((string) $groupName, ENT_QUOTES, 'UTF-8') ?>
+                                </a>
+                                <ul class="dropdown-menu app-module-dropdown" aria-labelledby="pages-group-<?= htmlspecialchars((string) md5((string) $groupName), ENT_QUOTES, 'UTF-8') ?>">
+                                    <?php foreach ($groupItems as $groupItem): ?>
+                                        <?php
+                                        $groupItemUrl = (string) ($groupItem['url'] ?? '/pages');
+                                        $groupItemLabel = (string) ($groupItem['title'] ?? 'Seite');
+                                        ?>
+                                        <li>
+                                            <a class="dropdown-item<?= $isActive($groupItemUrl) !== '' ? ' active' : '' ?>" href="<?= htmlspecialchars($groupItemUrl, ENT_QUOTES, 'UTF-8') ?>">
+                                                <?= htmlspecialchars($groupItemLabel, ENT_QUOTES, 'UTF-8') ?>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </li>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </ul>
             </div>
 

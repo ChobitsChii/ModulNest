@@ -5,10 +5,12 @@ $version = (string) ($app_version ?? '0.4.0');
 $productMeta = is_array($product_meta ?? null) ? $product_meta : [];
 $productName = (string) ($productMeta['product_name'] ?? 'Modulon');
 $coreLabel = (string) ($productMeta['core_label'] ?? 'Modulon Core');
+$pagesModuleActive = (bool) ($pages_module_active ?? false);
+$pagesFooterLinks = is_array($pages_footer_links ?? null) ? $pages_footer_links : [];
 ?>
 <footer class="app-footer border-top py-3 mt-4">
-    <div class="container text-body-secondary small">
-        <span class="app-footer-meta">
+    <div class="container text-body-secondary small app-footer-row">
+        <div class="app-footer-meta">
             <span><?= htmlspecialchars($productName, ENT_QUOTES, 'UTF-8') ?></span>
             <span class="app-divider-dot">&middot;</span>
             <span>Version <?= htmlspecialchars($version, ENT_QUOTES, 'UTF-8') ?></span>
@@ -21,6 +23,70 @@ $coreLabel = (string) ($productMeta['core_label'] ?? 'Modulon Core');
                 </svg>
                 <span>GitHub</span>
             </a>
-        </span>
+        </div>
+        <?php if ($pagesModuleActive && $pagesFooterLinks !== []): ?>
+            <div class="app-footer-legal">
+                <?php foreach ($pagesFooterLinks as $index => $link): ?>
+                    <?php
+                    $title = (string) ($link['title'] ?? '');
+                    $url = (string) ($link['url'] ?? '');
+                    if ($title === '' || $url === '') {
+                        continue;
+                    }
+                    ?>
+                    <?php if ($index > 0): ?><span class="app-divider-dot">&middot;</span><?php endif; ?>
+                    <a class="app-footer-link" href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 </footer>
+
+<?php if ($pagesModuleActive): ?>
+    <?php
+    $privacyUrl = '/pages/datenschutz';
+    foreach ($pagesFooterLinks as $link) {
+        if ((string) ($link['slug'] ?? '') === 'datenschutz' && (string) ($link['url'] ?? '') !== '') {
+            $privacyUrl = (string) $link['url'];
+            break;
+        }
+    }
+    ?>
+    <div class="app-cookie-notice card shadow-sm border-0 app-card d-none" data-cookie-notice>
+        <div class="card-body p-3">
+            <p class="small mb-2">Manche Funktionen laden Inhalte von externen Diensten. Wenn du die Seite nutzt, gehen wir davon aus, dass das für dich okay ist.</p>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-primary btn-sm" type="button" data-cookie-ok>Okay 🍪</button>
+                <a class="btn btn-outline-secondary btn-sm" href="<?= htmlspecialchars($privacyUrl, ENT_QUOTES, 'UTF-8') ?>">Mehr erfahren</a>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<script>
+(function(){
+    const cookieBox=document.querySelector('[data-cookie-notice]');
+    const cookieKey='modulon_cookie_notice_dismissed_v1';
+
+    if(cookieBox){
+        try{
+            if(window.localStorage.getItem(cookieKey)!=='1'){
+                cookieBox.classList.remove('d-none');
+            }
+        }catch(e){
+            cookieBox.classList.remove('d-none');
+        }
+
+        const okBtn=cookieBox.querySelector('[data-cookie-ok]');
+        if(okBtn){
+            okBtn.addEventListener('click',function(){
+                try{window.localStorage.setItem(cookieKey,'1');}catch(e){}
+                cookieBox.classList.add('d-none');
+            });
+        }
+    }
+
+})();
+</script>
