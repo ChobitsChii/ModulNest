@@ -176,11 +176,12 @@ final class UpdatesService
         $this->enableMaintenance('Update auf ' . $version);
 
         try {
-            [$copied, $backedUp, $skipped] = $this->copyPreparedFiles($stagingPath, $backupPath, static function () use (&$mutationStarted): void {
+            [$copied, $backedUp, $skipped, $copiedPhpFiles] = $this->copyPreparedFiles($stagingPath, $backupPath, static function () use (&$mutationStarted): void {
                 $mutationStarted = true;
             });
             $migrationResult = $this->runMigrations($prepared);
             $activatedModules = $this->syncPackageModules();
+            $runtimeRefresh = $this->refreshPhpRuntime($copiedPhpFiles);
             $installed = [
                 'installed_at' => gmdate(DATE_ATOM),
                 'status' => 'installed',
@@ -193,6 +194,7 @@ final class UpdatesService
                 'requires_migrations' => (bool) ($prepared['requires_migrations'] ?? false),
                 'migrations' => $migrationResult,
                 'activated_default_modules' => $activatedModules,
+                'runtime_refresh' => $runtimeRefresh,
                 'migration_note' => $migrationResult === null
                     ? 'Keine Datenbankverbindung verfügbar; Migrationen wurden nicht ausgeführt.'
                     : 'Datenbankmigrationen geprüft: ' . count($migrationResult['executed']) . ' ausgeführt, ' . count($migrationResult['skipped']) . ' übersprungen.',
@@ -203,7 +205,14 @@ final class UpdatesService
             ]);
             $nextState = $this->normalizeStateForInstalledVersion($nextState, $version);
             $this->writeState($nextState);
-            $this->log('Update installiert', ['version' => $version, 'copied' => $copied, 'backup' => $backupPath]);
+            $this->log('Update installiert', [
+                'version' => $version,
+                'copied' => $copied,
+                'backup' => $backupPath,
+                'opcache_invalidated' => $runtimeRefresh['invalidated'],
+                'opcache_available' => $runtimeRefresh['available'],
+                'opcache_reset' => $runtimeRefresh['reset'],
+            ]);
 
             return $installed;
         } catch (Throwable $exception) {
@@ -458,13 +467,14 @@ final class UpdatesService
     }
 
     /**
-     * @return array{0:int,1:int,2:array<int,string>}
+     * @return array{0:int,1:int,2:array<int,string>,3:array<int,string>}
      */
     private function copyPreparedFiles(string $sourceRoot, string $backupRoot, ?callable $onMutation = null): array
     {
         $copied = 0;
         $backedUp = 0;
         $skipped = [];
+        $copiedPhpFiles = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($sourceRoot, RecursiveDirectoryIterator::SKIP_DOTS),
             RecursiveIteratorIterator::SELF_FIRST
@@ -510,9 +520,48 @@ final class UpdatesService
                 throw new RuntimeException('Datei konnte nicht kopiert werden: ' . $relative);
             }
             $copied++;
+            if (strtolower(pathinfo($target, PATHINFO_EXTENSION)) === 'php') {
+                $copiedPhpFiles[] = $target;
+            }
         }
 
-        return [$copied, $backedUp, array_values(array_filter($skipped))];
+        return [$copied, $backedUp, array_values(array_filter($skipped)), $copiedPhpFiles];
+    }
+
+    /**
+     * Invalidates updated PHP bytecode before the post-install redirect starts a
+     * fresh request. This is deliberately best effort: unavailable or restricted
+     * OPcache APIs must never turn a completed file update into a failed update.
+     *
+     * @param array<int,string> $phpFiles
+     * @return array{available:bool,invalidated:int,failed:int,reset:bool}
+     */
+    private function refreshPhpRuntime(array $phpFiles): array
+    {
+        if (!function_exists('opcache_invalidate')) {
+            return ['available' => false, 'invalidated' => 0, 'failed' => 0, 'reset' => false];
+        }
+
+        $invalidated = 0;
+        $failed = 0;
+        foreach (array_values(array_unique($phpFiles)) as $phpFile) {
+            clearstatcache(true, $phpFile);
+            if (@opcache_invalidate($phpFile, true)) {
+                $invalidated++;
+            } else {
+                $failed++;
+            }
+        }
+
+        // A failed per-file invalidation can happen on locked-down hosts. Reset
+        // the local OPcache as a final best-effort fallback, while keeping the
+        // successful update intact even when the host denies that operation.
+        $reset = false;
+        if ($failed > 0 && function_exists('opcache_reset')) {
+            $reset = @opcache_reset();
+        }
+
+        return ['available' => true, 'invalidated' => $invalidated, 'failed' => $failed, 'reset' => $reset];
     }
 
     private function isProtectedUpdatePath(string $relative): bool

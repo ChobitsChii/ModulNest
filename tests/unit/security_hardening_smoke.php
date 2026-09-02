@@ -33,6 +33,7 @@ securityAssert($sanitize->invoke(null, 'csrf-value', '_csrf') === '***', 'CSRF-T
 securityAssert($sanitize->invoke(null, 'password-value', 'password') === '***', 'Passwort darf nicht in Fehlerlogs erscheinen.');
 securityAssert($sanitize->invoke(null, 'recovery-code', 'code') === '***', 'TOTP-/Recovery-Code darf nicht in Fehlerlogs erscheinen.');
 securityAssert($sanitize->invoke(null, 'remember-value', 'modulon_remember') === '***', 'Remember-Me-Cookie darf nicht in Fehlerlogs erscheinen.');
+securityAssert($sanitize->invoke(null, 'remember-value', 'modulnest_remember') === '***', 'ModulNest Remember-Me-Cookie darf nicht in Fehlerlogs erscheinen.');
 $sanitizeUri = new ReflectionMethod(ErrorHandler::class, 'sanitizeUri');
 securityAssert($sanitizeUri->invoke(null, '/login?PHPSESSID=session-value&_csrf=csrf-value&view=public') === '/login?PHPSESSID=***&_csrf=***&view=public', 'Sensible Query-Werte müssen im Fehlerlog maskiert werden.');
 
