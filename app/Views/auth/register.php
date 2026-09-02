@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 $error = (string) ($error ?? '');
 $info = (string) ($info ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
@@ -18,6 +19,7 @@ $info = (string) ($info ?? '');
                 <?php endif; ?>
 
                 <form method="post" action="/internal/register" class="vstack gap-3">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <div>
                         <label for="name" class="form-label">Name</label>
                         <input id="name" class="form-control" type="text" name="name" required>

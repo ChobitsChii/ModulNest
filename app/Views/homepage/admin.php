@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 $e = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-$csrf = (string) ($csrf_token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $isPublished = (bool) ($is_published ?? false);
@@ -250,7 +250,7 @@ $renderPreviewBlock = static function (array $block, bool $showMeta = true) use 
                         : 'Änderungen bleiben vorbereitet. Die öffentliche Root-Startseite nutzt weiterhin die Standard-Ansicht.' ?>
                 </p>
                 <form method="post" action="/admin/homepage/publish" data-homepage-ajax-form data-homepage-action="publish">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <input type="hidden" name="is_published" value="<?= $isPublished ? '0' : '1' ?>" data-homepage-published-input>
                     <button type="submit" class="btn <?= $isPublished ? 'btn-outline-secondary' : 'btn-primary' ?>" data-homepage-published-button>
                         <?= $isPublished ? 'Standard-Startseite verwenden' : 'Konfigurierte Startseite veröffentlichen' ?>
@@ -274,7 +274,7 @@ $renderPreviewBlock = static function (array $block, bool $showMeta = true) use 
                 </div>
 
                 <form method="post" action="<?= $isEdit ? '/admin/homepage/blocks/update' : '/admin/homepage/blocks/create' ?>" class="row g-3" data-homepage-block-form>
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <?php if ($isEdit): ?>
                         <input type="hidden" name="block_id" value="<?= $e((string) ($formBlock['id'] ?? 0)) ?>">
                     <?php endif; ?>
@@ -460,7 +460,7 @@ $renderPreviewBlock = static function (array $block, bool $showMeta = true) use 
                                                 <?php foreach ($visibilityLabels as $field => $label): ?>
                                                     <?php $visible = (int) ($block[$field] ?? 0) === 1; ?>
                                                     <form method="post" action="/admin/homepage/blocks/visibility" data-homepage-ajax-form data-homepage-action="visibility" class="d-inline">
-                                                        <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                                                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                         <input type="hidden" name="block_id" value="<?= $e((string) $id) ?>">
                                                         <input type="hidden" name="field" value="<?= $e($field) ?>">
                                                         <input type="hidden" name="visible" value="<?= $visible ? '0' : '1' ?>">
@@ -473,13 +473,13 @@ $renderPreviewBlock = static function (array $block, bool $showMeta = true) use 
                                         <td>
                                             <div class="d-flex gap-1">
                                                 <form method="post" action="/admin/homepage/blocks/move" data-homepage-ajax-form data-homepage-action="move">
-                                                    <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                     <input type="hidden" name="block_id" value="<?= $e((string) $id) ?>">
                                                     <input type="hidden" name="direction" value="up">
                                                     <button class="btn btn-outline-secondary btn-sm" type="submit"<?= $index === 0 ? ' disabled' : '' ?>>Hoch</button>
                                                 </form>
                                                 <form method="post" action="/admin/homepage/blocks/move" data-homepage-ajax-form data-homepage-action="move">
-                                                    <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                     <input type="hidden" name="block_id" value="<?= $e((string) $id) ?>">
                                                     <input type="hidden" name="direction" value="down">
                                                     <button class="btn btn-outline-secondary btn-sm" type="submit"<?= $index === count($blocks) - 1 ? ' disabled' : '' ?>>Runter</button>
@@ -490,13 +490,13 @@ $renderPreviewBlock = static function (array $block, bool $showMeta = true) use 
                                         <td class="text-end text-nowrap">
                                             <a class="btn btn-outline-secondary btn-sm" href="/admin/homepage?edit=<?= $e((string) $id) ?>">Bearbeiten</a>
                                             <form method="post" action="/admin/homepage/blocks/toggle" class="d-inline" data-homepage-ajax-form data-homepage-action="toggle">
-                                                <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="block_id" value="<?= $e((string) $id) ?>">
                                                 <input type="hidden" name="is_enabled" value="<?= $enabled ? '0' : '1' ?>">
                                                 <button class="btn btn-outline-secondary btn-sm" type="submit" data-homepage-toggle-button><?= $enabled ? 'Deaktivieren' : 'Aktivieren' ?></button>
                                             </form>
                                             <form method="post" action="/admin/homepage/blocks/delete" class="d-inline" data-homepage-ajax-form data-homepage-action="delete" onsubmit="return confirm('Homepage-Block wirklich löschen?');">
-                                                <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="block_id" value="<?= $e((string) $id) ?>">
                                                 <button class="btn btn-outline-danger btn-sm" type="submit">Löschen</button>
                                             </form>

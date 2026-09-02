@@ -6,6 +6,7 @@ $info = (string) ($info ?? '');
 $pendingEmail = (string) ($pending_email ?? '');
 $showTotp = (bool) ($show_totp ?? false);
 $showWebAuthn = (bool) ($show_webauthn ?? false);
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="row justify-content-center">
     <div class="col-12 col-lg-8">
@@ -23,6 +24,7 @@ $showWebAuthn = (bool) ($show_webauthn ?? false);
 
                 <?php if ($showTotp): ?>
                     <form method="post" action="/login/2fa/totp" class="mb-4">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <label for="totp_code" class="form-label">TOTP-Code</label>
                         <div class="input-group">
                             <input id="totp_code" class="form-control" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required>
@@ -32,6 +34,7 @@ $showWebAuthn = (bool) ($show_webauthn ?? false);
                 <?php endif; ?>
 
                 <form method="post" action="/login/2fa/recovery" class="mb-4">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <label for="recovery_code" class="form-label">Recovery Code</label>
                     <div class="input-group">
                         <input id="recovery_code" class="form-control" type="text" name="code" required>
@@ -55,13 +58,14 @@ function fromBase64(pk){if(pk.challenge){pk.challenge=b64ToAb(pk.challenge);}if(
 function ab2b64(ab){const bytes=new Uint8Array(ab);let str='';for(const b of bytes){str+=String.fromCharCode(b);}return btoa(str);}
 async function verifyPasskey2FA(){
     try{
-        const optionsRes=await fetch('/webauthn/login/options',{method:'POST'});
+        const csrfHeaders={'X-CSRF-Token':<?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,'Accept':'application/json'};
+        const optionsRes=await fetch('/webauthn/login/options',{method:'POST',headers:csrfHeaders});
         const options=await optionsRes.json();
         if(!options.success){throw new Error(options.message||'Passkey-Optionen fehlgeschlagen.');}
         const publicKey=fromBase64(options.publicKey);
         const cred=await navigator.credentials.get({publicKey});
         const payload={id:ab2b64(cred.rawId),clientDataJSON:ab2b64(cred.response.clientDataJSON),authenticatorData:ab2b64(cred.response.authenticatorData),signature:ab2b64(cred.response.signature),userHandle:cred.response.userHandle?ab2b64(cred.response.userHandle):''};
-        const verifyRes=await fetch('/webauthn/login/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const verifyRes=await fetch('/webauthn/login/verify',{method:'POST',headers:{...csrfHeaders,'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const verify=await verifyRes.json();
         if(!verify.success){throw new Error(verify.message||'Passkey-Verifizierung fehlgeschlagen.');}
         window.location=verify.redirect||'/';

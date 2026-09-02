@@ -14,8 +14,6 @@ use Throwable;
 
 final class HomepageController
 {
-    private const TOKEN_KEY = 'homepage_csrf_token';
-
     public function __construct(
         private readonly HomepageRepository $repository,
         private readonly Session $session,
@@ -65,7 +63,6 @@ final class HomepageController
             'title' => 'Startseite',
             'current_path' => $request->path(),
             'admin_section' => 'homepage',
-            'csrf_token' => $this->token(),
             'message' => $this->session->pullFlash('homepage_info'),
             'error' => $error,
             'is_published' => $isPublished,
@@ -113,10 +110,6 @@ final class HomepageController
 
     public function togglePublished(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         try {
             $published = (string) $request->input('is_published', '0') === '1';
             $this->repository->setPublished($published);
@@ -145,10 +138,6 @@ final class HomepageController
 
     public function createBlock(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         try {
             $data = $this->blockDataFromRequest($request);
             $this->repository->createBlock($data);
@@ -162,10 +151,6 @@ final class HomepageController
 
     public function updateBlock(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         $id = max(0, (int) $request->input('block_id', '0'));
         try {
             if ($id <= 0 || $this->repository->findBlock($id) === null) {
@@ -185,10 +170,6 @@ final class HomepageController
 
     public function toggleBlock(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         try {
             $id = max(0, (int) $request->input('block_id', '0'));
             if ($id <= 0 || $this->repository->findBlock($id) === null) {
@@ -221,10 +202,6 @@ final class HomepageController
 
     public function toggleVisibility(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         try {
             $id = max(0, (int) $request->input('block_id', '0'));
             $field = (string) $request->input('field', '');
@@ -260,10 +237,6 @@ final class HomepageController
 
     public function deleteBlock(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         try {
             $id = max(0, (int) $request->input('block_id', '0'));
             if ($id <= 0 || $this->repository->findBlock($id) === null) {
@@ -291,10 +264,6 @@ final class HomepageController
 
     public function moveBlock(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->jsonOrRedirectError($request, 'Ungültiger Sicherheits-Token.');
-        }
-
         try {
             $id = max(0, (int) $request->input('block_id', '0'));
             $direction = (string) $request->input('direction', '');
@@ -336,26 +305,6 @@ final class HomepageController
         $this->session->flash('homepage_error', $message);
 
         return Response::redirect('/admin/homepage');
-    }
-
-    private function token(): string
-    {
-        $token = $this->session->get(self::TOKEN_KEY);
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set(self::TOKEN_KEY, $token);
-
-        return $token;
-    }
-
-    private function validToken(string $submitted): bool
-    {
-        $token = $this->session->get(self::TOKEN_KEY);
-
-        return is_string($token) && $token !== '' && hash_equals($token, $submitted);
     }
 
     private function wantsJson(Request $request): bool

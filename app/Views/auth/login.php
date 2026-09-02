@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 $error = (string) ($error ?? '');
 $info = (string) ($info ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
@@ -18,6 +19,7 @@ $info = (string) ($info ?? '');
                 <?php endif; ?>
 
                 <form method="post" action="/login" class="vstack gap-3">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <div>
                         <label for="email" class="form-label">E-Mail oder Benutzername</label>
                         <input id="email" class="form-control" type="text" name="email" autocomplete="username" required>
@@ -46,7 +48,8 @@ function fromBase64(pk){if(pk.challenge){pk.challenge=b64ToAb(pk.challenge);}if(
 function ab2b64(ab){const bytes=new Uint8Array(ab);let str='';for(const b of bytes){str+=String.fromCharCode(b);}return btoa(str);}
 async function loginWithPasskey(){
     try{
-        const optionsRes=await fetch('/webauthn/login/options',{method:'POST'});
+        const csrfHeaders={'X-CSRF-Token':<?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,'Accept':'application/json'};
+        const optionsRes=await fetch('/webauthn/login/options',{method:'POST',headers:csrfHeaders});
         const options=await optionsRes.json();
         if(!options.success){throw new Error(options.message||'Passkey-Optionen fehlgeschlagen.');}
         const publicKey=fromBase64(options.publicKey);
@@ -59,7 +62,7 @@ async function loginWithPasskey(){
             userHandle:cred.response.userHandle?ab2b64(cred.response.userHandle):'',
             remember_me:document.getElementById('remember_me')?.checked?'1':'0'
         };
-        const verifyRes=await fetch('/webauthn/login/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const verifyRes=await fetch('/webauthn/login/verify',{method:'POST',headers:{...csrfHeaders,'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const verify=await verifyRes.json();
         if(!verify.success){throw new Error(verify.message||'Passkey-Login fehlgeschlagen.');}
         window.location=verify.redirect||'/';

@@ -85,6 +85,30 @@ final class MigrationRunner
         );
     }
 
+    /** @return array<int,array<string,mixed>> */
+    public function audit(?array $moduleDirectories = null): array
+    {
+        $this->ensureMigrationTable();
+        $rows = [];
+        foreach ($this->discover($moduleDirectories) as $migration) {
+            $checksum = $this->checksum($migration);
+            $existing = $this->existingMigration($migration->key());
+            $rows[] = [
+                'migration' => $migration, 'key' => $migration->key(), 'expected_checksum' => $checksum,
+                'stored_checksum' => is_array($existing) ? (string) ($existing['checksum'] ?? '') : '',
+                'status' => $existing === null ? 'pending' : ((string) ($existing['checksum'] ?? '') === $checksum ? 'ok' : 'checksum_mismatch'),
+            ];
+        }
+        return $rows;
+    }
+
+    public function repairStoredChecksum(string $key, string $checksum): void
+    {
+        $statement = $this->pdo->prepare('UPDATE schema_migrations SET checksum = :checksum WHERE migration_key = :key');
+        $statement->execute(['checksum' => $checksum, 'key' => $key]);
+        if ($statement->rowCount() !== 1) { throw new RuntimeException('Migrationsmetadaten konnten nicht aktualisiert werden.'); }
+    }
+
     /**
      * @param array<int,string>|null $moduleDirectories
      * @return array<int,Migration>

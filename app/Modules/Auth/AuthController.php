@@ -18,6 +18,7 @@ final class AuthController
         private readonly ?AuthService $auth,
         private readonly Session $session,
         private readonly bool $publicRegistrationEnabled = true,
+        private readonly ?AuthRateLimiter $rateLimiter = null,
     ) {
     }
 
@@ -47,15 +48,17 @@ final class AuthController
         $identifier = (string) $request->input('email', '');
         $password = (string) $request->input('password', '');
         $rememberMe = $request->input('remember_me') === '1';
+        $subject = strtolower(trim($identifier));
+        if (!$this->consumeAuthAttempt('password', $subject)) {
+            return $this->rateLimitRedirect('login_error', '/login');
+        }
         $result = $this->auth->attemptLogin($identifier, $password, $rememberMe, [
             'ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
             'forwarded_for' => (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''),
             'user_agent' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
             'request_method' => $request->method(),
             'request_path' => $request->path(),
-            'session_id' => session_id(),
             'session_active' => session_status() === PHP_SESSION_ACTIVE,
-            'csrf_check' => 'not_implemented',
             'input_identifier_present' => trim($identifier) !== '',
             'input_password_present' => trim($password) !== '',
         ]);
@@ -66,9 +69,11 @@ final class AuthController
         }
 
         if ($result === AuthService::LOGIN_2FA_REQUIRED) {
+            $this->resetAuthAttempts('password', $subject);
             return Response::redirect('/login/2fa');
         }
 
+        $this->resetAuthAttempts('password', $subject);
         $this->session->flash('auth_info', 'Login erfolgreich.');
         return Response::redirect('/');
     }
@@ -101,11 +106,16 @@ final class AuthController
         }
 
         $code = (string) $request->input('code', '');
+        $subject = $this->pendingAuthSubject();
+        if (!$this->consumeAuthAttempt('totp', $subject)) {
+            return $this->rateLimitRedirect('twofa_error', '/login/2fa');
+        }
         if (!$this->auth->completePendingLoginWithTotp($code)) {
             $this->session->flash('twofa_error', 'TOTP-Code ungültig.');
             return Response::redirect('/login/2fa');
         }
 
+        $this->resetAuthAttempts('totp', $subject);
         $this->session->flash('auth_info', 'Login erfolgreich.');
         return Response::redirect('/');
     }
@@ -117,11 +127,16 @@ final class AuthController
         }
 
         $code = (string) $request->input('code', '');
+        $subject = $this->pendingAuthSubject();
+        if (!$this->consumeAuthAttempt('recovery', $subject)) {
+            return $this->rateLimitRedirect('twofa_error', '/login/2fa');
+        }
         if (!$this->auth->completePendingLoginWithRecoveryCode($code)) {
             $this->session->flash('twofa_error', 'Recovery Code ungültig.');
             return Response::redirect('/login/2fa');
         }
 
+        $this->resetAuthAttempts('recovery', $subject);
         $this->session->flash('auth_info', 'Login erfolgreich.');
         return Response::redirect('/');
     }
@@ -156,11 +171,16 @@ final class AuthController
             'userHandle' => (string) $request->input('userHandle', ''),
         ];
         $rememberMe = $request->input('remember_me') === '1';
+        $subject = $this->pendingAuthSubject() . ':' . (string) $payload['id'];
+        if (!$this->consumeAuthAttempt('webauthn', $subject)) {
+            return $this->json(['success' => false, 'message' => 'Zu viele Versuche. Bitte kurz warten.'], 429);
+        }
 
         if (!$this->auth->finishWebAuthnLogin($payload, $rememberMe)) {
             return $this->json(['success' => false, 'message' => 'Passkey-Verifizierung fehlgeschlagen.'], 400);
         }
 
+        $this->resetAuthAttempts('webauthn', $subject);
         return $this->json(['success' => true, 'redirect' => '/']);
     }
 
@@ -179,10 +199,6 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->invalidSecurityTokenRedirect();
-        }
-
         try {
             $this->auth->startTotpSetup((int) $user['id']);
             $this->session->flash('security_info', 'TOTP-Secret erzeugt. Bitte QR-Code scannen und Code bestätigen.');
@@ -203,10 +219,6 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->invalidSecurityTokenRedirect();
-        }
-
         $result = $this->auth->confirmTotpSetup((int) $user['id'], (string) $request->input('code', ''));
         if ($result === null) {
             $this->session->flash('security_error', 'TOTP-Code ungültig.');
@@ -232,10 +244,6 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->invalidSecurityTokenRedirect();
-        }
-
         $this->auth->disableTotp((int) $user['id']);
         $this->session->flash('security_info', 'TOTP deaktiviert.');
         return Response::redirect('/profil/security');
@@ -251,10 +259,6 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->invalidSecurityTokenRedirect();
-        }
-
         $this->auth->regenerateRecoveryCodes((int) $user['id']);
         $this->session->flash('security_info', 'Neue Recovery Codes erstellt. Vorherige Codes sind jetzt ungültig.');
         return Response::redirect('/profil/security');
@@ -270,10 +274,6 @@ final class AuthController
         if ($user === null) {
             return $this->json(['success' => false, 'message' => 'Nicht eingeloggt.'], 401);
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->json(['success' => false, 'message' => 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.'], 419);
-        }
-
         try {
             $options = $this->auth->beginWebAuthnRegistration($user);
             return $this->json(['success' => true, 'publicKey' => $options['publicKey'] ?? $options]);
@@ -292,10 +292,6 @@ final class AuthController
         if ($user === null) {
             return $this->json(['success' => false, 'message' => 'Nicht eingeloggt.'], 401);
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->json(['success' => false, 'message' => 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.'], 419);
-        }
-
         $payload = [
             'clientDataJSON' => (string) $request->input('clientDataJSON', ''),
             'attestationObject' => (string) $request->input('attestationObject', ''),
@@ -320,10 +316,6 @@ final class AuthController
         if ($user === null) {
             return Response::redirect('/login');
         }
-        if (!$this->hasValidSecurityToken($request)) {
-            return $this->invalidSecurityTokenRedirect();
-        }
-
         $credentialId = (int) $request->input('credential_id', '0');
         if ($credentialId > 0) {
             $this->auth->removeWebAuthnCredential((int) $user['id'], $credentialId);
@@ -429,18 +421,33 @@ final class AuthController
         );
     }
 
-    private function hasValidSecurityToken(Request $request): bool
+    private function consumeAuthAttempt(string $scope, string $subject): bool
     {
-        if ($this->auth === null) {
-            return false;
-        }
-
-        return $this->auth->validateSecurityCsrfToken((string) $request->input('security_csrf_token', ''));
+        return $this->rateLimiter === null || $this->rateLimiter->consume($scope, $this->clientIp(), $subject);
     }
 
-    private function invalidSecurityTokenRedirect(): Response
+    private function resetAuthAttempts(string $scope, string $subject): void
     {
-        $this->session->flash('security_error', 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.');
-        return Response::redirect('/profil/security');
+        $this->rateLimiter?->reset($scope, $this->clientIp(), $subject);
     }
+
+    private function pendingAuthSubject(): string
+    {
+        $pending = $this->auth?->pendingUser();
+        return is_array($pending) && (int) ($pending['id'] ?? 0) > 0
+            ? 'user:' . (int) $pending['id']
+            : 'pending:none';
+    }
+
+    private function clientIp(): string
+    {
+        return trim((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    }
+
+    private function rateLimitRedirect(string $flashKey, string $location): Response
+    {
+        $this->session->flash($flashKey, 'Zu viele Versuche. Bitte kurz warten.');
+        return Response::redirect($location);
+    }
+
 }

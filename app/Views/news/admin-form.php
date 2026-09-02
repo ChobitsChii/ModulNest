@@ -19,6 +19,7 @@ $version = (string) ($entry['version'] ?? '');
 $status = (string) ($entry['status'] ?? 'draft');
 $publishedAtRaw = (string) ($entry['published_at'] ?? '');
 $publishedAtInput = $publishedAtRaw !== '' ? substr(str_replace(' ', 'T', $publishedAtRaw), 0, 16) : '';
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0"><?= $isEdit ? 'News bearbeiten' : 'News erstellen' ?></h1>
@@ -35,6 +36,7 @@ $publishedAtInput = $publishedAtRaw !== '' ? substr(str_replace(' ', 'T', $publi
 <div class="card shadow-sm border-0 app-card">
     <div class="card-body">
         <form method="post" action="<?= $isEdit ? '/admin/news/update' : '/admin/news/create' ?>" class="row g-3">
+            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
             <?php if ($isEdit): ?>
                 <input type="hidden" name="entry_id" value="<?= $entryId ?>">
             <?php endif; ?>

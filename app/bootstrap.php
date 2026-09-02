@@ -6,6 +6,8 @@ use Modulon\Core\Application;
 use Modulon\Core\AdminNavigationRegistry;
 use Modulon\Core\Database;
 use Modulon\Core\Database\MigrationRunner;
+use Modulon\Core\CsrfGuard;
+use Modulon\Core\CsrfTokenManager;
 use Modulon\Core\Env;
 use Modulon\Core\HealthCheckProviderInterface;
 use Modulon\Core\HealthCheckRegistry;
@@ -14,6 +16,7 @@ use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleLoader;
 use Modulon\Core\NativeModuleMigrationService;
 use Modulon\Core\Request;
+use Modulon\Core\RecoveryManager;
 use Modulon\Core\Response;
 use Modulon\Core\Router;
 use Modulon\Core\Session;
@@ -23,6 +26,7 @@ use Modulon\Core\View;
 use Modulon\Modules\Admin\AdminController;
 use Modulon\Modules\Admin\AppSettingRepository;
 use Modulon\Modules\Auth\AuthController;
+use Modulon\Modules\Auth\AuthRateLimiter;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\RecoveryCodeRepository;
 use Modulon\Modules\Auth\RememberTokenRepository;
@@ -34,10 +38,17 @@ use Modulon\Modules\Pages\PagesRepository;
 // Projektpfad bestimmen und Konfiguration laden.
 $basePath = dirname(__DIR__);
 Env::load($basePath . '/.env');
+(new RecoveryManager($basePath))->migrateLegacyLogs();
 
 // Session früh starten, damit Auth/Flash in allen Routen nutzbar ist.
+Session::configureCookieSecurity(
+    (string) Env::get('APP_ENV', 'production'),
+    (string) Env::get('SESSION_COOKIE_SECURE', 'auto'),
+    (string) Env::get('SESSION_COOKIE_SAMESITE', 'Lax'),
+);
 $session = new Session();
 $session->start();
+$csrfTokenManager = new CsrfTokenManager($session);
 
 // Datenbankkonfiguration aus app/Config einlesen.
 $databaseConfig = require $basePath . '/app/Config/database.php';
@@ -86,7 +97,19 @@ if ($pdo !== null) {
             @file_put_contents($migrationFlag, gmdate(DATE_ATOM));
         }
     } catch (\Throwable $throwable) {
-        error_log('ModulNest migration bootstrap failed: ' . $throwable->getMessage());
+        $migrationKey = preg_match('/Migration-Checksum stimmt nicht mehr: ([A-Za-z0-9_.-]+)/', $throwable->getMessage(), $matches) === 1 ? $matches[1] : '';
+        (new RecoveryManager($basePath))->requireRecovery([
+            'source' => 'bootstrap', 'phase' => 'migration_verification',
+            'error_code' => $migrationKey !== '' ? 'migration_checksum_mismatch' : 'migration_failed',
+            'migration_key' => $migrationKey, 'migrations_started' => true,
+            'operator_hint' => 'Im geschützten Recovery-Bereich Migrationen prüfen und erneut bewerten.',
+        ]);
+        error_log('ModulNest migration bootstrap failed; recovery state recorded.');
+        \Modulon\Core\SecurityHeaders::apply();
+        http_response_code(503);
+        header('Content-Type: text/html; charset=UTF-8');
+        echo '<!doctype html><html lang="de"><head><meta charset="UTF-8"><title>Migration-Recovery erforderlich</title></head><body><h1>503</h1><p>Eine notwendige Migration ist fehlgeschlagen. Die Anwendung bleibt im Wartungsmodus. Administratoren können den geschützten Recovery-Bereich verwenden.</p></body></html>';
+        exit;
     }
 }
 $healthCheckRegistry = new HealthCheckRegistry();
@@ -114,6 +137,7 @@ if ($pdo !== null) {
         new RecoveryCodeRepository($pdo),
         $session,
         $authConfig,
+        $csrfTokenManager,
     );
     $moduleRepository = new ModuleRepository($pdo);
     try {
@@ -127,7 +151,12 @@ if ($pdo !== null) {
     }
 }
 
-$authController = new AuthController($authService, $session, $publicRegistrationEnabled);
+$authRateLimiter = new AuthRateLimiter(
+    $basePath . '/storage/rate-limits/auth.json',
+    (int) ($authConfig['auth_rate_limit_max_attempts'] ?? 5),
+    (int) ($authConfig['auth_rate_limit_window_seconds'] ?? 900),
+);
+$authController = new AuthController($authService, $session, $publicRegistrationEnabled, $authRateLimiter);
 $moduleContext = new ModuleContext(
     $basePath,
     $pdo,
@@ -238,7 +267,7 @@ $accessibleModulesForUser = static function (?array $user, bool $isAdmin, string
     return $modules;
 };
 
-View::setComposer(static function (array $data) use ($authService, $accessibleModulesForUser, $publicRegistrationEnabled, $adminNavigationRegistry, $userNavigationRegistry, $moduleFeatures, $versionConfig, $pagesModuleActive, $pagesHeaderLinks, $pagesFooterLinks): array {
+View::setComposer(static function (array $data) use ($authService, $accessibleModulesForUser, $publicRegistrationEnabled, $adminNavigationRegistry, $userNavigationRegistry, $moduleFeatures, $versionConfig, $pagesModuleActive, $pagesHeaderLinks, $pagesFooterLinks, $csrfTokenManager): array {
     $currentPath = (string) ($data['current_path'] ?? '/');
     $user = $authService?->currentUser();
     $isAdmin = $authService?->isAdmin() ?? false;
@@ -291,6 +320,7 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
                 'slug' => (string) ($page['slug'] ?? ''),
             ];
         }, $pagesFooterLinks)) : [],
+        'csrf_token' => $csrfTokenManager->token(),
     ];
 });
 
@@ -321,6 +351,8 @@ $router->setAccessGuard(function (Request $request, string $access) use ($authSe
 
     return null;
 });
+
+$router->setCsrfGuard((new CsrfGuard($csrfTokenManager))->handle(...));
 
 $router->get('/', function (Request $request) use ($pdo, $authService, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck, $nativeModules): Response {
     $message = 'Modulon Grundsystem läuft';
@@ -367,15 +399,15 @@ $router->get('/', function (Request $request) use ($pdo, $authService, $session,
     return new Response(View::render('home', $homeData));
 });
 $router->get('/login', [$authController, 'showLoginForm']);
-$router->post('/login', [$authController, 'login']);
+$router->post('/login', [$authController, 'login'], 'public');
 $router->get('/login/2fa', [$authController, 'showTwoFactorForm']);
-$router->post('/login/2fa/totp', [$authController, 'verifyTwoFactorTotp']);
-$router->post('/login/2fa/recovery', [$authController, 'verifyTwoFactorRecovery']);
-$router->post('/webauthn/login/options', [$authController, 'webAuthnLoginOptions']);
-$router->post('/webauthn/login/verify', [$authController, 'webAuthnLoginVerify']);
+$router->post('/login/2fa/totp', [$authController, 'verifyTwoFactorTotp'], 'public');
+$router->post('/login/2fa/recovery', [$authController, 'verifyTwoFactorRecovery'], 'public');
+$router->post('/webauthn/login/options', [$authController, 'webAuthnLoginOptions'], 'public');
+$router->post('/webauthn/login/verify', [$authController, 'webAuthnLoginVerify'], 'public');
 $router->get('/internal/register', [$authController, 'showRegisterForm']);
-$router->post('/internal/register', [$authController, 'register']);
-$router->post('/logout', [$authController, 'logout']);
+$router->post('/internal/register', [$authController, 'register'], 'public');
+$router->post('/logout', [$authController, 'logout'], 'public');
 $router->get('/account/security', [$authController, 'showSecurity'], 'user');
 $router->post('/account/security/totp/start', [$authController, 'startTotpSetup'], 'user');
 $router->post('/account/security/totp/confirm', [$authController, 'confirmTotpSetup'], 'user');
@@ -407,7 +439,7 @@ foreach ($nativeModules as $nativeModule) {
     $nativeModule->registerAdminRoutes($router);
 }
 
-$injectLegacyOverlay = static function (string $html, Request $request, string $moduleName, bool $enableOverlay) use ($authService, $moduleRepository, $accessibleModulesForUser): string {
+$injectLegacyOverlay = static function (string $html, Request $request, string $moduleName, bool $enableOverlay) use ($authService, $moduleRepository, $accessibleModulesForUser, $csrfTokenManager): string {
     if (!$enableOverlay || $authService === null || $moduleRepository === null) {
         return $html;
     }
@@ -473,6 +505,7 @@ HTML;
             </nav>
         </div>
         <form method="post" action="/logout" class="modulon-overlay-logout-form">
+            <input type="hidden" name="_csrf" value="{$esc($csrfTokenManager->token())}">
             <button type="submit" class="modulon-overlay-logout">Logout</button>
         </form>
         <div class="modulon-overlay-meta">Aktive Seite: {$esc($currentPath)}</div>
@@ -668,6 +701,9 @@ if ($moduleRepository !== null) {
 
             $router->get($basePathPrefix . '/*', $legacyDispatcher, $access);
             $router->post($basePathPrefix . '/*', $legacyDispatcher, $access);
+            $router->put($basePathPrefix . '/*', $legacyDispatcher, $access);
+            $router->patch($basePathPrefix . '/*', $legacyDispatcher, $access);
+            $router->delete($basePathPrefix . '/*', $legacyDispatcher, $access);
 
             continue;
         }
@@ -700,7 +736,6 @@ $requestBootstrap = function (Request $request) use ($authService): void {
             'user_agent' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
             'request_method' => $request->method(),
             'request_path' => $request->path(),
-            'session_id' => session_id(),
             'session_active' => session_status() === PHP_SESSION_ACTIVE,
             'remember_cookie_present' => $request->cookie($authService->rememberCookieName()) !== null,
         ]);

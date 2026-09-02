@@ -35,7 +35,6 @@ final class SneakPreviewController
         return new Response(View::render('sneak-preview/admin', $this->adminViewData($request, [
             'movies' => $this->repository->allMovies(),
             'fields' => $this->repository->displayFields(),
-            'delete_token' => $this->token('sneak_preview_delete_token'),
             'message' => $this->session->pullFlash('sneak_preview_info'),
             'error' => $this->session->pullFlash('sneak_preview_error'),
         ])));
@@ -65,11 +64,6 @@ final class SneakPreviewController
 
     public function save(Request $request): Response
     {
-        if (!$this->checkToken('sneak_preview_form_token', (string) $request->input('csrf_token', ''))) {
-            $this->session->flash('sneak_preview_error', 'Der Formular-Token ist ungültig. Bitte Seite neu laden.');
-            return Response::redirect('/admin/sneak-preview');
-        }
-
         $movies = $request->inputRaw('movies', []);
         if (!is_array($movies)) {
             $movies = [];
@@ -108,11 +102,6 @@ final class SneakPreviewController
 
     public function delete(Request $request): Response
     {
-        if (!$this->checkToken('sneak_preview_delete_token', (string) $request->input('csrf_token', ''))) {
-            $this->session->flash('sneak_preview_error', 'Der Lösch-Token ist ungültig. Bitte Seite neu laden.');
-            return Response::redirect('/admin/sneak-preview');
-        }
-
         $id = (int) $request->input('id', '0');
         $deleted = $id > 0 ? $this->repository->deleteMovie($id) : 0;
         $this->session->flash(
@@ -125,11 +114,6 @@ final class SneakPreviewController
 
     public function saveSettings(Request $request): Response
     {
-        if (!$this->checkToken('sneak_preview_settings_token', (string) $request->input('csrf_token', ''))) {
-            $this->session->flash('sneak_preview_error', 'Der Einstellungs-Token ist ungültig. Bitte Seite neu laden.');
-            return Response::redirect('/admin/sneak-preview/settings');
-        }
-
         $catalog = $this->repository->displayCatalog();
         $input = $request->inputRaw('fields', []);
         $fields = [];
@@ -164,7 +148,6 @@ final class SneakPreviewController
         return new Response(View::render('sneak-preview/form', $this->adminViewData($request, [
             'movie' => $movie,
             'locations' => $this->repository->locations(),
-            'token' => $this->token('sneak_preview_form_token'),
             'has_tmdb_api_key' => $this->repository->hasTmdbApiKey(),
         ])));
     }
@@ -177,7 +160,6 @@ final class SneakPreviewController
             'save_posters_locally' => $this->repository->savePostersLocally(),
             'has_tmdb_api_key' => $this->repository->hasTmdbApiKey(),
             'masked_tmdb_api_key' => $this->repository->maskedTmdbApiKey(),
-            'token' => $this->token('sneak_preview_settings_token'),
             'message' => $this->session->pullFlash('sneak_preview_info'),
             'error' => $this->session->pullFlash('sneak_preview_error'),
         ])));
@@ -240,20 +222,4 @@ final class SneakPreviewController
         return is_array($user) ? (int) ($user['id'] ?? 0) : 0;
     }
 
-    private function token(string $key): string
-    {
-        $token = (string) $this->session->get($key, '');
-        if ($token === '') {
-            $token = bin2hex(random_bytes(16));
-            $this->session->set($key, $token);
-        }
-
-        return $token;
-    }
-
-    private function checkToken(string $key, string $submitted): bool
-    {
-        $expected = (string) $this->session->get($key, '');
-        return $expected !== '' && hash_equals($expected, $submitted);
-    }
 }

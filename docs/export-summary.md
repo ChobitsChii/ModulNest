@@ -1,7 +1,7 @@
 # ModulNest Export Summary
 
 - Zielpfad: `/srv/http/modulnest`
-- Erstellt am: `2026-05-21T03:18:57+02:00`
+- Erstellt am: `2026-09-02T05:22:21+02:00`
 - Core-Module: `Admin Auth Modules User`
 - Optionale Module: `Banking Dashboard DataPortability Homepage Logs News Pages SneakPreview Systeminfo Tools Updates`
 
@@ -13,6 +13,8 @@
 - Nicht ausgewählte Module bringen keine Modul-Schema-Dateien in den Export.
 
 - `install.php` ist als einzelner Bootstrap-Installer enthalten.
+
+- `recovery.php` stellt den geschützten Recovery-Einstieg bereit.
 
 - `modulnest-package.json` beschreibt die im Export enthaltenen Pflicht- und optionalen Module.
 

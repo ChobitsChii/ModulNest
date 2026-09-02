@@ -67,6 +67,16 @@ final class View
     }
 
     /**
+     * Rendert das standardisierte CSRF-Feld für reguläre HTML-Formulare.
+     */
+    public static function csrfField(string $token): string
+    {
+        return '<input type="hidden" name="_csrf" value="'
+            . htmlspecialchars($token, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+            . '">';
+    }
+
+    /**
      * @param array<string, mixed> $data
      */
     private static function capture(string $filePath, array $data): string

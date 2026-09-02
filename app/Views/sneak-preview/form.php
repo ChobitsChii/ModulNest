@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 $movie = is_array($movie ?? null) ? $movie : null;
 $locations = is_array($locations ?? null) ? $locations : [];
-$token = (string) ($token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $hasTmdbApiKey = (bool) ($has_tmdb_api_key ?? false);
 $isEdit = $movie !== null;
 $e = static fn (mixed $value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
@@ -53,7 +53,7 @@ $initial = $movie ?? [
     <?php endif; ?>
 
     <form id="sneak-preview-batch-form" method="post" action="/admin/sneak-preview/save" autocomplete="off">
-        <input type="hidden" name="csrf_token" value="<?= $e($token) ?>">
+        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
         <datalist id="sneak-preview-locations">
             <?php foreach ($locations as $location): ?><option value="<?= $e($location) ?>"></option><?php endforeach; ?>
         </datalist>

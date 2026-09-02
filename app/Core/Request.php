@@ -12,6 +12,7 @@ final class Request
         private readonly array $input,
         private readonly array $query,
         private readonly array $cookies,
+        private readonly array $headers = [],
     ) {
     }
 
@@ -39,7 +40,7 @@ final class Request
             }
         }
 
-        return new self($method, $path === '' ? '/' : $path, $input, $query, $cookies);
+        return new self($method, $path === '' ? '/' : $path, $input, $query, $cookies, self::headersFromGlobals());
     }
 
     public function method(): string
@@ -84,6 +85,35 @@ final class Request
     }
 
     /**
+     * Gibt einen Header-Wert unabhängig von der Schreibweise des Header-Namens zurück.
+     */
+    public function header(string $name, ?string $default = null): ?string
+    {
+        foreach ($this->headers as $headerName => $value) {
+            if (is_string($headerName) && strcasecmp($headerName, $name) === 0 && is_string($value)) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+
+    public function contentType(): string
+    {
+        return strtolower(trim((string) $this->header('Content-Type', '')));
+    }
+
+    /**
+     * Erkennt JSON- und AJAX-Anfragen für maschinenlesbare Fehlerantworten.
+     */
+    public function expectsJson(): bool
+    {
+        return str_contains(strtolower((string) $this->header('Accept', '')), 'application/json')
+            || str_contains($this->contentType(), 'application/json')
+            || strtolower((string) $this->header('X-Requested-With', '')) === 'xmlhttprequest';
+    }
+
+    /**
      * Gibt einen Cookie-Wert zurück.
      */
     public function cookie(string $key, ?string $default = null): ?string
@@ -94,5 +124,38 @@ final class Request
         }
 
         return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function headersFromGlobals(): array
+    {
+        $headers = [];
+        if (function_exists('getallheaders')) {
+            $nativeHeaders = getallheaders();
+            if (is_array($nativeHeaders)) {
+                foreach ($nativeHeaders as $name => $value) {
+                    if (is_string($name) && is_string($value)) {
+                        $headers[$name] = $value;
+                    }
+                }
+            }
+        }
+
+        foreach ($_SERVER as $name => $value) {
+            if (!is_string($name) || !is_string($value)) {
+                continue;
+            }
+
+            if (str_starts_with($name, 'HTTP_')) {
+                $headerName = str_replace('_', '-', substr($name, 5));
+                $headers[$headerName] = $value;
+            } elseif (in_array($name, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true)) {
+                $headers[str_replace('_', '-', $name)] = $value;
+            }
+        }
+
+        return $headers;
     }
 }

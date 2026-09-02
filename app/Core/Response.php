@@ -23,6 +23,7 @@ final class Response
     public function send(bool $withBody = true): void
     {
         http_response_code($this->status);
+        SecurityHeaders::apply();
 
         foreach ($this->headers as $name => $value) {
             header($name . ': ' . $value);

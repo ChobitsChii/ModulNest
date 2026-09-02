@@ -25,7 +25,6 @@ $dataPortabilityImportMode = (string) ($data_portability_import_mode ?? ($dataPo
 $dataPortabilityImportMode = $dataPortabilityImportMode === 'replace' ? 'replace' : 'merge';
 $dataPortabilityMessage = (string) ($data_portability_message ?? '');
 $dataPortabilityError = (string) ($data_portability_error ?? '');
-$dataPortabilityCsrfToken = (string) ($data_portability_csrf_token ?? '');
 $dataPortabilityTargetUser = is_array($data_portability_target_user ?? null) ? $data_portability_target_user : $profileUser;
 $dataPortabilityTargetLabel = (string) ($dataPortabilityTargetUser['display_name'] ?? $dataPortabilityTargetUser['name'] ?? $dataPortabilityTargetUser['email'] ?? 'aktueller Benutzer');
 $dataPortabilityPreviewModules = is_array($dataPortabilityPreview['modules'] ?? null) ? $dataPortabilityPreview['modules'] : [];
@@ -42,7 +41,7 @@ $webauthnEnabled = (bool) ($webauthn_enabled ?? false);
 $pendingTotp = is_array($pending_totp ?? null) ? $pending_totp : null;
 $recoveryCodes = is_array($recovery_codes ?? null) ? $recovery_codes : [];
 $recoveryCount = (int) ($recovery_count ?? 0);
-$securityCsrfToken = (string) ($security_csrf_token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $securityDownloadUser = (string) ($profileUser['email'] ?? $profileUser['username'] ?? $profileUser['name'] ?? 'user');
 $credentials = is_array($credentials ?? null) ? $credentials : [];
 ?>
@@ -67,6 +66,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     <div class="card shadow-sm border-0 app-card">
         <div class="card-body p-4">
             <form method="post" action="/profil/update" class="row g-3">
+                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                 <div class="col-12 col-md-6">
                     <label class="form-label mb-1" for="profile_name">Anzeigename / Name</label>
                     <input id="profile_name" class="form-control" type="text" name="name" required value="<?= htmlspecialchars((string) ($profileUser['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
@@ -121,7 +121,6 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
         </section>
     <?php endif; ?>
     <div id="security-inline-feedback" class="module-toggle-feedback small mb-3" aria-live="polite"></div>
-    <input type="hidden" id="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
     <div class="row g-4 modulon-security-grid">
         <div class="col-12 col-lg-6">
@@ -130,7 +129,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <h2 class="h6 text-uppercase text-body-secondary mb-3">Passwort</h2>
                     <p class="small text-body-secondary mb-3">Zum Ändern wird dein aktuelles Passwort zur Bestätigung benötigt.</p>
                     <form method="post" action="/profil/password" class="row g-3">
-                        <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <div class="col-12">
                             <label class="form-label mb-1" for="current_password">Aktuelles Passwort</label>
                             <input id="current_password" class="form-control" type="password" name="current_password" required autocomplete="current-password">
@@ -163,7 +162,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <?php if ($totpEnabled): ?>
                         <p class="small text-body-secondary mb-3">TOTP ist aktiv. QR-Code und Secret werden aus Sicherheitsgründen nicht dauerhaft angezeigt.</p>
                         <form method="post" action="/account/security/totp/disable" class="mt-3">
-                            <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <button type="submit" class="btn btn-outline-danger">TOTP deaktivieren</button>
                         </form>
                     <?php elseif ($pendingTotp !== null): ?>
@@ -171,14 +170,14 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         <p><code><?= htmlspecialchars((string) ($pendingTotp['secret'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></p>
                         <img class="security-totp-qr rounded border mb-3" src="<?= htmlspecialchars((string) ($pendingTotp['qr_data_uri'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="TOTP QR">
                         <form method="post" action="/account/security/totp/confirm" class="vstack gap-2">
-                            <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <label class="form-label mb-0" for="totp_confirm">Bestätigungscode</label>
                             <input id="totp_confirm" class="form-control" type="text" name="code" inputmode="numeric" required>
                             <button type="submit" class="btn btn-primary">TOTP aktivieren</button>
                         </form>
                     <?php else: ?>
                         <form method="post" action="/account/security/totp/start">
-                            <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <button type="submit" class="btn btn-primary">TOTP einrichten</button>
                         </form>
                     <?php endif; ?>
@@ -217,7 +216,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                         <td><?= htmlspecialchars((string) ($credential['last_used_at'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                                         <td class="text-end">
                                             <form method="post" action="/account/security/webauthn/delete" class="d-inline">
-                                                <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="credential_id" value="<?= (int) ($credential['id'] ?? 0) ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">Entfernen</button>
                                             </form>
@@ -239,7 +238,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <p class="mb-3">Aktive Recovery Codes: <strong><?= $recoveryCount ?></strong></p>
                     <p class="small text-body-secondary mb-3">Neu generieren ersetzt alle vorhandenen Recovery Codes.</p>
                     <form method="post" action="/account/security/recovery/regenerate" class="mb-3" onsubmit="return confirm('Vorhandene Recovery Codes werden ungültig. Neue Codes jetzt erzeugen?');">
-                        <input type="hidden" name="security_csrf_token" value="<?= htmlspecialchars($securityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <button type="submit" class="btn btn-outline-secondary">Neu generieren</button>
                     </form>
 
@@ -257,7 +256,6 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     function b64ToAb(v){const p='='.repeat((4-v.length%4)%4);const b=atob((v+p).replace(/-/g,'+').replace(/_/g,'/'));const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++){a[i]=b.charCodeAt(i);}return a.buffer;}
     function fromBase64(pk){if(pk.challenge){pk.challenge=b64ToAb(pk.challenge);}if(pk.user&&pk.user.id){pk.user.id=b64ToAb(pk.user.id);}if(Array.isArray(pk.excludeCredentials)){pk.excludeCredentials=pk.excludeCredentials.map(c=>({...c,id:b64ToAb(c.id)}));}if(Array.isArray(pk.allowCredentials)){pk.allowCredentials=pk.allowCredentials.map(c=>({...c,id:b64ToAb(c.id)}));}return pk;}
     function ab2b64(ab){const bytes=new Uint8Array(ab);let str='';for(const b of bytes){str+=String.fromCharCode(b);}return btoa(str);}
-    function securityCsrfToken(){const field=document.getElementById('security_csrf_token');return field?field.value:'';}
     async function securityJsonResponse(response){
         const type=response.headers.get('content-type')||'';
         if(!type.includes('application/json')){
@@ -286,12 +284,13 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     async function registerPasskey(){
         try{
             const label=document.getElementById('credential_label').value||'Passkey';
-            const optionsRes=await fetch('/account/security/webauthn/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({security_csrf_token:securityCsrfToken()})});
+            const csrfHeaders={'X-CSRF-Token':<?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,'Accept':'application/json'};
+            const optionsRes=await fetch('/account/security/webauthn/options',{method:'POST',headers:{...csrfHeaders,'Content-Type':'application/json'},body:'{}'});
             const options=await securityJsonResponse(optionsRes);
             const publicKey=fromBase64(options.publicKey);
             const cred=await navigator.credentials.create({publicKey});
-            const payload={label:label,security_csrf_token:securityCsrfToken(),transports:cred.response.getTransports?cred.response.getTransports():[],clientDataJSON:ab2b64(cred.response.clientDataJSON),attestationObject:ab2b64(cred.response.attestationObject)};
-            const verifyRes=await fetch('/account/security/webauthn/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            const payload={label:label,transports:cred.response.getTransports?cred.response.getTransports():[],clientDataJSON:ab2b64(cred.response.clientDataJSON),attestationObject:ab2b64(cred.response.attestationObject)};
+            const verifyRes=await fetch('/account/security/webauthn/verify',{method:'POST',headers:{...csrfHeaders,'Content-Type':'application/json'},body:JSON.stringify(payload)});
             await securityJsonResponse(verifyRes);
             window.location='/profil/security';
         }catch(e){setSecurityInlineFeedback(e.message||'Passkey-Registrierung fehlgeschlagen.', true);}
@@ -354,6 +353,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
     <div class="card shadow-sm border-0 app-card">
         <div class="card-body p-4">
             <form method="post" action="/profil/settings" class="row g-3">
+                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                 <div class="col-12 col-md-7 col-lg-6">
                     <label class="form-label mb-1" for="profile_timezone">Zeitzone</label>
                     <select id="profile_timezone" class="form-select" name="timezone" required>
@@ -447,7 +447,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <p class="text-body-secondary small mb-4">Wähle aus, welche persönlichen Bereiche in ein ZIP-Archiv geschrieben werden.</p>
 
                     <form method="post" action="/profil/data-portability/export">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <?php if ($dataPortabilityProviders === []): ?>
                             <div class="alert alert-info mb-0">Aktuell sind keine exportfähigen persönlichen Bereiche aktiv.</div>
                         <?php else: ?>
@@ -517,7 +517,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                         <?= $dataPortabilityImportMode === 'replace' ? 'Der Ersetzen-Modus löscht vorher deine Daten der enthaltenen Module.' : 'Der Standardmodus fügt Daten hinzu oder führt sie zusammen.' ?>
                                     </p>
                                     <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
-                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                         <input type="hidden" name="import_mode" value="<?= htmlspecialchars($dataPortabilityImportMode, ENT_QUOTES, 'UTF-8') ?>">
                                         <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
                                     </form>
@@ -527,7 +527,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     </div>
 
                     <form method="post" action="/profil/data-portability/import/preview" enctype="multipart/form-data">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <div class="mb-3">
                             <label class="form-label" for="profile_import_zip">Export-ZIP</label>
                             <input class="form-control" type="file" id="profile_import_zip" name="import_zip" accept=".zip,application/zip" required>
@@ -648,7 +648,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         </p>
                     </div>
                     <form method="post" action="/profil/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $dataPortabilityImportMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($dataPortabilityCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <input type="hidden" name="import_mode" value="<?= htmlspecialchars($dataPortabilityImportMode, ENT_QUOTES, 'UTF-8') ?>">
                         <button class="btn btn-danger" type="submit">Import ausführen</button>
                     </form>

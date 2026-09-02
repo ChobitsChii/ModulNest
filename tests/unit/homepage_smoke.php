@@ -295,10 +295,8 @@ try {
     $beforeUnsafeControllerCreate = count($repository->listBlocks());
     $session = new Session();
     $session->start();
-    $session->set('homepage_csrf_token', 'homepage-smoke-token');
     $controller = new HomepageController($repository, $session, $renderer);
     $controller->createBlock(new Request('POST', '/admin/homepage/blocks/create', [
-        'csrf_token' => 'homepage-smoke-token',
         'type' => 'custom_content',
         'title' => 'Unsafe via Controller',
         'content_markdown' => 'Text',

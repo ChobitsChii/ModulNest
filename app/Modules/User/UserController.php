@@ -149,11 +149,6 @@ final class UserController
         if ($user === null) {
             return Response::redirect('/login');
         }
-        if (!$this->auth->validateSecurityCsrfToken((string) $request->input('security_csrf_token', ''))) {
-            $this->session->flash('security_error', 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.');
-            return Response::redirect('/profil/security');
-        }
-
         $userId = (int) ($user['id'] ?? 0);
         $currentPassword = (string) $request->input('current_password', '');
         $newPassword = (string) $request->input('new_password', '');
@@ -287,7 +282,6 @@ final class UserController
             'pending_totp' => $this->auth->pendingTotpSetup($userId),
             'recovery_codes' => $this->auth->pullGeneratedRecoveryCodes($userId),
             'recovery_count' => $this->auth->recoveryCodeCount($userId),
-            'security_csrf_token' => $this->auth->securityCsrfToken(),
             'credentials' => $this->auth->listWebAuthnCredentials($userId),
         ])));
     }

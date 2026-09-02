@@ -17,7 +17,6 @@ use DateTimeZone;
 final class DashboardController
 {
     private const FORM_STATE_KEY = 'dashboard_links_form_state';
-    private const CSRF_TOKEN_KEY = 'dashboard_csrf_token';
     private const MAX_HTML_BYTES = 1200000;
     private const MAX_IMAGE_BYTES = 800000;
     private const MAX_UPLOAD_BYTES = 1048576;
@@ -107,7 +106,6 @@ final class DashboardController
             'dashboard_auto_refresh_interval_minutes' => $autoRefreshMinutes,
             'dashboard_auto_refresh_interval_min' => self::DASHBOARD_AUTO_REFRESH_MIN_MINUTES,
             'dashboard_auto_refresh_interval_max' => self::DASHBOARD_AUTO_REFRESH_MAX_MINUTES,
-            'dashboard_csrf_token' => $this->csrfToken(),
         ]));
     }
 
@@ -408,11 +406,6 @@ final class DashboardController
     public function archiveTask(Request $request): Response
     {
         $wantsJson = $this->requestWantsJson();
-        $csrfResponse = $this->validateArchiveCsrf($request, $wantsJson);
-        if ($csrfResponse instanceof Response) {
-            return $csrfResponse;
-        }
-
         $user = $this->auth?->currentUser();
         if (!is_array($user)) {
             return $this->archiveAuthResponse($wantsJson);
@@ -548,11 +541,6 @@ final class DashboardController
     public function archiveNote(Request $request): Response
     {
         $wantsJson = $this->requestWantsJson();
-        $csrfResponse = $this->validateArchiveCsrf($request, $wantsJson);
-        if ($csrfResponse instanceof Response) {
-            return $csrfResponse;
-        }
-
         $user = $this->auth?->currentUser();
         if (!is_array($user)) {
             return $this->archiveAuthResponse($wantsJson);
@@ -986,35 +974,6 @@ final class DashboardController
         }
 
         $this->session->flash($ok ? 'dashboard_info' : 'dashboard_error', $message);
-        return Response::redirect('/dashboard');
-    }
-
-    private function csrfToken(): string
-    {
-        $token = $this->session->get(self::CSRF_TOKEN_KEY, '');
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set(self::CSRF_TOKEN_KEY, $token);
-
-        return $token;
-    }
-
-    private function validateArchiveCsrf(Request $request, bool $wantsJson): ?Response
-    {
-        $expected = $this->session->get(self::CSRF_TOKEN_KEY, '');
-        $provided = $request->input('dashboard_csrf_token', '');
-        if (is_string($expected) && $expected !== '' && is_string($provided) && hash_equals($expected, $provided)) {
-            return null;
-        }
-
-        if ($wantsJson) {
-            return $this->json(['ok' => false, 'message' => 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.'], 419);
-        }
-
-        $this->session->flash('dashboard_error', 'Ungültiger Sicherheits-Token. Bitte Seite neu laden.');
         return Response::redirect('/dashboard');
     }
 
@@ -2171,21 +2130,13 @@ final class DashboardController
         $record = [
             'timestamp' => date('c'),
             'reason' => $reason,
-            'request_uri' => (string) ($_SERVER['REQUEST_URI'] ?? ''),
+            // Query-Parameter können Tokens enthalten; für Favicon-Diagnosen
+            // genügt der Pfad vollständig.
+            'request_uri' => (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: ''),
             'context' => $context,
         ];
 
-        $logDir = dirname(__DIR__, 3) . '/storage/logs';
-        if (!is_dir($logDir) && !mkdir($logDir, 0755, true) && !is_dir($logDir)) {
-            return;
-        }
-
-        $line = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if (!is_string($line)) {
-            return;
-        }
-
-        @file_put_contents($logDir . '/modulon-favicon.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+        (new \Modulon\Core\RotatingFileLogger(dirname(__DIR__, 3)))->write('favicon', $record);
     }
 
     private function handleFaviconUpload(int $userId): ?string

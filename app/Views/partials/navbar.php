@@ -15,6 +15,7 @@ $pagesHeaderUngrouped = is_array($pages_header_ungrouped ?? null) ? $pages_heade
 $pagesHeaderGroups = is_array($pages_header_groups ?? null) ? $pages_header_groups : [];
 $productMeta = is_array($product_meta ?? null) ? $product_meta : [];
 $productName = (string) ($productMeta['product_name'] ?? 'Modulon');
+$csrfToken = (string) ($csrf_token ?? '');
 
 $isActive = static function (string $path) use ($currentPath): string {
     $normalizedPath = rtrim($path, '/');
@@ -196,6 +197,7 @@ $isActive = static function (string $path) use ($currentPath): string {
                             </span>
                         <?php endif; ?>
                         <form method="post" action="/logout" class="m-0">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
                         </form>
                     <?php else: ?>

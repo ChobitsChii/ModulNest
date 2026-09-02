@@ -13,7 +13,7 @@ $archivedNotesByWidget = is_array($archived_notes_by_widget ?? null) ? $archived
 $formState = is_array($form_state ?? null) ? $form_state : [];
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
-$dashboardCsrfToken = (string) ($dashboard_csrf_token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $dashboardNowUtc = (string) ($dashboard_now_utc ?? '');
 $dashboardTimezoneName = (string) ($dashboard_timezone_name ?? 'UTC');
 $dashboardAutoRefreshEnabled = (bool) ($dashboard_auto_refresh_enabled ?? true);
@@ -275,6 +275,7 @@ $taskRepeatLabel = static function (array $task): string {
                             <div class="border rounded-2 p-3 mb-3">
                                 <h3 class="h6 text-uppercase text-body-secondary mb-2">Ordner anlegen</h3>
                                 <form method="post" action="/dashboard/links/folders/create" class="row g-2">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                     <div class="col-12 col-md-8">
                                         <input class="form-control form-control-sm" type="text" name="folder_name" maxlength="120" placeholder="Neuer Ordnername" required>
@@ -288,6 +289,7 @@ $taskRepeatLabel = static function (array $task): string {
                             <div class="border rounded-2 p-3">
                                 <h3 class="h6 text-uppercase text-body-secondary mb-2">Link erfassen</h3>
                                 <form method="post" action="/dashboard/links/analyze" class="row g-2 mb-2 js-link-analyze-form">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                     <div class="col-12 col-md-8">
                                         <label class="form-label mb-1 small" for="analyze_url_<?= $widgetId ?>">URL</label>
@@ -309,6 +311,7 @@ $taskRepeatLabel = static function (array $task): string {
                                 </form>
 
                                 <form method="post" action="/dashboard/links/save" enctype="multipart/form-data" class="row g-2">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                     <div class="col-12 col-md-8">
                                         <label class="form-label mb-1 small" for="save_url_<?= $widgetId ?>">URL</label>
@@ -389,6 +392,7 @@ $taskRepeatLabel = static function (array $task): string {
                                                     aria-expanded="false"
                                                 >Bearbeiten</button>
                                                 <form method="post" action="/dashboard/links/delete" class="m-0">
+                                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                     <input type="hidden" name="link_id" value="<?= $linkId ?>">
                                                     <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Link wirklich löschen?');">Löschen</button>
                                                 </form>
@@ -396,6 +400,7 @@ $taskRepeatLabel = static function (array $task): string {
 
                                             <div id="<?= htmlspecialchars($editBlockId, ENT_QUOTES, 'UTF-8') ?>" class="mt-2 pt-2 border-top js-link-edit-block">
                                                 <form method="post" action="/dashboard/links/update" enctype="multipart/form-data" class="row g-2">
+                                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                     <input type="hidden" name="link_id" value="<?= $linkId ?>">
                                                     <div class="col-12 col-md-8">
                                                         <label class="form-label mb-1 small">URL</label>
@@ -446,6 +451,7 @@ $taskRepeatLabel = static function (array $task): string {
                             <div class="border rounded-2 p-3">
                                 <h3 class="h6 text-uppercase text-body-secondary mb-2">Aufgabe erfassen</h3>
                                 <form method="post" action="/dashboard/tasks/create" class="row g-2 js-task-form">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                     <div class="col-12">
                                         <label class="form-label mb-1 small" for="task_title_<?= $widgetId ?>">Titel</label>
@@ -599,17 +605,18 @@ $taskRepeatLabel = static function (array $task): string {
                                                             aria-expanded="false"
                                                         >Bearbeiten</button>
                                                         <form method="post" action="/dashboard/tasks/delete" class="m-0" onsubmit="return window.confirm('Aufgabe wirklich löschen?');">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                                                         </form>
                                                         <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form" data-dashboard-archive-kind="task" data-dashboard-archive-state="1">
-                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <input type="hidden" name="archived" value="1">
                                                             <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
                                                         </form>
                                                         <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="task" data-dashboard-archive-state="0">
-                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <input type="hidden" name="archived" value="0">
                                                             <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
@@ -619,6 +626,7 @@ $taskRepeatLabel = static function (array $task): string {
                                                     <div id="<?= htmlspecialchars($taskEditBlockId, ENT_QUOTES, 'UTF-8') ?>" class="border rounded-2 p-3 mt-3 js-task-edit-block">
                                                         <h3 class="h6 text-uppercase text-body-secondary mb-2">Aufgabe bearbeiten</h3>
                                                         <form method="post" action="/dashboard/tasks/update" class="row g-2 js-task-form">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <div class="col-12">
                                                                 <label class="form-label mb-1 small" for="task_edit_title_<?= $taskId ?>">Titel</label>
@@ -735,13 +743,13 @@ $taskRepeatLabel = static function (array $task): string {
                                                     </div>
                                                     <div class="d-flex align-items-center gap-2 flex-wrap">
                                                         <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="task" data-dashboard-archive-state="1">
-                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <input type="hidden" name="archived" value="1">
                                                             <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
                                                         </form>
                                                         <form method="post" action="/dashboard/tasks/archive" class="m-0 js-dashboard-archive-form" data-dashboard-archive-kind="task" data-dashboard-archive-state="0">
-                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="task_id" value="<?= $taskId ?>">
                                                             <input type="hidden" name="archived" value="0">
                                                             <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
@@ -760,6 +768,7 @@ $taskRepeatLabel = static function (array $task): string {
                             <div class="border rounded-2 p-3">
                                 <h3 class="h6 text-uppercase text-body-secondary mb-2">Neue Notiz</h3>
                                 <form method="post" action="/dashboard/notes/create" class="row g-2">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                     <input type="hidden" name="textarea_height" value="" class="js-dashboard-note-height">
                                     <div class="col-12">
@@ -791,6 +800,7 @@ $taskRepeatLabel = static function (array $task): string {
                                         ?>
                                         <div class="border rounded-2 p-2 dashboard-note-item" data-dashboard-archive-item="note" data-note-item="<?= $noteId ?>">
                                             <form method="post" action="/dashboard/notes/update" class="row g-2">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="note_id" value="<?= $noteId ?>">
                                                 <input type="hidden" name="textarea_height" value="<?= $noteTextareaHeight > 0 ? $noteTextareaHeight : '' ?>" class="js-dashboard-note-height">
                                                 <div class="col-12">
@@ -804,16 +814,15 @@ $taskRepeatLabel = static function (array $task): string {
                                                     <button formaction="/dashboard/notes/archive" formmethod="post" name="archived" value="1" type="submit" class="btn btn-sm btn-outline-secondary js-dashboard-note-archive-submit">Archivieren</button>
                                                     <button formaction="/dashboard/notes/delete" formmethod="post" type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Notiz wirklich löschen?');">Löschen</button>
                                                 </div>
-                                                <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                             </form>
                                             <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="note" data-dashboard-archive-state="1">
-                                                <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="note_id" value="<?= $noteId ?>">
                                                 <input type="hidden" name="archived" value="1">
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
                                             </form>
                                             <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="note" data-dashboard-archive-state="0">
-                                                <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="note_id" value="<?= $noteId ?>">
                                                 <input type="hidden" name="archived" value="0">
                                                 <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
@@ -847,13 +856,13 @@ $taskRepeatLabel = static function (array $task): string {
                                                     </div>
                                                     <div class="d-flex align-items-center gap-2 flex-wrap">
                                                         <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form d-none" data-dashboard-archive-kind="note" data-dashboard-archive-state="1">
-                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="note_id" value="<?= $noteId ?>">
                                                             <input type="hidden" name="archived" value="1">
                                                             <button type="submit" class="btn btn-sm btn-outline-secondary">Archivieren</button>
                                                         </form>
                                                         <form method="post" action="/dashboard/notes/archive" class="m-0 js-dashboard-archive-form" data-dashboard-archive-kind="note" data-dashboard-archive-state="0">
-                                                            <input type="hidden" name="dashboard_csrf_token" value="<?= htmlspecialchars($dashboardCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="note_id" value="<?= $noteId ?>">
                                                             <input type="hidden" name="archived" value="0">
                                                             <button type="submit" class="btn btn-sm btn-outline-success">Wiederherstellen</button>
@@ -883,6 +892,7 @@ $taskRepeatLabel = static function (array $task): string {
                 <p class="small text-body-secondary mb-0">Geschlossene Widgets bleiben erhalten und können hier wiederhergestellt werden. Löschen entfernt Widget und Inhalte endgültig.</p>
             </div>
             <form method="post" action="/dashboard/widgets/create" class="row g-2 align-items-end dashboard-widget-create-form">
+                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                 <div class="col-12 col-md">
                     <label class="form-label small mb-1" for="dashboard_new_widget_type">Typ</label>
                     <select id="dashboard_new_widget_type" class="form-select form-select-sm" name="widget_type">
@@ -939,6 +949,7 @@ $taskRepeatLabel = static function (array $task): string {
                             <tr data-widget-row-id="<?= $widgetId ?>" data-widget-row-active="<?= $isActive ? '1' : '0' ?>">
                                 <td class="ps-4">
                                     <form method="post" action="/dashboard/widgets/update" class="dashboard-widget-title-form">
+                                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                         <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                         <label class="visually-hidden" for="dashboard_widget_title_<?= $widgetId ?>">Widget-Titel</label>
                                         <input
@@ -961,12 +972,14 @@ $taskRepeatLabel = static function (array $task): string {
                                     <div class="d-inline-flex flex-wrap justify-content-end gap-2">
                                         <?php if (!$isActive): ?>
                                             <form method="post" action="/dashboard/widgets/update" class="m-0">
+                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                 <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                                 <input type="hidden" name="is_active" value="1">
                                                 <button type="submit" class="btn btn-sm btn-outline-primary">Wiederherstellen</button>
                                             </form>
                                         <?php endif; ?>
                                         <form method="post" action="/dashboard/widgets/delete" class="m-0" onsubmit="return confirm('Widget endgültig löschen? Alle Inhalte dieses Widgets werden entfernt.');">
+                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                             <input type="hidden" name="widget_id" value="<?= $widgetId ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                                         </form>
@@ -1049,6 +1062,7 @@ $taskRepeatLabel = static function (array $task): string {
     };
     let pauseDashboardAutoRefresh = () => {};
     let resumeDashboardAutoRefresh = () => {};
+    const csrfHeaders = {'X-CSRF-Token': <?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>};
 
     const noteHeightInputFor = (textarea) => textarea.closest('form')?.querySelector('.js-dashboard-note-height');
     const syncNoteTextareaHeight = (textarea) => {
@@ -1125,6 +1139,7 @@ $taskRepeatLabel = static function (array $task): string {
         const response = await fetch(widgetUpdateUrl, {
             method: 'POST',
             headers: {
+                ...csrfHeaders,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -1151,6 +1166,7 @@ $taskRepeatLabel = static function (array $task): string {
         const response = await fetch(widgetGrid.dataset.reorderUrl, {
             method: 'POST',
             headers: {
+                ...csrfHeaders,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -1178,6 +1194,7 @@ $taskRepeatLabel = static function (array $task): string {
         if (!active && actions && !actions.querySelector('form[data-widget-restore-form]')) {
             actions.insertAdjacentHTML('afterbegin', [
                 '<form method="post" action="/dashboard/widgets/update" class="m-0" data-widget-restore-form>',
+                '<?= \Modulon\Core\View::csrfField($csrfToken) ?>',
                 '<input type="hidden" name="widget_id" value="' + String(widgetId) + '">',
                 '<input type="hidden" name="is_active" value="1">',
                 '<button type="submit" class="btn btn-sm btn-outline-primary">Wiederherstellen</button>',
@@ -1509,6 +1526,7 @@ $taskRepeatLabel = static function (array $task): string {
                 const response = await fetch('/dashboard/settings/auto-refresh', {
                     method: 'POST',
                     headers: {
+                        ...csrfHeaders,
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                     },
@@ -1591,6 +1609,7 @@ $taskRepeatLabel = static function (array $task): string {
         const allowFallback = options.allowFallback !== false;
         const body = JSON.stringify({ task_id: Number(taskId), is_done: isDone ? 1 : 0 });
         const headers = {
+            ...csrfHeaders,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
@@ -1779,6 +1798,7 @@ $taskRepeatLabel = static function (array $task): string {
                 method: 'POST',
                 body: formData,
                 headers: {
+                    ...csrfHeaders,
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
@@ -1883,6 +1903,7 @@ $taskRepeatLabel = static function (array $task): string {
                     method: 'POST',
                     body: new FormData(form),
                     headers: {
+                        ...csrfHeaders,
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
                     }
@@ -1955,6 +1976,19 @@ $taskRepeatLabel = static function (array $task): string {
             if (!taskId || url === '') return;
 
             window.open(url, '_blank', 'noopener');
+
+            const taskItem = button.closest('.modulon-task-item');
+            const checkbox = taskItem
+                ? taskItem.querySelector('.js-task-toggle')
+                : document.querySelector(`.js-task-toggle[data-task-id="${taskId}"]`);
+            const isDone = checkbox
+                ? checkbox.checked
+                : (taskItem ? taskItem.classList.contains('is-done') : false);
+
+            if (isDone) {
+                return;
+            }
+
             pendingTaskId = taskId;
             const modal = getTaskModal();
             if (modal) {

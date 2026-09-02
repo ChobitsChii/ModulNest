@@ -664,7 +664,7 @@
                 : '';
             const deleteForm = status !== 'running'
                 ? '<form method="post" action="' + escapeHtml(deleteUrl) + '" onsubmit="return confirm(&quot;Speech-to-Text-Job wirklich löschen?&quot;);">'
-                    + '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrfToken) + '">'
+                    + '<input type="hidden" name="_csrf" value="' + escapeHtml(csrfToken) + '">'
                     + '<input type="hidden" name="job_id" value="' + escapeHtml(job.id || '') + '">'
                     + '<button class="btn btn-outline-danger btn-sm" type="submit">Löschen</button>'
                     + '</form>'
@@ -709,6 +709,16 @@
         return $$('.tools-speech-job .badge').some((badge) => ['queued', 'running'].includes(badge.textContent.trim()));
     }
 
+    function csrfHeaders(form) {
+        const csrfToken = form.querySelector('input[name="_csrf"]')?.value || '';
+
+        return {
+            'Accept': 'application/json',
+            'X-CSRF-Token': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+    }
+
     function initAdminForms() {
         const speechModelSelect = $('#tools-speech-model-select');
         const speechModelInput = $('#tools-speech-model');
@@ -729,7 +739,7 @@
                         method: 'POST',
                         body: new FormData(form),
                         credentials: 'same-origin',
-                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                        headers: csrfHeaders(form)
                     });
                     renderAdminResult(await response.json());
                 } catch (error) {
@@ -747,7 +757,7 @@
                         method: 'POST',
                         body: new FormData(form),
                         credentials: 'same-origin',
-                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                        headers: csrfHeaders(form)
                     });
                     const data = await response.json();
                     renderAdminResult(data);

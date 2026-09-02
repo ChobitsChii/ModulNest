@@ -9,6 +9,7 @@ $pendingTotp = is_array($pending_totp ?? null) ? $pending_totp : null;
 $recoveryCodes = is_array($recovery_codes ?? null) ? $recovery_codes : [];
 $recoveryCount = (int) ($recovery_count ?? 0);
 $credentials = is_array($credentials ?? null) ? $credentials : [];
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Sicherheits-Einstellungen</h1>
@@ -34,18 +35,21 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                     <p><code><?= htmlspecialchars((string) ($pendingTotp['secret'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></p>
                     <img class="img-fluid rounded border mb-3" src="<?= htmlspecialchars((string) ($pendingTotp['qr_data_uri'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="TOTP QR">
                     <form method="post" action="/account/security/totp/confirm" class="vstack gap-2">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <label class="form-label mb-0" for="totp_confirm">Bestätigungscode</label>
                         <input id="totp_confirm" class="form-control" type="text" name="code" inputmode="numeric" required>
                         <button type="submit" class="btn btn-primary">TOTP aktivieren</button>
                     </form>
                 <?php else: ?>
                     <form method="post" action="/account/security/totp/start">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <button type="submit" class="btn btn-primary">TOTP einrichten</button>
                     </form>
                 <?php endif; ?>
 
                 <?php if ($totpEnabled): ?>
                     <form method="post" action="/account/security/totp/disable" class="mt-3">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <button type="submit" class="btn btn-outline-danger">TOTP deaktivieren</button>
                     </form>
                 <?php endif; ?>
@@ -84,6 +88,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                                     <td><?= htmlspecialchars((string) ($credential['last_used_at'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                                     <td class="text-end">
                                         <form method="post" action="/account/security/webauthn/delete" class="d-inline">
+                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                             <input type="hidden" name="credential_id" value="<?= (int) ($credential['id'] ?? 0) ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Entfernen</button>
                                         </form>
@@ -104,6 +109,7 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                 <h2 class="h6 text-uppercase text-body-secondary mb-3">Recovery Codes</h2>
                 <p class="mb-3">Aktive Recovery Codes: <strong><?= $recoveryCount ?></strong></p>
                 <form method="post" action="/account/security/recovery/regenerate" class="mb-3">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <button type="submit" class="btn btn-outline-secondary">Neu generieren</button>
                 </form>
 
@@ -131,13 +137,14 @@ function ab2b64(ab){const bytes=new Uint8Array(ab);let str='';for(const b of byt
 async function registerPasskey(){
     try{
         const label=document.getElementById('credential_label').value||'Passkey';
-        const optionsRes=await fetch('/account/security/webauthn/options',{method:'POST'});
+        const csrfHeaders={'X-CSRF-Token':<?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,'Accept':'application/json'};
+        const optionsRes=await fetch('/account/security/webauthn/options',{method:'POST',headers:csrfHeaders});
         const options=await optionsRes.json();
         if(!options.success){throw new Error(options.message||'Optionen fehlgeschlagen.');}
         const publicKey=fromBase64(options.publicKey);
         const cred=await navigator.credentials.create({publicKey});
         const payload={label:label,transports:cred.response.getTransports?cred.response.getTransports():[],clientDataJSON:ab2b64(cred.response.clientDataJSON),attestationObject:ab2b64(cred.response.attestationObject)};
-        const verifyRes=await fetch('/account/security/webauthn/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const verifyRes=await fetch('/account/security/webauthn/verify',{method:'POST',headers:{...csrfHeaders,'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const verify=await verifyRes.json();
         if(!verify.success){throw new Error(verify.message||'Passkey-Registrierung fehlgeschlagen.');}
         window.location='/account/security';

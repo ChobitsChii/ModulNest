@@ -10,6 +10,66 @@ final class Session
     private const META_LAST_ACTIVITY_AT = '_session_last_activity_at';
 
     /**
+     * Setzt die Cookie-Parameter zentral vor dem ersten session_start().
+     * Produktive Installationen verwenden immer Secure-Cookies; lokale HTTP-
+     * Entwicklung bleibt mit SESSION_COOKIE_SECURE=auto funktionsfähig.
+     *
+     * @param array<string,mixed>|null $server
+     */
+    public static function configureCookieSecurity(
+        string $appEnvironment,
+        string $secureSetting = 'auto',
+        string $sameSite = 'Lax',
+        ?array $server = null,
+    ): void {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return;
+        }
+
+        $secure = self::shouldUseSecureCookie($appEnvironment, $secureSetting, $server);
+        $sameSite = self::normalizeSameSite($sameSite);
+
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.cookie_httponly', '1');
+        ini_set('session.cookie_secure', $secure ? '1' : '0');
+        ini_set('session.cookie_samesite', $sameSite);
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'secure' => $secure,
+            'httponly' => true,
+            'samesite' => $sameSite,
+        ]);
+    }
+
+    /**
+     * @param array<string,mixed>|null $server
+     */
+    public static function shouldUseSecureCookie(string $appEnvironment, string $setting = 'auto', ?array $server = null): bool
+    {
+        $environment = strtolower(trim($appEnvironment));
+        if (!in_array($environment, ['development', 'dev', 'testing', 'test', 'local'], true)) {
+            return true;
+        }
+
+        return match (strtolower(trim($setting))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off' => false,
+            default => self::isHttps($server),
+        };
+    }
+
+    public static function normalizeSameSite(string $sameSite): string
+    {
+        return match (strtolower(trim($sameSite))) {
+            'strict' => 'Strict',
+            'none' => 'None',
+            default => 'Lax',
+        };
+    }
+
+    /**
      * Startet die Session falls noch nicht aktiv.
      */
     public function start(): void
@@ -77,11 +137,14 @@ final class Session
             setcookie(
                 session_name(),
                 '',
-                time() - 42000,
-                $params['path'] ?? '/',
-                $params['domain'] ?? '',
-                (bool) ($params['secure'] ?? false),
-                (bool) ($params['httponly'] ?? true),
+                [
+                    'expires' => time() - 42000,
+                    'path' => (string) ($params['path'] ?? '/'),
+                    'domain' => (string) ($params['domain'] ?? ''),
+                    'secure' => (bool) ($params['secure'] ?? false),
+                    'httponly' => (bool) ($params['httponly'] ?? true),
+                    'samesite' => self::normalizeSameSite((string) ($params['samesite'] ?? 'Lax')),
+                ],
             );
         }
 
@@ -121,5 +184,20 @@ final class Session
         $_SESSION[self::META_LAST_ACTIVITY_AT] = $now;
 
         return true;
+    }
+
+    /**
+     * @param array<string,mixed>|null $server
+     */
+    private static function isHttps(?array $server): bool
+    {
+        $server ??= $_SERVER;
+        $https = strtolower(trim((string) ($server['HTTPS'] ?? '')));
+        if ($https !== '' && $https !== 'off') {
+            return true;
+        }
+
+        $forwarded = strtolower((string) ($server['HTTP_X_FORWARDED_PROTO'] ?? ''));
+        return in_array('https', array_map('trim', explode(',', $forwarded)), true);
     }
 }

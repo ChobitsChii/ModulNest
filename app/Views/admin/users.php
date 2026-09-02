@@ -7,6 +7,7 @@ $users = is_array($users ?? null) ? $users : [];
 $registrationEnabled = (bool) ($public_registration_enabled ?? true);
 $adminSection = (string) ($admin_section ?? 'users');
 $currentUserId = (int) ($current_user_id ?? 0);
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Admin / Benutzer</h1>
@@ -25,6 +26,7 @@ $currentUserId = (int) ($current_user_id ?? 0);
             <div class="card-body">
                 <h2 class="h6 text-uppercase text-body-secondary mb-3">Neuen Benutzer anlegen</h2>
                 <form method="post" action="/admin/users/create" class="row g-3">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <div class="col-12 col-md-6">
                         <label class="form-label mb-1" for="new_user_name">Name</label>
                         <input id="new_user_name" class="form-control" type="text" name="name" required>
@@ -131,12 +133,14 @@ $currentUserId = (int) ($current_user_id ?? 0);
                             <td class="pe-4 text-end text-nowrap">
                                 <a class="btn btn-sm btn-outline-primary" href="/admin/users/<?= $userId ?>/edit">Bearbeiten</a>
                                 <form method="post" action="/admin/users/toggle-block" class="d-inline">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="user_id" value="<?= $userId ?>">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary"<?= $isCurrent ? ' disabled' : '' ?>>
                                         <?= $isBlocked ? 'Entsperren' : 'Sperren' ?>
                                     </button>
                                 </form>
                                 <form method="post" action="/admin/users/delete" class="d-inline ms-1" onsubmit="return confirm('Benutzer wirklich löschen?');">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="user_id" value="<?= $userId ?>">
                                     <button type="submit" class="btn btn-sm btn-outline-danger"<?= $isCurrent ? ' disabled' : '' ?>>Löschen</button>
                                 </form>
@@ -154,6 +158,7 @@ $currentUserId = (int) ($current_user_id ?? 0);
 (() => {
     const toggle = document.querySelector('.js-registration-toggle');
     const feedback = document.getElementById('registration-toggle-feedback');
+    const csrfHeaders = {'X-CSRF-Token': <?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, 'Accept': 'application/json'};
     if (!toggle) return;
 
     const setFeedback = (text, isError = false) => {
@@ -177,7 +182,7 @@ $currentUserId = (int) ($current_user_id ?? 0);
         try {
             const response = await fetch('/admin/settings/registration/toggle', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { ...csrfHeaders, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled: toggle.checked ? 1 : 0 }),
             });
 

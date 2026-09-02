@@ -5,7 +5,6 @@ $movies = is_array($movies ?? null) ? $movies : [];
 $fields = is_array($fields ?? null) ? $fields : [];
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
-$delete_token = (string) ($delete_token ?? '');
 ?>
 <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css">

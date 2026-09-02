@@ -80,6 +80,13 @@ def test_dashboard_auto_refresh_pauses_while_task_dialog_is_open(logged_in_page,
     expect(done_badge).to_be_visible()
     expect(done_badge).to_have_text("Erledigt")
 
+    with page.expect_popup() as third_popup_info:
+        link_button.click()
+    third_popup = third_popup_info.value
+    third_popup.close()
+
+    expect(modal).to_be_hidden()
+
 
 @pytest.mark.auth
 def test_dashboard_widget_window_controls(logged_in_page, base_url: str) -> None:

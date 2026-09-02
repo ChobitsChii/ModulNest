@@ -6,6 +6,7 @@ $error = (string) ($error ?? '');
 $modules = is_array($modules ?? null) ? $modules : [];
 $legacyEntries = is_array($legacy_entries ?? null) ? $legacy_entries : [];
 $adminSection = (string) ($admin_section ?? 'modules');
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Admin / Module</h1>
@@ -23,6 +24,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
     <div class="card-body">
         <h2 class="h6 text-uppercase text-body-secondary mb-3">Neues Modul anlegen</h2>
         <form method="post" action="/admin/modules/create" class="row g-3 align-items-end">
+            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
             <div class="col-12 col-md-3">
                 <label class="form-label mb-1" for="new_name">Name</label>
                 <input id="new_name" class="form-control form-control-sm" type="text" name="name" required>
@@ -162,6 +164,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
                             <td class="pe-4 text-end">
                                 <a href="/admin/modules/<?= $id ?>/edit" class="btn btn-sm btn-outline-secondary">Bearbeiten</a>
                                 <form method="post" action="/admin/modules/delete" class="d-inline ms-1" onsubmit="return confirm('Modul wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.');">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="module_id" value="<?= $id ?>">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                                 </form>
@@ -186,6 +189,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
     const createOverlay = document.getElementById('new_overlay');
     const feedback = document.getElementById('module-toggle-feedback');
     const sortableBody = document.getElementById('js-module-sortable-body');
+    const csrfHeaders = {'X-CSRF-Token': <?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, 'Accept': 'application/json'};
     const setFeedback = (text, isError = false) => {
         if (!feedback) return;
         feedback.textContent = text;
@@ -230,7 +234,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
             try {
                 const response = await fetch('/admin/modules/toggle', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...csrfHeaders, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         module_id: Number(toggle.dataset.moduleId || 0),
                         field: String(toggle.dataset.field || ''),
@@ -289,7 +293,7 @@ $adminSection = (string) ($admin_section ?? 'modules');
                 try {
                     const response = await fetch('/admin/modules/reorder', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { ...csrfHeaders, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ module_ids: orderedIds })
                     });
                     const payload = await response.json();

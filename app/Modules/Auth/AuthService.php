@@ -8,6 +8,8 @@ use DateTimeZone;
 use InvalidArgumentException;
 use chillerlan\QRCode\QRCode;
 use lbuchs\WebAuthn\WebAuthn;
+use Modulon\Core\CsrfTokenManager;
+use Modulon\Core\RotatingFileLogger;
 use Modulon\Core\Session;
 use RobThree\Auth\Providers\Qr\GoogleChartsQrCodeProvider;
 use RobThree\Auth\TwoFactorAuth;
@@ -28,7 +30,6 @@ final class AuthService
     private const SESSION_WEBAUTHN_MODE = 'auth_webauthn_mode';
     private const SESSION_WEBAUTHN_EXPECTED_USER_ID = 'auth_webauthn_expected_user_id';
     private const SESSION_RECOVERY_CODES_PLAIN = 'auth_recovery_codes_plain';
-    private const SESSION_SECURITY_CSRF = 'auth_security_csrf_token';
     private const DEFAULT_REMEMBER_COOKIE = 'modulon_remember';
 
     public function __construct(
@@ -38,6 +39,7 @@ final class AuthService
         private readonly RecoveryCodeRepository $recoveryCodes,
         private readonly Session $session,
         private readonly array $config,
+        private readonly CsrfTokenManager $csrfTokenManager,
     ) {
     }
 
@@ -356,7 +358,6 @@ final class AuthService
                 'reason' => 'remember_token_not_found_or_expired',
                 'user_found' => false,
                 'token_present' => true,
-                'token_hash_prefix' => substr($tokenHash, 0, 12),
                 'context' => $this->sanitizeLoginContext($context),
             ]);
             $this->clearRememberCookie();
@@ -373,7 +374,6 @@ final class AuthService
                 'user_found' => $user !== null,
                 'user_blocked' => is_array($user) && (int) ($user['is_blocked'] ?? 0) === 1,
                 'token_present' => true,
-                'token_hash_prefix' => substr($tokenHash, 0, 12),
                 'context' => $this->sanitizeLoginContext($context),
             ]);
             $this->rememberTokens->deleteByHash($tokenHash);
@@ -391,7 +391,6 @@ final class AuthService
             'user_blocked' => false,
             'token_present' => true,
             'token_rotated' => true,
-            'token_hash_prefix' => substr($tokenHash, 0, 12),
             'context' => $this->sanitizeLoginContext($context),
         ]);
         return true;
@@ -401,25 +400,6 @@ final class AuthService
     {
         $cookie = (string) ($this->config['remember_cookie_name'] ?? self::DEFAULT_REMEMBER_COOKIE);
         return $cookie !== '' ? $cookie : self::DEFAULT_REMEMBER_COOKIE;
-    }
-
-    public function securityCsrfToken(): string
-    {
-        $token = $this->session->get(self::SESSION_SECURITY_CSRF);
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set(self::SESSION_SECURITY_CSRF, $token);
-
-        return $token;
-    }
-
-    public function validateSecurityCsrfToken(string $token): bool
-    {
-        $expected = $this->session->get(self::SESSION_SECURITY_CSRF);
-        return is_string($expected) && $expected !== '' && hash_equals($expected, $token);
     }
 
     /**
@@ -776,6 +756,7 @@ final class AuthService
     private function signIn(int $userId, bool $rememberMe): void
     {
         $this->session->regenerateId();
+        $this->csrfTokenManager->rotate();
         $this->session->set(self::SESSION_USER_ID, $userId);
 
         if ($rememberMe) {
@@ -862,14 +843,7 @@ final class AuthService
             return;
         }
 
-        $logDir = dirname(__DIR__, 3) . '/storage/logs';
-        $logFile = $logDir . '/auth-login.log';
-        if (!is_dir($logDir)) {
-            @mkdir($logDir, 0775, true);
-        }
-
-        $written = @file_put_contents($logFile, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
-        if ($written === false) {
+        if (!(new RotatingFileLogger(dirname(__DIR__, 3)))->write('auth-login', $payload)) {
             error_log('[auth-login] ' . $line);
         }
     }
@@ -886,7 +860,6 @@ final class AuthService
             'user_agent',
             'request_method',
             'request_path',
-            'session_id',
             'session_active',
             'csrf_check',
             'input_identifier_present',
@@ -929,13 +902,29 @@ final class AuthService
     private function createWebAuthn(): WebAuthn
     {
         $rpName = (string) ($this->config['webauthn_rp_name'] ?? 'Modulon');
-        $rpId = (string) ($this->config['webauthn_rp_id'] ?? '');
+        $rpId = strtolower(trim((string) ($this->config['webauthn_rp_id'] ?? '')));
         if ($rpId === '') {
+            if (($this->config['webauthn_require_explicit_rp_id'] ?? false) === true) {
+                throw new RuntimeException('WEBAUTHN_RP_ID muss in Produktion explizit konfiguriert werden.');
+            }
             $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-            $rpId = explode(':', $host)[0];
+            $rpId = strtolower(trim(explode(':', $host)[0]));
+        }
+
+        if (!$this->isValidWebAuthnRpId($rpId)) {
+            throw new RuntimeException('WEBAUTHN_RP_ID ist ungültig.');
         }
 
         return new WebAuthn($rpName, $rpId, ['none'], true);
+    }
+
+    private function isValidWebAuthnRpId(string $rpId): bool
+    {
+        if ($rpId === 'localhost' || filter_var($rpId, FILTER_VALIDATE_IP) !== false) {
+            return true;
+        }
+
+        return preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/', $rpId) === 1;
     }
 
     private function decodeBase64Any(string $value): ?string

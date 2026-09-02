@@ -7,9 +7,10 @@ $state = is_array($status['state'] ?? null) ? $status['state'] : [];
 $lastCheck = is_array($state['last_check'] ?? null) ? $state['last_check'] : [];
 $prepared = is_array($state['prepared'] ?? null) ? $state['prepared'] : [];
 $lastInstall = is_array($state['last_install'] ?? null) ? $state['last_install'] : [];
+$recovery = is_array($state['recovery_required'] ?? null) ? $state['recovery_required'] : [];
 $metadata = is_array($lastCheck['metadata'] ?? null) ? $lastCheck['metadata'] : [];
 $package = is_array($lastCheck['package'] ?? null) ? $lastCheck['package'] : [];
-$csrf = (string) ($csrf_token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $installedVersion = (string) ($status['installed_version'] ?? '');
@@ -54,6 +55,15 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                 <?php if ($error !== ''): ?>
                     <div class="alert alert-danger mt-3 mb-0" role="alert"><?= $e($error) ?></div>
                 <?php endif; ?>
+                <?php if ($recovery !== []): ?>
+                    <div class="alert alert-danger mt-3 mb-0" role="alert">
+                        <strong>Update-Recovery erforderlich.</strong>
+                        <?= $e((string) ($recovery['message'] ?? 'Die Installation wurde nicht als erfolgreich markiert.')) ?>
+                        <?php if ((string) ($recovery['backup_path'] ?? '') !== ''): ?>
+                            <div class="mt-1">Backup: <code><?= $e((string) $recovery['backup_path']) ?></code></div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -67,7 +77,7 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                     <dd class="text-break"><?= $externalLink($feedUrl) ?></dd>
                 </dl>
                 <form method="post" action="/admin/updates/check">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <button class="btn btn-primary" type="submit">Nach Updates suchen</button>
                 </form>
                 <?php if ($lastCheck !== []): ?>
@@ -110,7 +120,7 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                         <?php endif; ?>
                     </dl>
                     <form method="post" action="/admin/updates/prepare">
-                        <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <button class="btn btn-primary" type="submit">Update vorbereiten</button>
                     </form>
                 <?php else: ?>
@@ -146,7 +156,7 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                 </div>
                 <?php if ($prepared !== []): ?>
                     <form method="post" action="/admin/updates/install" onsubmit="return confirm('Update jetzt installieren? Bitte stelle sicher, dass ein Datenbank-Backup vorhanden ist.');">
-                        <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                         <button class="btn btn-danger" type="submit">Vorbereitetes Update installieren</button>
                     </form>
                     <?php if (!empty($prepared['requires_migrations'])): ?>

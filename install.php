@@ -11,7 +11,7 @@ declare(strict_types=1);
  * implementiert statt an die eigentliche Anwendung zu delegieren.
  */
 
-const MODULNEST_INSTALLER_VERSION = '0.9.0';
+const MODULNEST_INSTALLER_VERSION = '1.0.0';
 const MODULNEST_METADATA_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/stable.json';
 const MODULNEST_MIN_PHP = '8.3.0';
 const MODULNEST_REQUIRED_EXTENSIONS = [
@@ -27,6 +27,22 @@ const MODULNEST_REQUIRED_EXTENSIONS = [
 ];
 const MODULNEST_CORE_MODULE_DIRECTORIES = ['Admin', 'Auth', 'Modules'];
 
+// Der frameworkfreie Installer nutzt dieselben sicheren Session-Grundwerte
+// wie die Anwendung, ohne lokale HTTP-Tests unnötig zu blockieren.
+$installerHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+ini_set('session.use_only_cookies', '1');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_secure', $installerHttps ? '1' : '0');
+ini_set('session.cookie_samesite', 'Lax');
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => $installerHttps,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
 
 $errors = [];
@@ -136,7 +152,7 @@ function logInstall(string $message, array $context = []): void
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
     if (is_string($line)) {
-        @file_put_contents($logDir . '/install.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+        @file_put_contents($logDir . '/install-' . gmdate('Y-m-d') . '.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 }
 
@@ -1097,7 +1113,7 @@ function compactJsonForUi(mixed $value): string
  */
 function installLogEntriesForUi(): array
 {
-    $path = projectPath('storage/logs/install.log');
+    $path = projectPath('storage/logs/install-' . gmdate('Y-m-d') . '.log');
     if (!is_file($path) || !is_readable($path)) {
         return [];
     }
@@ -1191,7 +1207,7 @@ function install(array $input): array
         'install_path' => $paths['project_root'],
         'public_path' => $paths['public_dir'],
         'installer_in_public' => $paths['installer_in_public'],
-        'install_log_path' => projectPath('storage/logs/install.log'),
+        'install_log_path' => projectPath('storage/logs/install-' . gmdate('Y-m-d') . '.log'),
         'install_log_entries' => installLogEntriesForUi(),
     ];
 }
@@ -1388,7 +1404,7 @@ $submittedEnabledModules = array_map('strval', $submittedEnabledModules);
                 <?php if (!empty($result['install_log_entries']) && is_array($result['install_log_entries'])): ?>
                     <details>
                         <summary>Installationslog anzeigen</summary>
-                        <p class="muted">Quelle: <code><?= e((string) ($result['install_log_path'] ?? 'storage/logs/install.log')) ?></code></p>
+                        <p class="muted">Quelle: <code><?= e((string) ($result['install_log_path'] ?? 'storage/logs/install-YYYY-MM-DD.log')) ?></code></p>
                         <div class="install-log-wrap">
                             <table class="install-log-table">
                                 <thead>
@@ -1555,7 +1571,7 @@ $submittedEnabledModules = array_map('strval', $submittedEnabledModules);
                     <legend>Sicherheit und Logs</legend>
                     <div class="info-box">
                         Passwörter werden nicht im Installationslog gespeichert.<br>
-                        Installationslog: <code><?= e(projectPath('storage/logs/install.log')) ?></code>
+                        Installationslog: <code><?= e(projectPath('storage/logs/install-' . gmdate('Y-m-d') . '.log')) ?></code>
                     </div>
                 </fieldset>
 

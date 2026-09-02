@@ -81,7 +81,7 @@ $formatBytes = static function (int $bytes): string {
                                         <span class="badge text-bg-warning align-self-start">Admin</span>
                                     </div>
                                     <form class="js-tools-admin-form vstack gap-2" method="post" action="/admin/tools/network">
-                                        <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                         <input type="hidden" name="tool" value="<?= $e($key) ?>">
 
                                         <?php if (in_array($key, ['ping', 'traceroute', 'dns', 'ssl-info', 'port-check', 'mail-dns'], true)): ?>
@@ -139,7 +139,7 @@ $formatBytes = static function (int $bytes): string {
                 <span class="badge text-bg-warning align-self-start">Admin</span>
             </div>
             <form class="js-tools-speech-form vstack gap-3" method="post" action="/admin/tools/speech" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                 <div>
                     <label class="form-label" for="tools-audio-file">Audiodatei</label>
                     <input class="form-control" id="tools-audio-file" name="audio_file" type="file" accept=".mp3,.wav,.m4a,.mp4,.ogg,audio/*,video/mp4" required>
@@ -253,7 +253,7 @@ $formatBytes = static function (int $bytes): string {
                             <?php endforeach; ?>
                             <?php if ($status !== 'running'): ?>
                                 <form method="post" action="/admin/tools/speech/delete" onsubmit="return confirm('Speech-to-Text-Job wirklich löschen?');">
-                                    <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="job_id" value="<?= $e($job['id'] ?? '') ?>">
                                     <button class="btn btn-outline-danger btn-sm" type="submit">Löschen</button>
                                 </form>

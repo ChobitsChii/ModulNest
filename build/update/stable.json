@@ -1,29 +1,21 @@
 {
-    "latest": "0.9.0",
-    "channel": "alpha",
+    "latest": "1.0.0",
+    "channel": "stable",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.9.0/modulnest-source-0.9.0.zip",
-            "sha256": "5b31c58db6b48e8e482612cadb8969060b480261dee648cfa50677615dd97578",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.0.0/modulnest-source-1.0.0.zip",
+            "sha256": "7afb6bdcd7c41f113d2ef0c7b0dbfd7b1a2faa3a6a3a5b4266017ef1eb6b9ae7",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v0.9.0/modulnest-bundled-0.9.0.zip",
-            "sha256": "8519f7b8392d9483cc32351335c6487734097994d69d948b893c9bc035248cb6",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.0.0/modulnest-bundled-1.0.0.zip",
+            "sha256": "7840628ea9abb085412ce667de8722a7b876d26fedc71bcdd02142ed50b157d0",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v0.9.0",
-    "changelog": [
-        "Neues Pages/Microsites Modul",
-        "Header Navigation für Seiten inkl. Gruppen",
-        "Footer Links für rechtliche Seiten",
-        "Impressum & Datenschutz System",
-        "Cookie Hinweis Banner (dezent)",
-        "UI/UX Verbesserungen im Pages Admin"
-    ],
-    "requires_migrations": true,
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v1.0.0",
+    "requires_migrations": false,
     "package_metadata": "modulnest-package.json",
     "modules": [
         {
@@ -237,5 +229,5 @@
             "view_dir": null
         }
     ],
-    "generated_at": "2026-05-21T01:19:07+00:00"
+    "generated_at": "2026-09-02T03:22:25+00:00"
 }

@@ -85,6 +85,7 @@ final class ErrorHandler
     {
         if (!headers_sent()) {
             http_response_code(500);
+            SecurityHeaders::apply();
             header('Content-Type: text/html; charset=UTF-8');
         }
 
@@ -100,6 +101,7 @@ final class ErrorHandler
     {
         if (!headers_sent()) {
             http_response_code(500);
+            SecurityHeaders::apply();
             header('Content-Type: text/plain; charset=UTF-8');
         }
         echo 'Internal Server Error';
@@ -217,18 +219,7 @@ HTML;
             'trace' => $throwable->getTraceAsString(),
         ];
 
-        $logDir = self::$basePath . '/storage/logs';
-        if (!is_dir($logDir) && !mkdir($logDir, 0755, true) && !is_dir($logDir)) {
-            return;
-        }
-
-        $logFile = $logDir . '/modulon-' . date('Y-m-d') . '.log';
-        $line = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if (!is_string($line)) {
-            return;
-        }
-
-        @file_put_contents($logFile, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+        (new RotatingFileLogger(self::$basePath))->write('modulon', $record);
     }
 
     private static function logPhpIssue(int $severity, string $message, string $file, int $line): void
@@ -250,18 +241,7 @@ HTML;
             'request' => $context['request'] ?? [],
         ];
 
-        $logDir = self::$basePath . '/storage/logs';
-        if (!is_dir($logDir) && !mkdir($logDir, 0755, true) && !is_dir($logDir)) {
-            return;
-        }
-
-        $logFile = $logDir . '/modulon-' . date('Y-m-d') . '.log';
-        $lineData = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if (!is_string($lineData)) {
-            return;
-        }
-
-        @file_put_contents($logFile, $lineData . PHP_EOL, FILE_APPEND | LOCK_EX);
+        (new RotatingFileLogger(self::$basePath))->write('modulon', $record);
     }
 
     /**
@@ -287,7 +267,7 @@ HTML;
         return [
             'timestamp' => date('c'),
             'method' => $_SERVER['REQUEST_METHOD'] ?? 'CLI',
-            'uri' => $_SERVER['REQUEST_URI'] ?? ($_SERVER['SCRIPT_NAME'] ?? ''),
+            'uri' => self::sanitizeUri((string) ($_SERVER['REQUEST_URI'] ?? ($_SERVER['SCRIPT_NAME'] ?? ''))),
             'user_id' => $userId,
             'request' => $request,
         ];
@@ -321,12 +301,28 @@ HTML;
     private static function isSensitiveKey(string $key): bool
     {
         $key = strtolower($key);
-        foreach (['password', 'pass', 'pwd', 'token', 'secret', 'auth', 'cookie', 'key'] as $needle) {
+        foreach (['password', 'pass', 'pwd', 'token', 'secret', 'auth', 'cookie', 'key', 'session', 'phpsessid', 'sid', 'csrf', 'totp', 'recovery', 'remember', 'code'] as $needle) {
             if (str_contains($key, $needle)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static function sanitizeUri(string $uri): string
+    {
+        return preg_replace_callback(
+            '/([?&])([^=&]+)=([^&]*)/',
+            static function (array $matches): string {
+                $key = urldecode((string) ($matches[2] ?? ''));
+                if (self::isSensitiveKey($key)) {
+                    return (string) $matches[1] . (string) $matches[2] . '=***';
+                }
+
+                return (string) $matches[0];
+            },
+            $uri,
+        ) ?? $uri;
     }
 
     private static function severityName(int $severity): string

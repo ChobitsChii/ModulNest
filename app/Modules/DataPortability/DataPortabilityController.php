@@ -14,7 +14,6 @@ use Throwable;
 
 final class DataPortabilityController
 {
-    private const TOKEN_KEY = 'data_portability_csrf_token';
     private const ADMIN_PREVIEW_KEY = 'data_portability_import_preview';
     private const ADMIN_IMPORT_TOKEN_KEY = 'data_portability_import_token';
     private const USER_PREVIEW_KEY = 'data_portability_user_import_preview';
@@ -34,7 +33,6 @@ final class DataPortabilityController
             'title' => 'Export / Import',
             'current_path' => $request->path(),
             'admin_section' => 'data-portability',
-            'csrf_token' => $this->token(),
             'providers' => $this->viewProviders('admin'),
             'message' => $this->session->pullFlash('data_portability_info'),
             'error' => $this->session->pullFlash('data_portability_error'),
@@ -54,7 +52,6 @@ final class DataPortabilityController
             'profile_user' => $user,
             'fantasy_cards_profile_available' => $this->fantasyCardsProfileAvailable,
             'data_portability_available' => true,
-            'data_portability_csrf_token' => $this->token(),
             'data_portability_providers' => $this->viewProviders('user'),
             'data_portability_message' => $this->session->pullFlash('data_portability_user_info'),
             'data_portability_error' => $this->session->pullFlash('data_portability_user_error'),
@@ -66,10 +63,6 @@ final class DataPortabilityController
 
     public function export(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->redirectError('Ungültiger Sicherheits-Token.', '/admin/data-portability', 'data_portability_error');
-        }
-
         try {
             $keys = $request->inputRaw('providers', []);
             $keys = is_array($keys) ? array_map('strval', $keys) : [];
@@ -82,10 +75,6 @@ final class DataPortabilityController
 
     public function userExport(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->redirectError('Ungültiger Sicherheits-Token.', '/profil/data-portability', 'data_portability_user_error');
-        }
-
         try {
             $keys = $request->inputRaw('providers', []);
             $keys = is_array($keys) ? array_map('strval', $keys) : [];
@@ -101,10 +90,6 @@ final class DataPortabilityController
         $oversizedPostMessage = $this->oversizedPostMessage();
         if ($oversizedPostMessage !== null) {
             return $this->redirectError($oversizedPostMessage, '/admin/data-portability', 'data_portability_error');
-        }
-
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->redirectError('Ungültiger Sicherheits-Token.', '/admin/data-portability', 'data_portability_error');
         }
 
         try {
@@ -134,10 +119,6 @@ final class DataPortabilityController
             return $this->redirectError($oversizedPostMessage, '/profil/data-portability', 'data_portability_user_error');
         }
 
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->redirectError('Ungültiger Sicherheits-Token.', '/profil/data-portability', 'data_portability_user_error');
-        }
-
         try {
             $upload = $_FILES['import_zip'] ?? null;
             if (!is_array($upload)) {
@@ -160,10 +141,6 @@ final class DataPortabilityController
 
     public function runImport(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->redirectError('Ungültiger Sicherheits-Token.', '/admin/data-portability', 'data_portability_error');
-        }
-
         try {
             $token = $this->session->get(self::ADMIN_IMPORT_TOKEN_KEY);
             if (!is_string($token) || $token === '') {
@@ -187,10 +164,6 @@ final class DataPortabilityController
 
     public function userRunImport(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            return $this->redirectError('Ungültiger Sicherheits-Token.', '/profil/data-portability', 'data_portability_user_error');
-        }
-
         try {
             $token = $this->session->get(self::USER_IMPORT_TOKEN_KEY);
             if (!is_string($token) || $token === '') {
@@ -299,26 +272,6 @@ final class DataPortabilityController
     {
         $user = $this->auth?->currentUser();
         return is_array($user) ? $user : [];
-    }
-
-    private function token(): string
-    {
-        $token = $this->session->get(self::TOKEN_KEY);
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set(self::TOKEN_KEY, $token);
-
-        return $token;
-    }
-
-    private function validToken(string $submitted): bool
-    {
-        $token = $this->session->get(self::TOKEN_KEY);
-
-        return is_string($token) && $token !== '' && hash_equals($token, $submitted);
     }
 
     private function importModeFromRequest(Request $request): string

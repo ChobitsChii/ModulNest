@@ -44,7 +44,7 @@ $esc = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT
                     Unterstützt werden Sparkassen-Exporte mit Semikolon-Trennung und Anführungszeichen. Beim Import werden Duplikate automatisch erkannt.
                 </p>
                 <form method="post" action="/banking/import" enctype="multipart/form-data" class="row g-3">
-                    <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <div class="col-12">
                         <label for="banking-csv-file" class="form-label">CSV-Datei auswählen</label>
                         <input id="banking-csv-file" type="file" name="csv_file" class="form-control" accept=".csv,text/csv" required>

@@ -288,12 +288,14 @@
 
                 var data = new FormData(form);
                 data.set('ajax', '1');
+                var csrfToken = String(data.get('_csrf') || '');
                 fetch(form.action, {
                     method: 'POST',
                     body: data,
                     credentials: 'same-origin',
                     headers: {
                         'Accept': 'application/json',
+                        'X-CSRF-Token': csrfToken,
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 }).then(function (response) {

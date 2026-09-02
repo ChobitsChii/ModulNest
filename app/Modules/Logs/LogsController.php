@@ -51,7 +51,7 @@ final class LogsController
     private function logFiles(): array
     {
         $directory = $this->logDirectory();
-        $paths = glob($directory . '/*.log');
+        $paths = array_merge(glob($directory . '/*.log') ?: [], glob($directory . '/*.log.gz') ?: []);
         if (!is_array($paths)) {
             return [];
         }
@@ -103,7 +103,15 @@ final class LogsController
      */
     private function readTail(string $path, int $maxLines): array
     {
-        $lines = @file($path, FILE_IGNORE_NEW_LINES);
+        if (str_ends_with($path, '.gz')) {
+            $handle = @gzopen($path, 'rb');
+            if ($handle === false) { return []; }
+            $lines = [];
+            while (!gzeof($handle)) { $line = gzgets($handle); if (is_string($line)) { $lines[] = rtrim($line, "\r\n"); } }
+            gzclose($handle);
+        } else {
+            $lines = @file($path, FILE_IGNORE_NEW_LINES);
+        }
         if (!is_array($lines)) {
             return [];
         }
@@ -135,7 +143,9 @@ final class LogsController
         $data = $this->eventData($decoded);
         $context = $this->eventContext($decoded, $data);
         $pretty = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-        $timestamp = (string) ($decoded['timestamp'] ?? '');
+        // Einige interne JSONL-Quellen verwenden historisch `at`; beide
+        // Zeitfelder durchlaufen bewusst denselben Nutzer-Zeitzonen-Formatter.
+        $timestamp = (string) ($decoded['timestamp'] ?? $decoded['at'] ?? '');
         $event = (string) ($decoded['event'] ?? $decoded['type'] ?? 'log_entry');
 
         return [
@@ -182,7 +192,7 @@ final class LogsController
             return $decoded['data'];
         }
 
-        $excluded = ['timestamp', 'request', 'trace'];
+        $excluded = ['timestamp', 'at', 'request', 'trace'];
         $data = [];
         foreach ($decoded as $key => $value) {
             if (in_array((string) $key, $excluded, true)) {

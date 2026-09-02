@@ -11,6 +11,7 @@ ASSUME_YES=0
 ALL_MODULES=0
 MODULES_CSV=""
 NO_UI=0
+REQUIRES_MIGRATIONS=false
 
 COPIED_ITEMS=()
 WARNINGS=()
@@ -19,7 +20,7 @@ OPTIONAL_MODULES=()
 
 usage() {
     cat <<EOF
-Usage: $SCRIPT_NAME [--target /pfad] [--modules A,B,C] [--all-modules] [--no-ui] [--yes]
+Usage: $SCRIPT_NAME [--target /pfad] [--modules A,B,C] [--all-modules] [--requires-migrations true|false] [--no-ui] [--yes]
 
 Erzeugt einen sicheren öffentlichen ModulNest-Export aus dem Modulon-Projektroot.
 
@@ -27,6 +28,7 @@ Optionen:
   --target PATH       Zielordner. Default: $DEFAULT_TARGET
   --modules A,B,C    Optionale Module explizit auswählen.
   --all-modules      Alle gefundenen optionalen Module exportieren.
+  --requires-migrations true|false  Releasebezogene DB-Migrationsangabe (für 1.0.0: false).
   --no-ui            Keine dialog/whiptail-Auswahl verwenden.
   --yes              Nicht interaktiv bestätigen.
   -h, --help         Hilfe anzeigen.
@@ -69,6 +71,12 @@ parse_args() {
             --all-modules)
                 ALL_MODULES=1
                 shift
+                ;;
+            --requires-migrations)
+                [[ $# -ge 2 ]] || fail "--requires-migrations benötigt true oder false."
+                [[ "$2" == "true" || "$2" == "false" ]] || fail "--requires-migrations muss true oder false sein."
+                REQUIRES_MIGRATIONS="$2"
+                shift 2
                 ;;
             --no-ui)
                 NO_UI=1
@@ -283,6 +291,8 @@ write_env_example() {
     cat > "$TARGET/.env.example" <<'EOF'
 APP_ENV=production
 APP_DEBUG=false
+LOG_COMPRESS_AFTER_DAYS=3
+LOG_RETENTION_DAYS=30
 APP_PRODUCT_NAME=ModulNest
 APP_CORE_NAME=Modulon
 APP_CORE_LABEL="Modulon Core"
@@ -482,14 +492,15 @@ write_package_metadata() {
             "product" => "ModulNest",
             "core" => "Modulon",
             "version" => $version,
-            "channel" => "alpha",
+            "channel" => "stable",
+            "requires_migrations" => $argv[4] === "true",
             "generated_at" => gmdate("c"),
             "required_modules" => $core,
             "optional_modules" => $selected,
             "modules" => $modules,
         ];
         file_put_contents($target . "/modulnest-package.json", json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL);
-    ' "$TARGET" "$core_csv" "$selected_csv"
+    ' "$TARGET" "$core_csv" "$selected_csv" "$REQUIRES_MIGRATIONS"
 
     COPIED_ITEMS+=("modulnest-package.json")
 }
@@ -545,6 +556,7 @@ copy_project() {
     copy_file_if_exists "composer.lock" "$TARGET/composer.lock"
     copy_file_if_exists "pytest.ini" "$TARGET/pytest.ini"
     copy_file_if_exists "install.php" "$TARGET/install.php"
+    copy_file_if_exists "recovery.php" "$TARGET/recovery.php"
 
     copy_file_if_exists "app/bootstrap.php" "$TARGET/app/bootstrap.php"
     copy_dir "app/Core" "$TARGET/app/Core"
@@ -724,6 +736,7 @@ write_summary() {
         printf -- '- `app/Database/schema.sql` wurde als Kompatibilitäts-Aggregat aus Core-Schema, Core-Seeds und den ausgewählten Modul-Schemas/-Seeds erzeugt.\n'
         printf -- '- Nicht ausgewählte Module bringen keine Modul-Schema-Dateien in den Export.\n\n'
         printf -- '- `install.php` ist als einzelner Bootstrap-Installer enthalten.\n\n'
+        printf -- '- `recovery.php` stellt den geschützten Recovery-Einstieg bereit.\n\n'
         printf -- '- `modulnest-package.json` beschreibt die im Export enthaltenen Pflicht- und optionalen Module.\n\n'
         printf '## Nächste Schritte\n\n'
         printf '1. Zielordner manuell reviewen.\n'
@@ -743,6 +756,7 @@ print_final_summary() {
     printf '  - public ohne Runtime-Assets\n'
     printf '  - docs, scripts, tests, composer.json, composer.lock, README\n'
     printf '  - install.php Bootstrap-Installer\n'
+    printf '  - recovery.php geschützter Recovery-Einstieg\n'
     printf '  - modulnest-package.json Release-/Modulmetadaten\n'
     printf 'Ausgeschlossen: .env, .local, vendor, storage-Nutzdaten, Logs, Backups, Legacy-App-Inhalte, Runtime-Bilder/Favicons.\n'
     if ((${#WARNINGS[@]} > 0)); then

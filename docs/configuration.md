@@ -43,24 +43,41 @@ Steuert, ob öffentliche Registrierung angeboten wird.
 ```env
 SESSION_IDLE_TIMEOUT=1800
 SESSION_ABSOLUTE_TIMEOUT=28800
+SESSION_COOKIE_SECURE=auto
+SESSION_COOKIE_SAMESITE=Lax
 
 REMEMBER_COOKIE_NAME=modulnest_remember
 REMEMBER_TOKEN_LIFETIME=1209600
-REMEMBER_COOKIE_SECURE=true
+REMEMBER_COOKIE_SECURE=auto
 REMEMBER_COOKIE_SAMESITE=Lax
+
+AUTH_RATE_LIMIT_MAX_ATTEMPTS=5
+AUTH_RATE_LIMIT_WINDOW_SECONDS=900
 ```
 
-Für HTTPS-Installationen sollte `REMEMBER_COOKIE_SECURE=true` aktiv bleiben.
+Die Session verwendet ausschließlich Cookies, Strict-Mode und HttpOnly. Mit
+`*_COOKIE_SECURE=auto` werden Cookies bei HTTPS sowie immer in Produktion als
+`Secure` gesetzt; lokale HTTP-Entwicklung bleibt in einer Development-Umgebung
+funktionsfähig. `SameSite=Lax` ist der kompatible Standard für die bestehenden
+Login- und 2FA-Flows.
+
+Der Auth-Limiter erlaubt standardmäßig fünf Passwort-, TOTP-, Recovery- oder
+WebAuthn-Versuche pro Aktion, IP und gehashtem Benutzerbezug in 15 Minuten.
+Er speichert keine Passwörter, Codes oder Tokens. Erfolgreiche Schritte setzen
+den jeweiligen Bucket zurück.
 
 ## TOTP und WebAuthn
 
 ```env
 TOTP_ISSUER=ModulNest
 WEBAUTHN_RP_NAME=ModulNest
-WEBAUTHN_RP_ID=
+WEBAUTHN_RP_ID=modulnest.example
 ```
 
-`WEBAUTHN_RP_ID` ist normalerweise die Domain ohne Protokoll.
+`WEBAUTHN_RP_ID` ist die Domain ohne Protokoll. In Produktion ist sie für
+Passkeys verpflichtend, damit keine RP-ID aus einem Host-Header abgeleitet
+wird. Für lokale Development-Umgebungen ist weiterhin `localhost` als
+Fallback möglich. WebAuthn benötigt außerdem HTTPS (außer localhost).
 
 ## Mail-Zugangsdaten
 

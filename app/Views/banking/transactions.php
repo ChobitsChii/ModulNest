@@ -14,7 +14,7 @@ $selectedYear = $filters['year'] ?? null;
 $selectedStatus = (string) ($filters['status'] ?? 'all');
 $selectedBookingText = (string) ($filters['booking_text'] ?? 'all');
 $selectedKeepMode = (string) ($transactionList['keep_mode'] ?? 'latest');
-$duplicateToken = (string) ($duplicate_token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $openDuplicates = (bool) ($open_duplicates ?? false);
@@ -192,7 +192,7 @@ if ($duplicateActionQueryString !== '') {
                         <p class="text-body-secondary mb-0">Keine exakten oder ähnlichen Duplikate für die aktuelle Filterauswahl gefunden.</p>
                     <?php else: ?>
                         <form method="post" action="<?= $esc($duplicateAction) ?>" id="banking-duplicate-delete-form">
-                            <input type="hidden" name="csrf_token" value="<?= $esc($duplicateToken) ?>">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <input type="hidden" name="year" value="<?= $selectedYear === null ? 'all' : (int) $selectedYear ?>">
                             <input type="hidden" name="status" value="<?= $esc($selectedStatus) ?>">
                             <input type="hidden" name="booking_text" value="<?= $esc($selectedBookingText) ?>">

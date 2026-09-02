@@ -7,32 +7,50 @@ namespace Modulon\Core;
 final class Router
 {
     /**
-     * @var array<string, array<string, array{handler:callable(Request): Response, access:string}>>
+     * @var array<string, array<string, array{handler:callable(Request): Response, access:string, csrf:'protect'|'exempt'}>>
      */
     private array $routes = [];
     /**
-     * @var array<string, array<int, array{prefix:string, handler:callable(Request): Response, access:string}>>
+     * @var array<string, array<int, array{prefix:string, handler:callable(Request): Response, access:string, csrf:'protect'|'exempt'}>>
      */
     private array $wildcardRoutes = [];
     /**
      * @var null|callable(Request, string): ?Response
      */
     private $accessGuard = null;
+    /** @var null|callable(Request, 'protect'|'exempt'): ?Response */
+    private $csrfGuard = null;
 
-    public function get(string $path, callable $handler, string $access = 'public'): void
+    public function get(string $path, callable $handler, string $access = 'public', ?string $csrfPolicy = null): void
     {
-        $this->addRoute('GET', $path, $handler, $access);
+        $this->addRoute('GET', $path, $handler, $access, $csrfPolicy);
     }
 
-    public function post(string $path, callable $handler, string $access = 'public'): void
+    public function post(string $path, callable $handler, string $access = 'public', ?string $csrfPolicy = null): void
     {
-        $this->addRoute('POST', $path, $handler, $access);
+        $this->addRoute('POST', $path, $handler, $access, $csrfPolicy);
     }
 
-    public function addRoute(string $method, string $path, callable $handler, string $access = 'public'): void
+    public function put(string $path, callable $handler, string $access = 'public', ?string $csrfPolicy = null): void
+    {
+        $this->addRoute('PUT', $path, $handler, $access, $csrfPolicy);
+    }
+
+    public function patch(string $path, callable $handler, string $access = 'public', ?string $csrfPolicy = null): void
+    {
+        $this->addRoute('PATCH', $path, $handler, $access, $csrfPolicy);
+    }
+
+    public function delete(string $path, callable $handler, string $access = 'public', ?string $csrfPolicy = null): void
+    {
+        $this->addRoute('DELETE', $path, $handler, $access, $csrfPolicy);
+    }
+
+    public function addRoute(string $method, string $path, callable $handler, string $access = 'public', ?string $csrfPolicy = null): void
     {
         $method = strtoupper($method);
         $access = $this->normalizeAccess($access);
+        $csrf = $this->normalizeCsrfPolicy($csrfPolicy, $method);
         $normalizedPath = $this->normalizePath($path);
 
         if ($this->isWildcardPath($normalizedPath)) {
@@ -41,6 +59,7 @@ final class Router
                 'prefix' => $prefix,
                 'handler' => $handler,
                 'access' => $access,
+                'csrf' => $csrf,
             ];
             return;
         }
@@ -48,6 +67,7 @@ final class Router
         $this->routes[$method][$normalizedPath] = [
             'handler' => $handler,
             'access' => $access,
+            'csrf' => $csrf,
         ];
     }
 
@@ -59,6 +79,16 @@ final class Router
     public function setAccessGuard(callable $guard): void
     {
         $this->accessGuard = $guard;
+    }
+
+    /**
+     * Setzt den zentralen CSRF-Guard. Er wird nach dem Zugriffsguard ausgeführt.
+     *
+     * @param callable(Request, 'protect'|'exempt'): ?Response $guard
+     */
+    public function setCsrfGuard(callable $guard): void
+    {
+        $this->csrfGuard = $guard;
     }
 
     /**
@@ -84,6 +114,13 @@ final class Router
 
         if ($this->accessGuard !== null) {
             $guardResponse = ($this->accessGuard)($request, $route['access']);
+            if ($guardResponse instanceof Response) {
+                return $guardResponse;
+            }
+        }
+
+        if ($this->csrfGuard !== null) {
+            $guardResponse = ($this->csrfGuard)($request, $route['csrf']);
             if ($guardResponse instanceof Response) {
                 return $guardResponse;
             }
@@ -118,6 +155,26 @@ final class Router
         return 'public';
     }
 
+    /**
+     * @return 'protect'|'exempt'
+     */
+    private function normalizeCsrfPolicy(?string $policy, string $method): string
+    {
+        if ($policy === null) {
+            return in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) ? 'protect' : 'exempt';
+        }
+
+        $normalized = strtolower(trim($policy));
+        if (in_array($normalized, ['protect', 'protected'], true)) {
+            return 'protect';
+        }
+        if (in_array($normalized, ['exempt', 'none'], true)) {
+            return 'exempt';
+        }
+
+        throw new \InvalidArgumentException('Ungültige CSRF-Policy: ' . $policy);
+    }
+
     private function isWildcardPath(string $path): bool
     {
         return str_ends_with($path, '/*');
@@ -130,7 +187,7 @@ final class Router
     }
 
     /**
-     * @return array{handler:callable(Request): Response, access:string}|null
+     * @return array{handler:callable(Request): Response, access:string, csrf:'protect'|'exempt'}|null
      */
     private function resolveRoute(string $method, string $path): ?array
     {

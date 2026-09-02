@@ -188,7 +188,7 @@ $suggestionDate = static function (mixed $value): string {
     </div>
     <?php if ($hasNativeTables): ?>
         <form method="post" action="/banking/recurring" class="d-flex flex-wrap gap-2 align-items-center">
-            <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
             <input type="hidden" name="action" value="detect">
             <label class="visually-hidden" for="banking-recurring-limit">Anzahl Vorschläge</label>
             <input
@@ -273,7 +273,7 @@ $suggestionDate = static function (mixed $value): string {
                                             <td class="text-end">
                                                 <div class="banking-rule-actions">
                                                     <form method="post" action="/banking/recurring" class="m-0">
-                                                        <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+                                                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                         <input type="hidden" name="action" value="adopt">
                                                         <input type="hidden" name="limit" value="<?= (int) $suggestionLimit ?>">
                                                         <input type="hidden" name="name" value="<?= $esc($suggestion['name'] ?? '') ?>">
@@ -288,7 +288,7 @@ $suggestionDate = static function (mixed $value): string {
                                                         <button type="submit" class="btn btn-success btn-sm">Übernehmen</button>
                                                     </form>
                                                     <form method="post" action="/banking/recurring" class="m-0">
-                                                        <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+                                                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                         <input type="hidden" name="action" value="filter">
                                                         <input type="hidden" name="limit" value="<?= (int) $suggestionLimit ?>">
                                                         <input type="hidden" name="name" value="<?= $esc($suggestion['name'] ?? '') ?>">
@@ -383,7 +383,7 @@ $suggestionDate = static function (mixed $value): string {
 
                     <div id="banking-recurring-form-collapse" class="collapse <?= $formOpen ? 'show' : '' ?>">
                         <form method="post" action="/banking/recurring" id="banking-recurring-form">
-                            <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <input type="hidden" name="action" value="save">
                             <input type="hidden" name="rule_id" value="<?= $editing ? (int) ($formData['id'] ?? 0) : '' ?>">
 
@@ -598,7 +598,7 @@ $suggestionDate = static function (mixed $value): string {
                                                         <div class="banking-rule-actions <?= $index > 0 ? 'is-separated' : '' ?>">
                                                             <a class="btn btn-outline-primary btn-sm" href="/banking/recurring?edit=<?= (int) ($rule['id'] ?? 0) ?>">Bearbeiten</a>
                                                             <form method="post" action="/banking/recurring" class="m-0">
-                                                                <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+                                                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                                 <input type="hidden" name="action" value="delete">
                                                                 <input type="hidden" name="rule_id" value="<?= (int) ($rule['id'] ?? 0) ?>">
                                                                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Regel wirklich löschen?');">Löschen</button>
@@ -672,7 +672,7 @@ $suggestionDate = static function (mixed $value): string {
                                                     <div class="banking-rule-actions <?= $index > 0 ? 'is-separated' : '' ?>">
                                                         <a class="btn btn-outline-primary btn-sm" href="/banking/recurring?edit=<?= (int) ($rule['id'] ?? 0) ?>">Bearbeiten</a>
                                                         <form method="post" action="/banking/recurring" class="m-0">
-                                                            <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                                             <input type="hidden" name="action" value="delete">
                                                             <input type="hidden" name="rule_id" value="<?= (int) ($rule['id'] ?? 0) ?>">
                                                             <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Filter wirklich löschen?');">Löschen</button>

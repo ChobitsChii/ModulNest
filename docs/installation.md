@@ -13,6 +13,8 @@ Für eine normale Installation wird nur [`../install.php`](../install.php) benö
 
 Der Installer lädt ein geprüftes Release-Paket, prüft SHA256, entpackt sicher, schreibt `.env`, führt Core- und ausgewählte Modul-Schemas/Seeds aus, aktiviert die ausgewählten Module und erstellt das erste Admin-Konto.
 
+Für produktive Passkeys muss `WEBAUTHN_RP_ID` auf die öffentliche Domain gesetzt werden. Produktive Installationen benötigen HTTPS; Session- und Remember-Me-Cookies werden dann ausschließlich sicher übertragen.
+
 Nach erfolgreicher Installation versucht der Installer, die laufende `install.php` automatisch zu löschen. Wenn das nicht klappt, zeigt er einen deutlichen manuellen Löschhinweis.
 
 ## Webroot

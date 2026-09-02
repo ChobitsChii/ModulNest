@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Modulon\Modules\Updates;
 
 use Modulon\Core\Database\MigrationRunner;
+use Modulon\Core\RecoveryManager;
+use Modulon\Core\RotatingFileLogger;
 use Modulon\Modules\Modules\ModuleRepository;
 use PDO;
 use RecursiveDirectoryIterator;
@@ -21,7 +23,6 @@ final class UpdatesService
     private string $downloadsPath;
     private string $stagingPath;
     private string $statePath;
-    private string $logPath;
     private string $maintenanceFlag;
 
     public function __construct(private readonly string $basePath, private readonly ?PDO $pdo = null)
@@ -30,7 +31,6 @@ final class UpdatesService
         $this->downloadsPath = $this->storagePath . '/downloads';
         $this->stagingPath = $this->storagePath . '/staging';
         $this->statePath = $this->storagePath . '/state.json';
-        $this->logPath = $this->storagePath . '/update.log';
         $this->maintenanceFlag = $this->basePath . '/storage/maintenance.flag';
     }
 
@@ -159,6 +159,10 @@ final class UpdatesService
         $stagingPath = (string) ($prepared['staging_path'] ?? '');
         $version = (string) ($prepared['version'] ?? '');
         if ($version === '' || !is_dir($stagingPath)) {
+            $this->log('Update-Installation vor Dateikopie fehlgeschlagen', [
+                'version' => $version,
+                'reason' => 'prepared_staging_missing',
+            ]);
             throw new RuntimeException('Vorbereitetes Staging-Verzeichnis fehlt.');
         }
 
@@ -167,10 +171,14 @@ final class UpdatesService
         $backedUp = 0;
         $skipped = [];
         $this->ensureDirectories();
+        $mutationStarted = false;
+        $keepMaintenance = false;
         $this->enableMaintenance('Update auf ' . $version);
 
         try {
-            [$copied, $backedUp, $skipped] = $this->copyPreparedFiles($stagingPath, $backupPath);
+            [$copied, $backedUp, $skipped] = $this->copyPreparedFiles($stagingPath, $backupPath, static function () use (&$mutationStarted): void {
+                $mutationStarted = true;
+            });
             $migrationResult = $this->runMigrations($prepared);
             $activatedModules = $this->syncPackageModules();
             $installed = [
@@ -199,10 +207,35 @@ final class UpdatesService
 
             return $installed;
         } catch (Throwable $exception) {
-            $this->log('Update-Installation fehlgeschlagen', ['error' => $exception->getMessage()]);
+            if ($mutationStarted) {
+                $keepMaintenance = true;
+                $recovery = [
+                    'failed_at' => gmdate(DATE_ATOM),
+                    'status' => 'recovery_required',
+                    'version' => $version,
+                    'backup_path' => $backupPath,
+                    'message' => 'Update nach Beginn der Dateikopie fehlgeschlagen. Wiederherstellung prüfen.',
+                ];
+                $this->writeState(array_merge($state, [
+                    'prepared' => $prepared,
+                    'recovery_required' => $recovery,
+                ]));
+                (new RecoveryManager($this->basePath))->requireRecovery([
+                    'source' => 'update', 'phase' => 'file_copy', 'error_code' => 'update_install_failed',
+                    'backup_path' => $backupPath, 'files_mutated' => true,
+                    'last_successful_step' => 'Update vorbereitet',
+                    'operator_hint' => 'Dateibackup im geschützten Recovery-Bereich prüfen.',
+                ]);
+                $this->log('Update-Installation fehlgeschlagen; Recovery erforderlich', ['version' => $version, 'backup' => $backupPath]);
+                throw new RuntimeException('Update nach Beginn der Installation fehlgeschlagen. Wartungsmodus bleibt aktiv. Backup und Update-Log prüfen: ' . $backupPath, 0, $exception);
+            }
+
+            $this->log('Update-Installation vor Dateikopie fehlgeschlagen', ['version' => $version]);
             throw $exception;
         } finally {
-            $this->disableMaintenance();
+            if (!$keepMaintenance) {
+                $this->disableMaintenance();
+            }
         }
     }
 
@@ -270,7 +303,7 @@ final class UpdatesService
 
     private function ensureDirectories(): void
     {
-        foreach ([$this->storagePath, $this->downloadsPath, $this->stagingPath, dirname($this->logPath), $this->basePath . '/storage/backups/updates'] as $dir) {
+        foreach ([$this->storagePath, $this->downloadsPath, $this->stagingPath, $this->basePath . '/storage/backups/updates'] as $dir) {
             if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
                 throw new RuntimeException('Verzeichnis konnte nicht erstellt werden: ' . $dir);
             }
@@ -427,7 +460,7 @@ final class UpdatesService
     /**
      * @return array{0:int,1:int,2:array<int,string>}
      */
-    private function copyPreparedFiles(string $sourceRoot, string $backupRoot): array
+    private function copyPreparedFiles(string $sourceRoot, string $backupRoot, ?callable $onMutation = null): array
     {
         $copied = 0;
         $backedUp = 0;
@@ -447,12 +480,16 @@ final class UpdatesService
 
             $target = $this->basePath . '/' . $relative;
             if ($item->isDir()) {
-                if (!is_dir($target) && !mkdir($target, 0775, true) && !is_dir($target)) {
-                    throw new RuntimeException('Zielverzeichnis konnte nicht erstellt werden: ' . $relative);
+                if (!is_dir($target)) {
+                    $onMutation?->__invoke();
+                    if (!mkdir($target, 0775, true) && !is_dir($target)) {
+                        throw new RuntimeException('Zielverzeichnis konnte nicht erstellt werden: ' . $relative);
+                    }
                 }
                 continue;
             }
 
+            $onMutation?->__invoke();
             if (is_file($target)) {
                 $backup = $backupRoot . '/' . $relative;
                 $backupDir = dirname($backup);
@@ -469,7 +506,7 @@ final class UpdatesService
             if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
                 throw new RuntimeException('Zielverzeichnis konnte nicht erstellt werden: ' . $targetDir);
             }
-            if (!copy($source, $target)) {
+            if (!@copy($source, $target)) {
                 throw new RuntimeException('Datei konnte nicht kopiert werden: ' . $relative);
             }
             $copied++;
@@ -610,10 +647,10 @@ final class UpdatesService
                 : $value;
         }
 
-        file_put_contents($this->logPath, json_encode([
+        (new RotatingFileLogger($this->basePath))->write('update', [
             'timestamp' => gmdate(DATE_ATOM),
             'message' => $message,
             'context' => $safeContext,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+        ]);
     }
 }

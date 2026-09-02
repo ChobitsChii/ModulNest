@@ -36,7 +36,6 @@ $labelMap = [
     'remember_requested' => 'Remember angefordert',
     'token_present' => 'Remember-Cookie vorhanden',
     'token_rotated' => 'Token rotiert',
-    'token_hash_prefix' => 'Token-Hash',
     'request_method' => 'Methode',
     'request_path' => 'Pfad',
     'ip' => 'IP',
@@ -138,7 +137,7 @@ $renderLogFields = static function (array $items, array $skip = []) use ($e, $la
         <?php endif; ?>
 
         <div class="alert alert-secondary">
-            Es werden die letzten <?= $maxLines ?> Zeilen angezeigt. Zeiten werden in der Benutzer-Zeitzone <strong><?= $e($timezoneName) ?></strong> dargestellt. Passwörter und Cookies werden von Modulons Error-Logging sanitisiert; Auth-Remember-Events speichern keine Klartext-Tokens.
+            Es werden die letzten <?= $maxLines ?> Zeilen angezeigt. Zeiten werden in der Benutzer-Zeitzone <strong><?= $e($timezoneName) ?></strong> dargestellt. Passwörter, Cookies, Session-IDs und Token werden von Modulons Error-Logging sanitisiert; Auth-Remember-Events speichern keine Tokenwerte oder Token-Hashfragmente.
         </div>
 
         <?php if ($lines === []): ?>

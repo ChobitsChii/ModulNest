@@ -55,6 +55,43 @@ DataPortability übernimmt den Archivstatus für Dashboard-Aufgaben und -Notizen
 
 Legacy-Anwendungen können über Modul-Einträge angebunden werden. Im Public-Export enthält `app/Legacy` nur einen Platzhalter, keine privaten Legacy-Apps.
 
+### Legacy-CSRF-Vertrag ab Modulon 1.0
+
+Legacy-Unterstützung erhält die Einbindung lokaler PHP-Anwendungen, bedeutet aber nicht, dass beliebiger alter unsicherer PHP-Code unverändert funktionieren muss.
+
+- `GET`, `HEAD` und `OPTIONS` dürfen keine Zustandsänderungen auslösen.
+- `POST`, `PUT`, `PATCH` und `DELETE` laufen über den zentralen CSRF-Guard.
+- Normale HTML-Formulare verwenden bewusst die Bridge:
+
+  ```php
+  <form method="post">
+      <?= \Modulon\Core\LegacyCsrf::field() ?>
+      <!-- weitere Felder -->
+  </form>
+  ```
+
+- Für `fetch`/XHR wird der aktuelle Token bewusst in der Legacy-View, etwa in einem `data-csrf-token`-Attribut oder Meta-Tag, ausgegeben und als Header übertragen:
+
+  ```php
+  <meta name="modulon-csrf-token" content="<?= htmlspecialchars(\Modulon\Core\LegacyCsrf::token(), ENT_QUOTES, 'UTF-8') ?>">
+  ```
+
+  ```js
+  const csrfToken = document.querySelector('meta[name="modulon-csrf-token"]')?.content || '';
+  fetch('/mein-legacy-modul/action.php', {
+      method: 'POST',
+      headers: {
+          'X-CSRF-Token': csrfToken,
+          'Accept': 'application/json'
+      }
+  });
+  ```
+
+- Tokens dürfen niemals in URLs, Query-Strings oder Logs übertragen werden und nicht über Requests hinweg gecacht werden. Nach Login oder Session-Rotation muss die View den aktuellen Token erneut ausgeben.
+- Eine Legacy-App ohne zentralen `_csrf`-Feldwert oder `X-CSRF-Token` erhält HTTP 419. Das ist beabsichtigt.
+- Modulon injiziert Tokens nicht automatisch in Legacy-HTML. Jede App bindet die Bridge bewusst ein.
+- ModulNest liefert keine konkreten Legacy-Apps aus; die Bridge dient lokalen oder privaten Integrationen.
+
 ## News und Markdown
 
 News-/Changelog-Inhalte unterstützen Markdown für Grundformatierungen:

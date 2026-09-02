@@ -78,7 +78,6 @@ final class ToolsController
             'admin_section' => 'tools',
             'tools' => $tools,
             'tool_groups' => $this->registry->grouped($tools),
-            'csrf_token' => $this->token(),
             'speech_requirements' => $requirements,
             'speech_models' => $this->speech->availableModels(),
             'speech_jobs' => $speechJobs,
@@ -92,14 +91,6 @@ final class ToolsController
 
     public function networkAction(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            if (!$this->wantsJson()) {
-                $this->session->flash('tools_error', 'Ungültiger Token. Bitte Seite neu laden.');
-                return Response::redirect('/admin/tools');
-            }
-            return $this->json(['ok' => false, 'summary' => 'Ungültiger Token. Bitte Seite neu laden.'], 400);
-        }
-
         $tool = (string) $request->input('tool', '');
         if (!$this->consumeRateLimit('network:' . $tool, 30, 60)) {
             if (!$this->wantsJson()) {
@@ -129,13 +120,6 @@ final class ToolsController
 
     public function speechUpload(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            if (!$this->wantsJson()) {
-                $this->session->flash('tools_error', 'Ungültiger Token. Bitte Seite neu laden.');
-                return Response::redirect('/admin/tools');
-            }
-            return $this->json(['ok' => false, 'summary' => 'Ungültiger Token. Bitte Seite neu laden.'], 400);
-        }
         if (!$this->consumeRateLimit('speech-upload', 5, 60)) {
             if (!$this->wantsJson()) {
                 $this->session->flash('tools_error', 'Rate-Limit erreicht. Bitte kurz warten.');
@@ -190,11 +174,6 @@ final class ToolsController
 
     public function speechDelete(Request $request): Response
     {
-        if (!$this->validToken((string) $request->input('csrf_token', ''))) {
-            $this->session->flash('tools_error', 'Ungültiger Token. Bitte Seite neu laden.');
-            return Response::redirect('/admin/tools');
-        }
-
         $jobId = (string) $request->input('job_id', '');
         try {
             $deleted = $this->speech->deleteJob($jobId);
@@ -241,26 +220,6 @@ final class ToolsController
             'current_path' => $request->path(),
             'auth' => $this->authData(),
         ]), 404);
-    }
-
-    private function token(): string
-    {
-        $token = $this->session->get('tools_admin_token');
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set('tools_admin_token', $token);
-
-        return $token;
-    }
-
-    private function validToken(string $submitted): bool
-    {
-        $expected = (string) $this->session->get('tools_admin_token', '');
-
-        return $expected !== '' && $submitted !== '' && hash_equals($expected, $submitted);
     }
 
     private function consumeRateLimit(string $key, int $limit, int $windowSeconds): bool

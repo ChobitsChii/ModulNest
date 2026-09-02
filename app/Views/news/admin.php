@@ -5,6 +5,7 @@ $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $entries = is_array($entries ?? null) ? $entries : [];
 $adminSection = (string) ($admin_section ?? 'news');
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Admin / News</h1>
@@ -74,6 +75,7 @@ $adminSection = (string) ($admin_section ?? 'news');
                             <td class="pe-4 text-end text-nowrap">
                                 <a href="/admin/news/<?= $id ?>/edit" class="btn btn-sm btn-outline-secondary">Bearbeiten</a>
                                 <form method="post" action="/admin/news/delete" class="d-inline ms-1" onsubmit="return confirm('Eintrag wirklich löschen?');">
+                                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                                     <input type="hidden" name="entry_id" value="<?= $id ?>">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                                 </form>

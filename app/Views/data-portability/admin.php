@@ -77,7 +77,7 @@ $countLabel = static fn (string $name): string => [
                     <span class="badge text-bg-secondary"><?= $providerCount ?> Provider</span>
                 </div>
                 <form method="post" action="/admin/data-portability/export">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                    <?= \Modulon\Core\View::csrfField((string) ($csrf_token ?? '')) ?>
                     <?php if ($providers === []): ?>
                         <div class="alert alert-info">Aktuell sind keine exportfähigen Zielmodule aktiv.</div>
                     <?php endif; ?>
@@ -156,7 +156,7 @@ $countLabel = static fn (string $name): string => [
                                     <?php endif; ?>
                                 </p>
                                 <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
-                                    <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                                    <?= \Modulon\Core\View::csrfField((string) ($csrf_token ?? '')) ?>
                                     <input type="hidden" name="import_mode" value="<?= $e($importMode) ?>">
                                     <button class="btn btn-danger btn-sm" type="submit">Import ausführen</button>
                                 </form>
@@ -166,7 +166,7 @@ $countLabel = static fn (string $name): string => [
                 </div>
 
                 <form method="post" action="/admin/data-portability/import/preview" enctype="multipart/form-data" class="mb-4">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                    <?= \Modulon\Core\View::csrfField((string) ($csrf_token ?? '')) ?>
                     <div class="mb-3">
                         <label class="form-label" for="import_zip">Export-ZIP</label>
                         <input class="form-control" type="file" id="import_zip" name="import_zip" accept=".zip,application/zip" required>
@@ -298,7 +298,7 @@ $countLabel = static fn (string $name): string => [
                     </p>
                 </div>
                 <form method="post" action="/admin/data-portability/import/run" onsubmit="return confirm('Import jetzt ausführen? <?= $importMode === 'replace' ? 'Bestehende Moduldaten werden vorher gelöscht.' : 'Daten werden hinzugefügt oder zusammengeführt.' ?>');">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrf_token ?? '') ?>">
+                    <?= \Modulon\Core\View::csrfField((string) ($csrf_token ?? '')) ?>
                     <input type="hidden" name="import_mode" value="<?= $e($importMode) ?>">
                     <button class="btn btn-danger" type="submit">Import ausführen</button>
                 </form>

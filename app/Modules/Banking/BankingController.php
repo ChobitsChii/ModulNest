@@ -86,20 +86,6 @@ final class BankingController
             return Response::redirect('/login');
         }
 
-        $expectedToken = (string) $this->session->get('banking_import_token', '');
-        $submittedToken = (string) $request->input('csrf_token', '');
-        if ($expectedToken === '' || !hash_equals($expectedToken, $submittedToken)) {
-            $this->session->set('banking_import_result', [
-                'success' => false,
-                'errors' => ['Der Import-Token ist ungültig. Bitte Formular neu laden.'],
-                'imported' => 0,
-                'updated' => 0,
-                'skipped' => 0,
-                'error_count' => 1,
-            ]);
-            return Response::redirect('/banking/import');
-        }
-
         $file = is_array($_FILES['csv_file'] ?? null) ? $_FILES['csv_file'] : [];
         $result = $this->csvImport->importForUser((int) ($user['id'] ?? 0), $file);
         if (($result['imported'] ?? 0) > 0 || ($result['updated'] ?? 0) > 0) {
@@ -120,13 +106,6 @@ final class BankingController
         $userId = (int) ($user['id'] ?? 0);
         $redirectQuery = $this->transactionRedirectQuery($request, ['dupes' => 'open']);
         $redirectUrl = '/banking/transactions' . ($redirectQuery !== '' ? '?' . $redirectQuery : '');
-
-        $expectedToken = (string) $this->session->get('banking_duplicate_token', '');
-        $submittedToken = (string) $request->input('csrf_token', '');
-        if ($expectedToken === '' || !hash_equals($expectedToken, $submittedToken)) {
-            $this->session->flash('banking_error', 'Der Duplikat-Token ist ungültig. Bitte Seite neu laden.');
-            return Response::redirect($redirectUrl);
-        }
 
         $idsRaw = $request->inputRaw('delete_ids', []);
         $ids = [];
@@ -172,13 +151,6 @@ final class BankingController
         }
 
         $userId = (int) ($user['id'] ?? 0);
-        $expectedToken = (string) $this->session->get('banking_recurring_token', '');
-        $submittedToken = (string) $request->input('csrf_token', '');
-        if ($expectedToken === '' || !hash_equals($expectedToken, $submittedToken)) {
-            $this->session->flash('banking_error', 'Der Regel-Token ist ungültig. Bitte Seite neu laden.');
-            return Response::redirect('/banking/recurring');
-        }
-
         $action = (string) $request->input('action', 'save');
         $limit = max(1, min(500, (int) $request->input('limit', '100')));
         if ($action === 'detect') {
@@ -268,7 +240,6 @@ final class BankingController
                 $request->query('booking_text', 'all'),
                 $request->query('keep_mode', 'latest')
             ),
-            'duplicate_token' => $this->bankingDuplicateToken(),
             'message' => $this->session->pullFlash('banking_info'),
             'error' => $this->session->pullFlash('banking_error'),
             'open_duplicates' => $request->query('dupes') === 'open',
@@ -316,7 +287,6 @@ final class BankingController
             'form_data' => $formData,
             'suggestions' => $suggestions,
             'suggestion_limit' => $suggestionLimit,
-            'csrf_token' => $this->bankingRecurringToken(),
             'message' => $this->session->pullFlash('banking_info'),
             'error' => $this->session->pullFlash('banking_error'),
             'errors' => $errors,
@@ -344,51 +314,11 @@ final class BankingController
         return new Response(View::render('banking/import', [
             'title' => 'Banking - Import',
             'current_path' => $request->path(),
-            'csrf_token' => $this->bankingImportToken(),
             'result' => $result,
             'max_upload_label' => $this->csvImport->maxUploadSizeLabel(),
             'module_nav_items' => $this->navigation->items($request->path()),
             'module_nav_label' => 'Banking-Navigation',
         ]));
-    }
-
-    private function bankingImportToken(): string
-    {
-        $token = $this->session->get('banking_import_token');
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set('banking_import_token', $token);
-
-        return $token;
-    }
-
-    private function bankingDuplicateToken(): string
-    {
-        $token = $this->session->get('banking_duplicate_token');
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set('banking_duplicate_token', $token);
-
-        return $token;
-    }
-
-    private function bankingRecurringToken(): string
-    {
-        $token = $this->session->get('banking_recurring_token');
-        if (is_string($token) && $token !== '') {
-            return $token;
-        }
-
-        $token = bin2hex(random_bytes(32));
-        $this->session->set('banking_recurring_token', $token);
-
-        return $token;
     }
 
     /**

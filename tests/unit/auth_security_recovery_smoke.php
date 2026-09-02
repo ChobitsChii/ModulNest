@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Modulon\Core\CsrfTokenManager;
 use Modulon\Core\Session;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\RecoveryCodeRepository;
@@ -85,6 +86,7 @@ $service = new AuthService(
     new RecoveryCodeRepository($pdo),
     $session,
     ['totp_issuer' => 'ModulNest Test'],
+    new CsrfTokenManager($session),
 );
 $totp = new TwoFactorAuth(new GoogleChartsQrCodeProvider(), 'ModulNest Test');
 

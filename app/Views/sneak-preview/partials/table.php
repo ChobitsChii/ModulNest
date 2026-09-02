@@ -5,7 +5,7 @@ $movies = is_array($movies ?? null) ? $movies : [];
 $fields = is_array($fields ?? null) ? $fields : [];
 $tableId = (string) ($table_id ?? 'sneak-preview-table');
 $adminMode = (bool) ($admin_mode ?? false);
-$deleteToken = (string) ($delete_token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 
 $e = static fn (mixed $value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
 $visible = static fn (string $field, string $area): bool => !empty($fields[$field][$area]);
@@ -113,7 +113,7 @@ $lightboxCaption = static function (array $movie) use ($fields, $e): string {
                     <td class="sneak-preview-actions">
                         <a class="btn btn-sm btn-primary" href="/admin/sneak-preview/<?= (int) ($movie['id'] ?? 0) ?>/edit">Bearbeiten</a>
                         <form method="post" action="/admin/sneak-preview/delete" class="d-inline" onsubmit="return confirm('Wirklich löschen?');">
-                            <input type="hidden" name="csrf_token" value="<?= $e($deleteToken) ?>">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <input type="hidden" name="id" value="<?= (int) ($movie['id'] ?? 0) ?>">
                             <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                         </form>

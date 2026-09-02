@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Modulon\Core\CsrfTokenManager;
 use Modulon\Core\Session;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\RecoveryCodeRepository;
@@ -95,23 +96,32 @@ $pdo->prepare('INSERT INTO users (id, name, email, password_hash, totp_secret, t
         'totp_secret' => $totpSecret,
     ]);
 
+$session = new Session();
+$csrfTokenManager = new CsrfTokenManager($session);
+$tokenBeforePasswordLogin = $csrfTokenManager->token();
 $service = new AuthService(
     new UserRepository($pdo),
     new RememberTokenRepository($pdo),
     new WebAuthnCredentialRepository($pdo),
     new RecoveryCodeRepository($pdo),
-    new Session(),
+    $session,
     ['totp_issuer' => 'ModulNest Test'],
+    $csrfTokenManager,
 );
 
 $result = $service->attemptLogin('password@example.test', 'correct horse battery staple', true);
 auth_remember_assert($result === AuthService::LOGIN_SUCCESS, 'Passwort-Login ohne 2FA war nicht erfolgreich.');
+auth_remember_assert(!$csrfTokenManager->validate($tokenBeforePasswordLogin), 'Passwort-Login rotiert den CSRF-Token nicht.');
+$tokenAfterPasswordLogin = $csrfTokenManager->token();
+auth_remember_assert($csrfTokenManager->validate($tokenAfterPasswordLogin), 'Der CSRF-Token der angemeldeten Session ist ungültig.');
 auth_remember_assert((int) $pdo->query('SELECT COUNT(*) FROM remember_tokens WHERE user_id = 1')->fetchColumn() === 1, 'Passwort-Login ohne 2FA hat keinen Remember-Token erstellt.');
 
 $result = $service->attemptLogin('totp@example.test', 'correct horse battery staple', true);
 auth_remember_assert($result === AuthService::LOGIN_2FA_REQUIRED, 'Passwort-Login mit TOTP hat keinen Pending-2FA-Status geliefert.');
 auth_remember_assert((int) $pdo->query('SELECT COUNT(*) FROM remember_tokens WHERE user_id = 2')->fetchColumn() === 0, 'Remember-Token wurde vor erfolgreicher 2FA erstellt.');
+$tokenBeforeTotpCompletion = $csrfTokenManager->token();
 auth_remember_assert($service->completePendingLoginWithTotp($totp->getCode($totpSecret)), 'TOTP-Abschluss war nicht erfolgreich.');
+auth_remember_assert(!$csrfTokenManager->validate($tokenBeforeTotpCompletion), 'TOTP-Abschluss rotiert den CSRF-Token nicht.');
 auth_remember_assert((int) $pdo->query('SELECT COUNT(*) FROM remember_tokens WHERE user_id = 2')->fetchColumn() === 1, 'Remember-Wunsch wurde nach erfolgreicher 2FA nicht übernommen.');
 
 $loginView = file_get_contents(dirname(__DIR__, 2) . '/app/Views/auth/login.php');
@@ -135,5 +145,9 @@ $oldTokenStatement = $pdo->prepare('SELECT COUNT(*) FROM remember_tokens WHERE t
 $oldTokenStatement->execute(['token_hash' => $oldRememberHash]);
 auth_remember_assert((int) $oldTokenStatement->fetchColumn() === 0, 'Alter Remember-Token wurde nach Auto-Login nicht rotiert.');
 auth_remember_assert((int) $pdo->query('SELECT COUNT(*) FROM remember_tokens WHERE user_id = 3')->fetchColumn() === 1, 'Remember-Auto-Login stellt keinen rotierten Token aus.');
+
+$tokenBeforeLogout = $csrfTokenManager->token();
+$service->logout();
+auth_remember_assert(!$csrfTokenManager->validate($tokenBeforeLogout), 'Logout invalidiert den CSRF-Token nicht.');
 
 fwrite(STDOUT, "Auth remember-me smoke test passed.\n");

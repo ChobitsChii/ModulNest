@@ -20,6 +20,7 @@ $moduleIsActive = (int) ($module['is_active'] ?? 0) === 1;
 $showInHeader = (int) ($module['show_in_header'] ?? 1) === 1;
 $showOnHome = (int) ($module['show_on_home'] ?? 1) === 1;
 $nativeBinding = is_array($native_binding ?? null) ? $native_binding : null;
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Modul bearbeiten</h1>
@@ -36,6 +37,7 @@ $nativeBinding = is_array($native_binding ?? null) ? $native_binding : null;
 <div class="card shadow-sm border-0 app-card">
     <div class="card-body">
         <form method="post" action="/admin/modules/update" class="row g-3 align-items-end">
+            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
             <input type="hidden" name="module_id" value="<?= $moduleId ?>">
 
             <div class="col-12 col-md-4">

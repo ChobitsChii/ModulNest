@@ -10,6 +10,7 @@ $userId = (int) ($editUser['id'] ?? 0);
 $isCurrent = $userId > 0 && $userId === $currentUserId;
 $role = (string) ($editUser['role_name'] ?? 'user');
 $isBlocked = (int) ($editUser['is_blocked'] ?? 0) === 1;
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Benutzer bearbeiten</h1>
@@ -26,6 +27,7 @@ $isBlocked = (int) ($editUser['is_blocked'] ?? 0) === 1;
 <div class="card shadow-sm border-0 app-card">
     <div class="card-body p-4">
         <form method="post" action="/admin/users/update" class="row g-3">
+            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
             <input type="hidden" name="user_id" value="<?= $userId ?>">
 
             <div class="col-12 col-md-6">

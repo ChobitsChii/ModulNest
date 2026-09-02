@@ -6,7 +6,7 @@ $catalog = is_array($catalog ?? null) ? $catalog : [];
 $savePostersLocally = (bool) ($save_posters_locally ?? true);
 $hasTmdbApiKey = (bool) ($has_tmdb_api_key ?? false);
 $maskedTmdbApiKey = (string) ($masked_tmdb_api_key ?? '');
-$token = (string) ($token ?? '');
+$csrfToken = (string) ($csrf_token ?? '');
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $e = static fn (mixed $value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
@@ -25,7 +25,7 @@ $areas = ['table' => 'Tabelle', 'lightbox' => 'Lightbox', 'admin' => 'Admin'];
     <?php if ($error !== ''): ?><div class="alert alert-danger"><?= $e($error) ?></div><?php endif; ?>
 
     <form method="post" action="/admin/sneak-preview/settings">
-        <input type="hidden" name="csrf_token" value="<?= $e($token) ?>">
+        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
 
         <div class="row g-3 mb-4">
             <div class="col-12">

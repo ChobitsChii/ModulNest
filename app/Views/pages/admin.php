@@ -6,6 +6,7 @@ $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $visibilities = is_array($visibilities ?? null) ? $visibilities : ['public', 'user', 'admin'];
 $menuGroups = is_array($menu_groups ?? null) ? $menu_groups : [];
+$csrfToken = (string) ($csrf_token ?? '');
 ?>
 <div class="container py-4 pages-admin" data-pages-admin>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -24,6 +25,7 @@ $menuGroups = is_array($menu_groups ?? null) ? $menu_groups : [];
         <div class="card-body p-3 p-md-4">
             <h2 class="h6 mb-3">Neue Seite</h2>
             <form method="post" action="/admin/pages/create" class="row g-2">
+                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                 <div class="col-12 col-md-6">
                     <label class="form-label small mb-1">Titel</label>
                     <input class="form-control" type="text" name="title" required>
@@ -92,6 +94,7 @@ $menuGroups = is_array($menu_groups ?? null) ? $menu_groups : [];
         <div class="card border-0 shadow-sm app-card mb-3" data-pages-row="<?= $id ?>">
             <div class="card-body p-3 p-md-4">
                 <form method="post" action="/admin/pages/update" class="row g-2 mb-2">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <input type="hidden" name="entry_id" value="<?= $id ?>">
                     <div class="col-12 col-md-4">
                         <label class="form-label small mb-1">Titel</label>
@@ -150,6 +153,7 @@ $menuGroups = is_array($menu_groups ?? null) ? $menu_groups : [];
                 </form>
 
                 <form method="post" action="/admin/pages/delete" onsubmit="return confirm('Seite wirklich löschen?');">
+                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                     <input type="hidden" name="entry_id" value="<?= $id ?>">
                     <button class="btn btn-outline-danger btn-sm" type="submit">Löschen</button>
                 </form>
@@ -162,6 +166,7 @@ $menuGroups = is_array($menu_groups ?? null) ? $menu_groups : [];
 (function(){
     const root=document.querySelector('[data-pages-admin]');
     if(!root){return;}
+    const csrfHeaders={'X-CSRF-Token':<?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,'Accept':'application/json'};
     function normalizeSlug(value){
         return String(value||'')
             .toLowerCase()
@@ -196,7 +201,7 @@ $menuGroups = is_array($menu_groups ?? null) ? $menu_groups : [];
     }
     async function post(url,payload){
         const body=new URLSearchParams(payload);
-        const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+        const res=await fetch(url,{method:'POST',headers:{...csrfHeaders,'Content-Type':'application/x-www-form-urlencoded'},body});
         const contentType=res.headers.get('content-type')||'';
         if(!res.ok||!contentType.includes('application/json')){throw new Error('Aktion fehlgeschlagen.');}
         const json=await res.json();

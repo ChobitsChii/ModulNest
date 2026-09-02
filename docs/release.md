@@ -30,6 +30,19 @@ Für die Installer-Version gilt:
 
 Vor einem Release werden App-Version und Bootstrap-Installer-Version bewusst geprüft und bei öffentlichen ModulNest-Releases synchron auf die Zielversion gesetzt.
 
+ModulNest 1.0.0 verwendet den Channel `stable`.
+
+## Recovery-Modus
+
+Kann ein Update oder eine notwendige Migration nach einer Mutation nicht sicher
+abgeschlossen werden, bleibt ModulNest im Wartungsmodus. Administratoren melden
+sich über `/recovery` an. Der Bereich zeigt nur redigierte Diagnoseinformationen
+und bietet ausschließlich sichere Prüfungen an. Eine automatische Änderung von
+Migrationsmetadaten wird nur nach einer Schema-Prüfung und einem verifizierten
+Datenbank-Backup angeboten. Der interne Recovery-Log ist
+`storage/logs/recovery-YYYY-MM-DD.log`; der Wartungsmodus endet nur nach einer
+erfolgreichen erneuten Konsistenzprüfung.
+
 ## Zwei Modul-Auswahl-Ebenen
 
 ### Maintainer-/Release-Build-Auswahl
@@ -92,6 +105,8 @@ Die Liste kommt aus den Release-/Paketmetadaten, nicht aus dem privaten Arbeitsr
 
 6. `install.php` liest später die Release-Metadaten, lädt das passende ZIP, prüft SHA256 und installiert es.
 
+`requires_migrations` ist releasebezogen: Der Export schreibt den Wert in `modulnest-package.json`; der Paketbau übernimmt ihn oder erhält ihn bewusst über `--requires-migrations true|false`. Für 1.0.0 ist der Wert `false`, weil der Migrationsstand mit Public v0.9.0 identisch ist. Releases mit neuen Migrationen müssen explizit `true` setzen.
+
 ## Pakettypen
 
 Es gibt keine getrennten Core-/Full-Pakete mehr.
@@ -140,7 +155,7 @@ Die erste Version unterstützt noch keine Tabellenpräfixe, weil der aktuelle Co
 
 Für den ersten öffentlichen Release wird ModulNest im Domain-/Subdomain-Root betrieben. Der Webserver muss auf das `public/`-Verzeichnis der Installation zeigen, z. B. Installation unter `/pfad/zu/modulnest` und DocumentRoot `/pfad/zu/modulnest/public`. Unterverzeichnis-Installationen werden aktuell noch nicht unterstützt.
 
-Installationslogs landen unter `storage/logs/install.log`. Passwörter, Tokens und Secrets werden dort nicht im Klartext geschrieben. Auf der Installer-Abschlussseite wird das JSONL-Installationslog tabellarisch mit Zeitpunkt, Meldung und Details angezeigt, sofern die Logdatei lesbar ist.
+Installationslogs landen unter `storage/logs/install-YYYY-MM-DD.log`. Passwörter, Tokens und Secrets werden dort nicht im Klartext geschrieben. Auf der Installer-Abschlussseite wird das JSONL-Installationslog tabellarisch mit Zeitpunkt, Meldung und Details angezeigt, sofern die Logdatei lesbar ist.
 
 Composer.phar-Download ist bewusst noch nicht vollständig umgesetzt. Wenn Composer lokal nicht ausführbar ist, verweist der Installer auf das Bundled-Paket.
 
@@ -173,7 +188,7 @@ Die JSON enthält mindestens:
 - Der Updater führt nach erfolgreicher Datei-Kopie während Maintenance den MigrationRunner aus, sofern eine Datenbankverbindung verfügbar ist.
 - Der App-Start führt Migrationen zusätzlich best-effort einmal pro Code-Version aus (`storage/migrations/<version>.done`), damit Updates von älteren Updater-Versionen auf 0.7.0 nicht ohne Migrationsprüfung bleiben.
 - Migrationen dürfen keine Daten löschen und müssen idempotent sein.
-- V1 versucht keinen automatischen DB-Rollback; bei Fehlern wird geloggt und der Fehler im Adminbereich angezeigt.
+- V1 versucht keinen automatischen DB-Rollback. Schlägt ein Update nach Beginn der Dateikopie oder während einer Migration fehl, bleibt der Wartungsmodus aktiv, das Update wird nicht als erfolgreich markiert und der gespeicherte Backup-Pfad muss für die Betreiber-Recovery geprüft werden.
 - `package_metadata`
 - `modules`
 - `generated_at`

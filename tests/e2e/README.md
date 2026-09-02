@@ -31,7 +31,7 @@ Unterstützte Variablen:
 Beispiel `.local/e2e/local.env` (nicht versioniert):
 
 ```env
-MODULON_E2E_BASE_URL=http://lenovo-tc-m910q.lan
+MODULON_E2E_BASE_URL=https://modulnest.example.test
 MODULON_E2E_LOGIN=dein-testuser
 MODULON_E2E_PASSWORD=dein-testpasswort
 ```
@@ -53,4 +53,3 @@ Nur Mail/Auth-Smoke:
 ```bash
 .local/e2e/.venv/bin/pytest -m auth
 ```
-

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly DEFAULT_PUBLIC_TARGET="/srv/http/modulnest"
-readonly DEFAULT_CHANNEL="alpha"
+readonly DEFAULT_CHANNEL="stable"
 
 PUBLIC_TARGET="$DEFAULT_PUBLIC_TARGET"
 OUTPUT_DIR=""
@@ -13,11 +13,12 @@ CHANNEL="$DEFAULT_CHANNEL"
 BASE_URL="https://github.com/ChobitsChii/ModulNest/releases/download"
 ASSUME_YES=0
 KEEP_WORK=0
+REQUIRES_MIGRATIONS=""
 
 usage() {
     cat <<EOF
 Usage: $SCRIPT_NAME [--public-target /srv/http/modulnest] [--output /pfad] [--metadata /pfad]
-                   [--version 0.8.0] [--channel alpha] [--base-url URL] [--yes] [--keep-work]
+                   [--version 1.0.0] [--channel stable] [--requires-migrations true|false] [--base-url URL] [--yes] [--keep-work]
 
 Baut installierbare ModulNest-ZIP-Pakete aus einem bereits bereinigten Public-Export.
 
@@ -31,6 +32,7 @@ Optionen:
   --metadata PATH       Update-Metadaten-JSON. Default: PUBLIC_TARGET/build/update/stable.json
   --version VERSION     Version überschreiben. Default: modulnest-package.json bzw. app/Config/version.php
   --channel CHANNEL     Release-Channel. Default: $DEFAULT_CHANNEL
+  --requires-migrations true|false  Überschreibt die releasebezogene Paketmetadaten-Angabe.
   --base-url URL        Basis-URL für spätere Paket-Downloads.
                         Default: $BASE_URL
   --yes, -y             Nicht interaktiv bestätigen.
@@ -70,6 +72,12 @@ parse_args() {
             --channel)
                 [[ $# -ge 2 ]] || fail "--channel benötigt einen Wert."
                 CHANNEL="$2"
+                shift 2
+                ;;
+            --requires-migrations)
+                [[ $# -ge 2 ]] || fail "--requires-migrations benötigt true oder false."
+                [[ "$2" == "true" || "$2" == "false" ]] || fail "--requires-migrations muss true oder false sein."
+                REQUIRES_MIGRATIONS="$2"
                 shift 2
                 ;;
             --base-url)
@@ -123,6 +131,14 @@ detect_version() {
         VERSION="$(grep -E "'version'[[:space:]]*=>" "$PUBLIC_TARGET/app/Config/version.php" | head -n 1 | sed -E "s/.*'([^']+)'.*/\\1/" || true)"
     fi
     [[ -n "$VERSION" ]] || fail "Version konnte nicht ermittelt werden. Bitte --version setzen."
+}
+
+detect_requires_migrations() {
+    if [[ -n "$REQUIRES_MIGRATIONS" ]]; then
+        return
+    fi
+    REQUIRES_MIGRATIONS="$(php -r '$j=json_decode((string) file_get_contents($argv[1]), true); $v=$j["requires_migrations"] ?? null; echo is_bool($v) ? ($v ? "true" : "false") : "";' "$PUBLIC_TARGET/modulnest-package.json")"
+    [[ "$REQUIRES_MIGRATIONS" == "true" || "$REQUIRES_MIGRATIONS" == "false" ]] || fail "modulnest-package.json benötigt requires_migrations=true|false oder --requires-migrations."
 }
 
 normalize_paths() {
@@ -304,13 +320,13 @@ write_metadata() {
                 ],
             ],
             "changelog_url" => $argv[8],
-            "requires_migrations" => true,
+            "requires_migrations" => $argv[10] === "true",
             "package_metadata" => "modulnest-package.json",
             "modules" => $modules,
             "generated_at" => gmdate("c"),
         ];
         echo json_encode($metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
-    ' "$VERSION" "$CHANNEL" "$php_requirement" "$source_url" "$source_sha" "$bundled_url" "$bundled_sha" "$changelog_url" "$modules_json" > "$METADATA_FILE"
+    ' "$VERSION" "$CHANNEL" "$php_requirement" "$source_url" "$source_sha" "$bundled_url" "$bundled_sha" "$changelog_url" "$modules_json" "$REQUIRES_MIGRATIONS" > "$METADATA_FILE"
 }
 
 main() {
@@ -318,6 +334,7 @@ main() {
     require_tools
     require_public_export
     detect_version
+    detect_requires_migrations
     normalize_paths
     confirm_build
 
