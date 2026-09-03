@@ -8,7 +8,7 @@ Ein **natives Modul** ist PHP-Code, der über eine Modulklasse Routen,
 Navigation und Bindungsmetadaten am Core anmeldet. Native Module unterscheiden
 sich von **Legacy-Anwendungen**: Legacy-Code wird dateibasiert unter
 `app/Legacy/` eingebunden und verwendet bei Formularen die
-[`LegacyCsrf`](../modules.md#legacy-csrf-vertrag-ab-modulon-10)-Bridge.
+[`LegacyCsrf`](../modules/README.md)-Bridge.
 
 ## Wichtigster Einstieg
 
@@ -22,7 +22,7 @@ sich von **Legacy-Anwendungen**: Legacy-Code wird dateibasiert unter
 
 Bestehende Systemdokumentation ergänzt diese Referenz:
 
-- [Module](../modules.md)
+- [Module](../modules/README.md)
 - [Technische Architektur](../technical/tech-architecture.md)
 - [Datenbank und Migrationen](../database.md)
 - [Release und Public Export](../release.md)
@@ -51,3 +51,8 @@ Der manuelle Weg bleibt vollständig unterstützt; Optionen, Dry Run und JSON f�
 Automatisierung sind in [Ein Modul erstellen](create-module.md) beschrieben.
 Für Navigation unterscheidet der Generator bewusst Hauptnavigation
 (`--main-navigation`) und persönliches Account-Menü (`--account-navigation`).
+
+Markdown-Codeblöcke werden zentral sicher gerendert. Sie erhalten ein Sprachlabel
+und eine lokale Kopierhilfe; Syntax Highlighting ist bewusst noch keine externe
+Runtime-Abhängigkeit und wird erst mit einer lokal gebündelten, CSP-kompatiblen
+Lösung ergänzt.

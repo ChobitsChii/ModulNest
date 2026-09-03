@@ -11,11 +11,14 @@ $renderGroup = static function (array $group, string $path = '') use (&$renderGr
     $expanded = !empty($group['is_active']);
     ?>
     <section class="wiki-nav-group<?= $expanded ? ' is-active-group' : '' ?>" data-wiki-nav-group="<?= htmlspecialchars($groupPath, ENT_QUOTES, 'UTF-8') ?>">
-        <button class="wiki-nav-group-title" type="button" data-wiki-nav-toggle aria-controls="<?= $contentId ?>" aria-expanded="true" aria-label="Ordner <?= htmlspecialchars((string) $group['label'], ENT_QUOTES, 'UTF-8') ?> ein- oder ausklappen">
-            <i class="bi bi-folder2-open" aria-hidden="true"></i>
-            <span><?= htmlspecialchars((string) $group['label'], ENT_QUOTES, 'UTF-8') ?></span>
-            <i class="bi bi-chevron-down wiki-nav-chevron" aria-hidden="true"></i>
-        </button>
+        <div class="wiki-nav-group-title">
+            <?php if (!empty($group['landing'])): ?>
+                <a class="wiki-nav-group-landing<?= !empty($group['landing']['is_active']) ? ' is-active' : '' ?>" href="<?= $wikiLink($group['landing']) ?>"><i class="bi bi-folder2-open" aria-hidden="true"></i><span><?= htmlspecialchars((string) $group['label'], ENT_QUOTES, 'UTF-8') ?></span></a>
+                <button class="wiki-nav-chevron-button" type="button" data-wiki-nav-toggle aria-controls="<?= $contentId ?>" aria-expanded="true" aria-label="Ordner <?= htmlspecialchars((string) $group['label'], ENT_QUOTES, 'UTF-8') ?> ein- oder ausklappen"><i class="bi bi-chevron-down wiki-nav-chevron" aria-hidden="true"></i></button>
+            <?php else: ?>
+                <button class="wiki-nav-group-toggle-row" type="button" data-wiki-nav-toggle aria-controls="<?= $contentId ?>" aria-expanded="true" aria-label="Ordner <?= htmlspecialchars((string) $group['label'], ENT_QUOTES, 'UTF-8') ?> ein- oder ausklappen"><span class="wiki-nav-group-toggle-label"><i class="bi bi-folder2-open" aria-hidden="true"></i><span><?= htmlspecialchars((string) $group['label'], ENT_QUOTES, 'UTF-8') ?></span></span><span class="wiki-nav-group-toggle-cell"><i class="bi bi-chevron-down wiki-nav-chevron" aria-hidden="true"></i></span></button>
+            <?php endif; ?>
+        </div>
         <ul id="<?= $contentId ?>" class="wiki-nav-list wiki-nav-group-items">
             <?php foreach ($group['pages'] as $item): ?>
                 <li><a class="wiki-nav-link<?= !empty($item['is_active']) ? ' is-active' : '' ?>"<?= !empty($item['is_active']) ? ' aria-current="page"' : '' ?> href="<?= $wikiLink($item) ?>"><?= htmlspecialchars((string) $item['title'], ENT_QUOTES, 'UTF-8') ?></a></li>

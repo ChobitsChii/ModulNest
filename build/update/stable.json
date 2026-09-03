@@ -1,20 +1,20 @@
 {
-    "latest": "1.1.0",
+    "latest": "1.1.1",
     "channel": "stable",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.1.0/modulnest-source-1.1.0.zip",
-            "sha256": "0662a6cd1d507ed5a543a45ab8d3c444d695a6ae416ab69983c4c9dd216d7ed8",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.1.1/modulnest-source-1.1.1.zip",
+            "sha256": "9a63d6953d58279c7882154299d5546b21ec0c43f42c1f0df97531d2ce8bc49a",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.1.0/modulnest-bundled-1.1.0.zip",
-            "sha256": "86bcefd343238f3cea57c5b5e358c67d736e8d201641c4e20151b58ed69a38bb",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.1.1/modulnest-bundled-1.1.1.zip",
+            "sha256": "f065595ac16a6837d9465e702548f79232b3be48917708ec4707ee996c3f63ce",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v1.1.0",
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v1.1.1",
     "requires_migrations": true,
     "package_metadata": "modulnest-package.json",
     "modules": [
@@ -234,7 +234,7 @@
             "name": "Wiki",
             "route_prefix": "wiki",
             "access_level": "user",
-            "description": "Synchronisierte Markdown-Dokumentation aus einem öffentlichen GitHub-Repository.",
+            "description": "Synchronisierte Markdown-Dokumentation aus GitHub oder einem lokalen Verzeichnis.",
             "required": false,
             "default_enabled": true,
             "native": true,
@@ -243,5 +243,5 @@
             "view_dir": "wiki"
         }
     ],
-    "generated_at": "2026-09-03T00:25:49+00:00"
+    "generated_at": "2026-09-03T04:03:37+00:00"
 }

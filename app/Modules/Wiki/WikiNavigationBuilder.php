@@ -42,17 +42,24 @@ final class WikiNavigationBuilder
     }
 
     /** @param array<string, array<string, mixed>> $children @return list<array<string, mixed>> */
-    private function groups(array $children, string $activeRoute): array
+    private function groups(array $children, string $activeRoute, string $parent = ''): array
     {
         ksort($children, SORT_NATURAL | SORT_FLAG_CASE);
         $groups = [];
         foreach ($children as $segment => $node) {
-            $nested = $this->groups($node['children'], $activeRoute);
+            $path = ltrim($parent . '/' . $segment, '/');
+            $nested = $this->groups($node['children'], $activeRoute, $path);
             $pages = $this->sortPages($node['pages']);
-            $isActive = $this->containsActive($pages) || $this->containsActive($nested);
+            $landing = null;
+            foreach ($pages as $index => $page) {
+                if ((string) ($page['route_path'] ?? '') === $path) { $landing = $page; unset($pages[$index]); $pages = array_values($pages); break; }
+            }
+            $isActive = ($landing['is_active'] ?? false) || $this->containsActive($pages) || $this->containsActive($nested);
             $groups[] = [
                 'label' => $this->label((string) $segment),
                 'key' => (string) $segment,
+                'path' => $path,
+                'landing' => $landing,
                 'pages' => $pages,
                 'groups' => $nested,
                 'is_active' => $isActive,

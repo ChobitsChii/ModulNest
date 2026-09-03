@@ -11,7 +11,7 @@ declare(strict_types=1);
  * implementiert statt an die eigentliche Anwendung zu delegieren.
  */
 
-const MODULNEST_INSTALLER_VERSION = '1.1.0';
+const MODULNEST_INSTALLER_VERSION = '1.1.1';
 const MODULNEST_METADATA_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/stable.json';
 const MODULNEST_MIN_PHP = '8.3.0';
 const MODULNEST_REQUIRED_EXTENSIONS = [

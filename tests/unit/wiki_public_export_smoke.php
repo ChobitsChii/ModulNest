@@ -12,14 +12,25 @@ try {
     wiki_export_assert($status === 0, 'The public export must succeed for the Wiki documentation resources.');
     foreach ([
         'docs/README.md',
+        '.gitattributes',
         'docs/development/README.md',
         'docs/development/example-module.md',
         'docs/releases/README.md',
         'docs/releases/1.0.0.md',
         'docs/releases/1.0.1.md',
         'docs/releases/1.1.0.md',
+        'docs/releases/1.1.1.md',
+        'docs/third-party.md',
+        'assets/markdown-highlight.js',
+        'package.json',
+        'package-lock.json',
+        'public/assets/js/markdown-highlight.js',
         'examples/modules/ExampleNotes/README.md',
         'tools/create-module.php',
+        'app/Modules/Wiki/LocalWikiPath.php',
+        'app/Modules/Wiki/LocalWikiSource.php',
+        'app/Modules/Wiki/Database/Migrations/20260903_010000_wiki_local_source.php',
+        'app/Modules/Wiki/Database/Migrations/20260903_020000_wiki_active_source.php',
         'app/Modules/Wiki/WikiNavigationBuilder.php',
         'app/Views/wiki/index.php',
     ] as $path) {
@@ -27,7 +38,7 @@ try {
     }
     wiki_export_assert(!is_dir($target . '/app/Modules/ExampleNotes'), 'ExampleNotes must remain reference code outside productive module discovery.');
     $metadata = json_decode((string) file_get_contents($target . '/modulnest-package.json'), true);
-    wiki_export_assert(is_array($metadata) && ($metadata['version'] ?? '') === '1.1.0' && ($metadata['requires_migrations'] ?? false) === true, 'The 1.1.0 public package must require its Wiki migrations.');
+    wiki_export_assert(is_array($metadata) && ($metadata['version'] ?? '') === '1.1.1' && ($metadata['requires_migrations'] ?? false) === true, 'The 1.1.1 public package must require its Wiki source migrations.');
 } finally {
     if (is_dir($target)) {
         system('rm -rf ' . escapeshellarg($target));

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Modulon\Modules\Wiki\WikiMarkdownRenderer;
+use Modulon\Modules\Wiki\WikiController;
 use Modulon\Modules\Wiki\WikiModule;
 use Modulon\Modules\Wiki\WikiNavigationBuilder;
 use Modulon\Core\NativeModuleLoader;
@@ -20,6 +21,8 @@ wiki_assert(WikiModule::metadata()['show_in_header'] === true, 'Wiki must be vis
 wiki_assert((NativeModuleLoader::discover($root)['wiki'] ?? null) === WikiModule::class, 'Wiki must be auto-discoverable as a native module.');
 foreach (['GitHubWikiClient.php', 'WikiMarkdownRenderer.php', 'WikiRepository.php', 'WikiService.php'] as $file) wiki_assert(is_file($root . '/app/Modules/Wiki/' . $file), "$file missing.");
 wiki_assert(!is_file($root . '/app/Modules/Wiki/WikiUserNavigationProvider.php'), 'Wiki must not be added to the personal account dropdown.');
+$sourceForView = new ReflectionMethod(WikiController::class, 'sourceForView');
+wiki_assert($sourceForView->getReturnType()?->allowsNull() === true, 'A fresh installation without a configured Wiki source must remain an explicit null view state.');
 
 $renderer = new WikiMarkdownRenderer();
 $html = $renderer->render("# Start\n\n[Module](development/module-spec.md)\n\n![Logo](images/logo.png)\n\n[Bad](javascript:alert(1))", 'index');
@@ -44,7 +47,10 @@ wiki_assert($migration->scope() === 'module' && $migration->moduleKey() === 'wik
 $admin = View::render('wiki/admin', ['csrf_token' => 'test-token', 'source' => null, 'page_count' => 0, 'asset_count' => 0, 'message' => '', 'error' => '']);
 wiki_assert(str_contains($admin, 'class="form-control"') && str_contains($admin, 'class="btn btn-primary"'), 'Wiki admin must use the existing ModulNest form and button classes.');
 wiki_assert(str_contains($admin, 'GitHub-Benutzer oder Organisation') && str_contains($admin, 'Branch oder Tag') && str_contains($admin, 'GitHub-URL'), 'Wiki admin labels must be user-facing.');
-wiki_assert(str_contains($admin, 'Dokumentationsordner') && str_contains($admin, 'Synchronisationsstatus'), 'Wiki admin must expose complete source status.');
+wiki_assert(str_contains($admin, 'Dokumentationsordner'), 'Wiki admin must expose the documentation directory configuration.');
+wiki_assert(str_contains($admin, 'value="github" selected'), 'A new Wiki configuration must default to GitHub.');
+$localAdmin = View::render('wiki/admin', ['csrf_token' => 'test-token', 'source' => ['source_type'=>'local','docs_root'=>'docs','enabled'=>1,'active_source_type'=>'github','active_repository_owner'=>'ChobitsChii','active_repository_name'=>'ModulNest','active_ref_name'=>'main','last_commit_sha'=>'abcdef','last_sync_status'=>'success'], 'page_count' => 1, 'asset_count' => 0, 'message' => '', 'error' => '']);
+wiki_assert(str_contains($localAdmin, 'value="local" selected') && str_contains($localAdmin, 'Die konfigurierte Quelle wurde noch nicht synchronisiert.') && str_contains($localAdmin, 'Konfigurierte Quelle') && str_contains($localAdmin, 'Aktiver Wiki-Stand') && str_contains($localAdmin, 'data-wiki-configured-source') && str_contains($localAdmin, 'data-wiki-active-source'), 'A saved local source must remain visibly configured while a prior GitHub cache remains active.');
 $emptyUser = View::render('wiki/empty', ['is_admin' => false]);
 $emptyAdmin = View::render('wiki/empty', ['is_admin' => true]);
 wiki_assert(str_contains($emptyUser, 'Für dieses Wiki wurden noch keine Inhalte synchronisiert.') && !str_contains($emptyUser, 'href="/admin/wiki"'), 'Non-admin users must receive a helpful setup state without an admin link.');
@@ -62,6 +68,20 @@ wiki_assert(array_column($navigation['groups'], 'label') === ['Development', 'Te
 wiki_assert(array_column($navigation['groups'][1]['pages'], 'title') === ['Dashboard Foundation', 'Technische Architektur'], 'Frontmatter order must sort pages within a folder before source order.');
 wiki_assert($navigation['groups'][1]['is_active'] === true && $navigation['groups'][1]['pages'][0]['is_active'] === true, 'The active page and its folder group must be marked.');
 wiki_assert(array_column($navigation['root_pages'], 'title') === ['Konfiguration'], 'Root files must remain outside folder groups and the root README must be represented only by Start.');
+$landingNavigation = (new WikiNavigationBuilder())->build([
+    ['relative_path' => 'README.md', 'route_path' => 'index', 'title' => 'Start', 'sort_order' => 10],
+    ['relative_path' => 'releases/README.md', 'route_path' => 'releases', 'title' => 'ModulNest Releases', 'sort_order' => 10],
+    ['relative_path' => 'releases/1.1.0.md', 'route_path' => 'releases/1.1.0', 'title' => 'ModulNest 1.1.0', 'sort_order' => 20],
+], 'releases/1.1.0', 'index');
+wiki_assert(($landingNavigation['groups'][0]['landing']['route_path'] ?? '') === 'releases' && array_column($landingNavigation['groups'][0]['pages'], 'route_path') === ['releases/1.1.0'], 'A folder README must become its landing page instead of a duplicate child entry.');
+$allLandingNavigation = (new WikiNavigationBuilder())->build([
+    ['relative_path' => 'README.md', 'route_path' => 'index', 'title' => 'Start', 'sort_order' => 1],
+    ['relative_path' => 'development/README.md', 'route_path' => 'development', 'title' => 'Entwicklung', 'sort_order' => 1],
+    ['relative_path' => 'modules/README.md', 'route_path' => 'modules', 'title' => 'Module', 'sort_order' => 1],
+    ['relative_path' => 'releases/README.md', 'route_path' => 'releases', 'title' => 'Releases', 'sort_order' => 1],
+    ['relative_path' => 'technical/README.md', 'route_path' => 'technical', 'title' => 'Technik', 'sort_order' => 1],
+], 'modules', 'index');
+foreach ($allLandingNavigation['groups'] as $group) wiki_assert(($group['landing']['route_path'] ?? '') === $group['path'], 'Every documentation folder README must become its own landing page.');
 $navigationView = View::render('wiki/index', [
     'page' => ['route_path' => 'technical/dashboard', 'title' => 'Dashboard Foundation'],
     'navigation' => $navigation,
@@ -76,7 +96,7 @@ $navigationView = View::render('wiki/index', [
 ]);
 wiki_assert(str_contains($navigationView, '>Start</a>') && str_contains($navigationView, 'bi-folder2-open'), 'Wiki navigation must render a fixed Start entry and visible folder groups.');
 wiki_assert(str_contains($navigationView, 'aria-current="page"') && !str_contains($navigationView, '.md</a>'), 'Wiki navigation must mark the active page and never show Markdown extensions.');
-wiki_assert(str_contains($navigationView, '<button class="wiki-nav-group-title"') && str_contains($navigationView, 'data-wiki-nav-toggle') && str_contains($navigationView, 'aria-expanded="true"'), 'The complete folder row must be one accessible toggle button with a no-JavaScript open fallback.');
+wiki_assert(str_contains($navigationView, '<button class="wiki-nav-group-toggle-row"') && str_contains($navigationView, 'data-wiki-nav-toggle') && str_contains($navigationView, 'aria-expanded="true"'), 'Folders without a landing page must remain one accessible toggle button with a no-JavaScript open fallback.');
 wiki_assert(str_contains($navigationView, '<h1 id="dashboard-foundation">'), 'The layout page title must retain the stable H1 anchor when the matching Markdown H1 is removed.');
 wiki_assert(str_contains($navigationView, 'wiki-toc-level-1') && str_contains($navigationView, 'href="#dashboard-foundation"'), 'Desktop and mobile TOCs must start with the linked page H1 before H2/H3 entries.');
 wiki_assert(str_contains($navigationView, '<div class="wiki-toc-title">Auf dieser Seite</div>'), 'The desktop TOC label must remain a non-interactive section heading.');

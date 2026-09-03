@@ -14,7 +14,7 @@ $versions = [
     '0.8.0' => '15.05.2026', '0.8.1' => '19.05.2026',
     '0.8.2' => '20.05.2026', '0.8.3' => '20.05.2026',
     '0.9.0' => '21.05.2026', '1.0.0' => '02.09.2026', '1.0.1' => '02.09.2026',
-    '1.1.0' => '03.09.2026',
+    '1.1.0' => '03.09.2026', '1.1.1' => '03.09.2026',
 ];
 $overview = (string) file_get_contents($root . '/docs/releases/README.md');
 release_docs_assert(str_contains($overview, '# ModulNest Releases'), 'Release overview title must be stable.');

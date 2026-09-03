@@ -32,7 +32,7 @@ final class MarkdownRenderer
         }
 
         try {
-            $html = (string) $this->converter->convert($markdown);
+            $html = $this->decorateCodeBlocks((string) $this->converter->convert($markdown));
 
             return $allowImages ? $html : (preg_replace('/<img\b[^>]*>/i', '', $html) ?? $html);
         } catch (Throwable $exception) {
@@ -40,5 +40,19 @@ final class MarkdownRenderer
 
             return nl2br(htmlspecialchars($markdown, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
         }
+    }
+
+    private function decorateCodeBlocks(string $html): string
+    {
+        return preg_replace_callback('/<pre><code(?: class="language-([A-Za-z0-9_+-]+)")?>(.*?)<\\/code><\\/pre>/s', static function (array $match): string {
+            $language = strtolower((string) ($match[1] ?? ''));
+            $label = match ($language) {
+                'js', 'javascript' => 'JavaScript', 'php' => 'PHP', 'json' => 'JSON', 'sh', 'shell', 'bash' => 'Shell',
+                'html' => 'HTML', 'css' => 'CSS', 'sql' => 'SQL', 'yml', 'yaml' => 'YAML', 'md', 'markdown' => 'Markdown',
+                '' => 'Code', default => strtoupper($language),
+            };
+            $class = $language === '' ? '' : ' class="language-' . htmlspecialchars($language, ENT_QUOTES, 'UTF-8') . '"';
+            return '<div class="mn-code-block"><div class="mn-code-toolbar"><span class="mn-code-language">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span><button class="mn-code-copy" type="button" aria-live="polite">Kopieren</button></div><pre><code' . $class . '>' . $match[2] . '</code></pre></div>';
+        }, $html) ?? $html;
     }
 }

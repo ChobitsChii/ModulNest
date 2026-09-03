@@ -60,22 +60,26 @@ final class WikiController
         if($asset===null||!is_file($file)) return new Response('',404);
         return new Response((string)file_get_contents($file),200,['Content-Type'=>(string)$asset['mime_type'],'Content-Length'=>(string)filesize($file),'Cache-Control'=>'private, max-age=3600','X-Content-Type-Options'=>'nosniff','Content-Disposition'=>'inline']);
     }
-    public function admin(Request $request): Response { return new Response(View::render('wiki/admin',['title'=>'Wiki verwalten','current_path'=>$request->path(),'source'=>$this->repository->source(),'page_count'=>$this->repository->pageCount(),'asset_count'=>$this->repository->assetCount(),'message'=>$this->session->pullFlash('wiki_info'),'error'=>$this->session->pullFlash('wiki_error')])); }
+    public function admin(Request $request): Response { return new Response(View::render('wiki/admin',['title'=>'Wiki verwalten','current_path'=>$request->path(),'source'=>$this->sourceForView(),'page_count'=>$this->repository->pageCount(),'asset_count'=>$this->repository->assetCount(),'message'=>$this->session->pullFlash('wiki_info'),'error'=>$this->session->pullFlash('wiki_error')])); }
     public function adminSave(Request $request): Response
     {
-        try { $this->service->saveConfig((string)$request->input('owner',''),(string)$request->input('repository',''),(string)$request->input('ref',''),(string)$request->input('docs_root','docs'),(string)$request->input('enabled','')==='1'); $this->session->flash('wiki_info','Wiki-Quelle gespeichert.'); }
+        try { if((string)$request->input('source_type','github')==='local') $this->service->saveLocalConfig((string)$request->input('docs_root',''),(string)$request->input('enabled','')==='1'); else $this->service->saveConfig((string)$request->input('owner',''),(string)$request->input('repository',''),(string)$request->input('ref',''),(string)$request->input('docs_root','docs'),(string)$request->input('enabled','')==='1'); $this->session->flash('wiki_info','Wiki-Quelle gespeichert.'); }
         catch(Throwable $e){$this->session->flash('wiki_error',$e instanceof RuntimeException?$e->getMessage():'Die Wiki-Quelle konnte nicht gespeichert werden.');}
         return Response::redirect('/admin/wiki');
     }
+    public function localDirectories(Request $request): Response { try { $data=(new LocalWikiPath($this->basePath))->directories((string)$request->query('path','')); return new Response((string)json_encode($data, JSON_THROW_ON_ERROR),200,['Content-Type'=>'application/json; charset=UTF-8']); } catch (RuntimeException) { return new Response('{"error":"invalid_path"}',422,['Content-Type'=>'application/json; charset=UTF-8']); } }
     public function sync(Request $request): Response
     {
         try {$result=$this->service->sync();$this->session->flash('wiki_info',sprintf('Synchronisierung abgeschlossen: %d neu, %d geändert, %d entfernt.',$result['added'],$result['changed'],$result['deleted']));}
         catch(Throwable){$this->session->flash('wiki_error','Synchronisierung fehlgeschlagen. Der bisherige lokale Stand bleibt verfügbar.');}
         return Response::redirect('/admin/wiki');
     }
-    private function sourceForView(): array
+    private function sourceForView(): ?array
     {
-        $source = $this->repository->source() ?? [];
+        $source = $this->repository->source();
+        if ($source === null) {
+            return null;
+        }
         $timezone = $this->userTimezone();
         $source['last_sync_at_local'] = DateTimeFormatter::formatUserDateTime($source['last_sync_at'] ?? '', $timezone);
         $source['timezone_name'] = $timezone->getName();

@@ -1370,6 +1370,18 @@ button.app-sort-handle {
     background: transparent;
 }
 
+.mn-code-block { border: 1px solid var(--app-border); border-radius: .55rem; margin: 1rem 0; overflow: hidden; }
+.mn-code-toolbar { align-items: center; background: var(--app-surface-2); border-bottom: 1px solid var(--app-border); display: flex; justify-content: space-between; padding: .4rem .65rem; }
+.mn-code-language { color: var(--app-muted); font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.mn-code-copy { background: transparent; border: 1px solid var(--app-border); border-radius: .35rem; color: var(--app-text); cursor: pointer; font: inherit; font-size: .8rem; padding: .18rem .5rem; }
+.mn-code-copy:hover, .mn-code-copy:focus-visible { background: var(--app-surface); border-color: var(--app-primary); }
+.mn-code-block pre { border: 0; border-radius: 0; margin: 0; overflow-x: auto; padding: 1rem; }
+.mn-code-block .hljs { background: transparent; color: var(--app-text); }
+.mn-code-block .hljs-keyword, .mn-code-block .hljs-selector-tag, .mn-code-block .hljs-literal { color: color-mix(in srgb, var(--app-primary) 78%, var(--app-text)); }
+.mn-code-block .hljs-string, .mn-code-block .hljs-attr, .mn-code-block .hljs-number { color: color-mix(in srgb, #4cae72 72%, var(--app-text)); }
+.mn-code-block .hljs-comment, .mn-code-block .hljs-quote { color: var(--app-muted); }
+.mn-code-block .hljs-title, .mn-code-block .hljs-function, .mn-code-block .hljs-built_in { color: color-mix(in srgb, #b78bdf 70%, var(--app-text)); }
+
 .mn-markdown blockquote {
     margin: 0 0 0.9rem;
     padding: 0.65rem 0.9rem;

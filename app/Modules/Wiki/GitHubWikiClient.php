@@ -25,7 +25,7 @@ final class GitHubWikiClient
         $body = ''; $handle = curl_init($url);
         if ($handle === false) { throw new WikiSyncException('network_unavailable'); }
         curl_setopt_array($handle, [CURLOPT_RETURNTRANSFER=>false,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>25,CURLOPT_USERAGENT=>'ModulNest-Wiki/1.0',CURLOPT_HTTPHEADER=>['Accept: application/vnd.github+json'],CURLOPT_WRITEFUNCTION=>static function($curl,string $chunk) use (&$body,$maxBytes): int { if(strlen($body)+strlen($chunk)>$maxBytes)return 0;$body.=$chunk;return strlen($chunk); }]);
-        $ok=curl_exec($handle);$status=(int)curl_getinfo($handle,CURLINFO_RESPONSE_CODE);curl_close($handle);
+        $ok=curl_exec($handle);$status=(int)curl_getinfo($handle,CURLINFO_RESPONSE_CODE);unset($handle);
         if($ok!==true || $status<200 || $status>=300){throw new WikiSyncException($status===404?'github_not_found':'github_request_failed');}
         return $body;
     }

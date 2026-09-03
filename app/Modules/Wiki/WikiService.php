@@ -51,7 +51,22 @@ final class WikiService
 
     public function saveConfig(string $owner, string $repo, string $ref, string $root, bool $enabled): void
     {
-        $this->repository->saveSource($this->validateConfig($owner, $repo, $ref, $root, $enabled));
+        $this->repository->saveSource($this->validateConfig($owner, $repo, $ref, $root, $enabled) + ['source_type'=>'github']);
+    }
+    public function saveLocalConfig(string $root, bool $enabled): void
+    {
+        $root = (new LocalWikiPath($this->basePath))->relative($root);
+        // Keep a previously configured GitHub source intact, so an administrator can
+        // switch source types without having to re-enter its validated coordinates.
+        $previous = $this->repository->source() ?? [];
+        $this->repository->saveSource([
+            'source_type' => 'local',
+            'owner' => (string) ($previous['repository_owner'] ?? ''),
+            'repo' => (string) ($previous['repository_name'] ?? ''),
+            'ref' => (string) ($previous['ref_name'] ?? ''),
+            'root' => $root,
+            'enabled' => $enabled ? 1 : 0,
+        ]);
     }
 
     /** @return array{added:int,changed:int,deleted:int,sha:string} */
@@ -63,7 +78,7 @@ final class WikiService
         }
         $id = (int) $source['id'];
         try {
-            $download = $this->client->download((string) $source['repository_owner'], (string) $source['repository_name'], (string) $source['ref_name']);
+            $download = (($source['source_type'] ?? 'github') === 'local') ? (new LocalWikiSource(new LocalWikiPath($this->basePath)))->download((string)$source['docs_root']) : $this->client->download((string) $source['repository_owner'], (string) $source['repository_name'], (string) $source['ref_name']);
             return $this->syncArchive($source, $download['archive'], $download['sha']);
         } catch (Throwable $e) {
             $code = $e instanceof WikiSyncException ? $e->safeCode : 'sync_failed';
@@ -163,7 +178,7 @@ final class WikiService
             if (is_dir($live)) { if (!rename($live, $backup)) { throw new WikiSyncException('content_switch_failed'); } $moved = true; }
             if (!rename($newContent, $live)) { throw new WikiSyncException('content_switch_failed'); }
             $this->pdo->beginTransaction();
-            $result = $this->repository->replaceIndex((int) $source['id'], $pages, $assets, $sha);
+            $result = $this->repository->replaceIndex((int) $source['id'], $pages, $assets, $sha, $source);
             $this->pdo->commit();
             if ($moved) { $this->removeTree($backup); }
             return $result;

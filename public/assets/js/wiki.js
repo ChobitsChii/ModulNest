@@ -60,10 +60,39 @@ const WikiSourceUrl = (() => {
             owner.value = next.owner; repository.value = next.repository; ref.value = next.ref; docsRoot.value = next.docsRoot;
             updateUrl();
         };
+        // Do not change canonical fields until a complete supported URL parses.
+        urlField.addEventListener('input', applyUrl);
         urlField.addEventListener('change', applyUrl);
         urlField.addEventListener('paste', () => window.setTimeout(applyUrl, 0));
         [owner, repository, ref, docsRoot].forEach((field) => field.addEventListener('input', updateUrl));
         updateUrl();
+        const type = form.querySelector('[data-wiki-source-type]');
+        const applyType = () => {
+            const local = type?.value === 'local';
+            form.querySelectorAll('[data-wiki-github-field]').forEach((node) => { node.hidden = local; });
+            const help = form.querySelector('[data-wiki-local-help]'); if (help) help.hidden = !local;
+            const pathHelp = form.querySelector('[data-wiki-path-help]'); if (pathHelp) pathHelp.textContent = local ? 'Pfad relativ zur ModulNest-Installation. Verzeichnisse außerhalb der Installation sind nicht verfügbar.' : 'Pfad innerhalb des GitHub-Repositories, z. B. docs.';
+        };
+        type?.addEventListener('change', applyType); applyType();
+        const pickerButton = form.querySelector('[data-wiki-directory-picker]');
+        const modalElement = document.querySelector('#wikiDirectoryPicker');
+        const pathLabel = modalElement?.querySelector('[data-wiki-picker-path]');
+        const directories = modalElement?.querySelector('[data-wiki-picker-directories]');
+        const parent = modalElement?.querySelector('[data-wiki-picker-parent]');
+        const select = modalElement?.querySelector('[data-wiki-picker-select]');
+        const error = modalElement?.querySelector('[data-wiki-picker-error]');
+        let pickerPath = '';
+        const loadDirectories = async (path) => {
+            if (!modalElement || !directories || !pathLabel || !parent || !error) return;
+            error.classList.add('d-none'); directories.textContent = 'Wird geladen …';
+            const response = await fetch(`/admin/wiki/local-directories?path=${encodeURIComponent(path)}`, {headers:{Accept:'application/json'}});
+            if (!response.ok) { error.textContent='Das Verzeichnis ist nicht verfügbar.'; error.classList.remove('d-none'); directories.textContent=''; return; }
+            const data = await response.json(); pickerPath=data.path||''; pathLabel.textContent=pickerPath||'/'; parent.hidden=pickerPath === '';
+            directories.replaceChildren(...(data.directories||[]).map((name)=>{const button=document.createElement('button');button.type='button';button.className='list-group-item list-group-item-action wiki-directory-picker-item';button.textContent=`📁 ${name}`;button.addEventListener('click',()=>loadDirectories([pickerPath,name].filter(Boolean).join('/')));return button;}));
+        };
+        pickerButton?.addEventListener('click', () => { loadDirectories(docsRoot.value.trim()); window.bootstrap?.Modal.getOrCreateInstance(modalElement).show(); });
+        parent?.addEventListener('click', () => loadDirectories(pickerPath.split('/').slice(0,-1).join('/')));
+        select?.addEventListener('click', () => { docsRoot.value=pickerPath; window.bootstrap?.Modal.getOrCreateInstance(modalElement).hide(); });
     };
     return { build, parse, bind };
 })();

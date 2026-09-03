@@ -75,11 +75,11 @@ try {
     $runner = new MigrationRunner($server, $basePath);
     $first = $runner->run($publicModules);
     migration_smoke_assert(count($first['errors']) === 0, 'Erster Migrationslauf enthält Fehler.');
-    migration_smoke_assert(count($first['executed']) === 12, 'Erster Migrationslauf sollte 12 Migrationen ausführen.');
+    migration_smoke_assert(count($first['executed']) === 14, 'Erster Migrationslauf sollte 14 Migrationen ausführen.');
 
     $second = $runner->run($publicModules);
     migration_smoke_assert(count($second['executed']) === 0, 'Zweiter Migrationslauf darf nichts erneut ausführen.');
-    migration_smoke_assert(count($second['skipped']) === 12, 'Zweiter Migrationslauf sollte 12 Migrationen überspringen.');
+    migration_smoke_assert(count($second['skipped']) === 14, 'Zweiter Migrationslauf sollte 14 Migrationen überspringen.');
 
     $tables = migration_smoke_tables($server);
     foreach (['schema_migrations', 'users', 'modules', 'news_entries', 'homepage_blocks', 'homepage_block_buttons', 'homepage_block_items', 'dashboard_widgets', 'dashboard_tasks', 'dashboard_notes', 'banking_accounts', 'banking_transactions', 'banking_recurring_rules', 'sneak_preview_entries', 'sneak_preview_settings', 'wiki_sources', 'wiki_pages', 'wiki_assets', 'wiki_sync_runs'] as $table) {
@@ -92,7 +92,7 @@ try {
     }
 
     $executedCount = (int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
-    migration_smoke_assert($executedCount === 12, 'schema_migrations sollte 12 Einträge enthalten.');
+    migration_smoke_assert($executedCount === 14, 'schema_migrations sollte 14 Einträge enthalten.');
 } finally {
     $server->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $dbName) . '`');
 }
@@ -109,7 +109,7 @@ try {
     $result = $runner->run($publicModules);
     migration_smoke_assert(count($result['errors']) === 0, 'Migration über bestehendes Gesamtschema enthält Fehler.');
     migration_smoke_assert((string) $server->query("SELECT `value` FROM app_settings WHERE `key` = 'migration_smoke_marker'")->fetchColumn() === 'keep', 'Bestehende Daten wurden verändert.');
-    migration_smoke_assert((int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 12, 'Migrationen wurden in alter DB nicht markiert.');
+    migration_smoke_assert((int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 14, 'Migrationen wurden in alter DB nicht markiert.');
 } finally {
     $server->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $oldDbName) . '`');
 }

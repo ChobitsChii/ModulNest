@@ -1,0 +1,2 @@
+# Generated third-party bundle; embedded language grammars contain literal whitespace.
+public/assets/js/markdown-highlight.js -whitespace

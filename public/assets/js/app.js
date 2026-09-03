@@ -1,6 +1,45 @@
 (function () {
     'use strict';
 
+    function legacyCopy(text) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        var copied = false;
+        try { copied = document.execCommand('copy'); } catch (_) { copied = false; }
+        textarea.remove();
+        return copied;
+    }
+
+    function copyFeedback(button, message) {
+        var original = button.dataset.copyLabel || button.textContent || 'Kopieren';
+        button.dataset.copyLabel = original;
+        button.textContent = message;
+        button.setAttribute('aria-label', message);
+        window.setTimeout(function () { button.textContent = original; button.setAttribute('aria-label', original); }, 1600);
+    }
+
+    document.addEventListener('click', async function (event) {
+        var button = event.target instanceof Element ? event.target.closest('.mn-code-copy') : null;
+        if (!(button instanceof HTMLButtonElement)) return;
+        var code = button.closest('.mn-code-block')?.querySelector('code')?.textContent || '';
+        if (code === '') return;
+        try {
+            var copied = false;
+            if (window.isSecureContext && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(code);
+                copied = true;
+            } else {
+                copied = legacyCopy(code);
+            }
+            copyFeedback(button, copied ? 'Kopiert' : 'Kopieren nicht möglich');
+        } catch (_) { copyFeedback(button, legacyCopy(code) ? 'Kopiert' : 'Kopieren nicht möglich'); }
+    });
+
     function isDesktopNavbar() {
         var toggler = document.querySelector('.app-navbar .navbar-toggler');
         if (!toggler) {

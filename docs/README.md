@@ -6,7 +6,7 @@ Diese Dokumentation begleitet die Installation, den Betrieb und die Weiterentwic
 
 - [Installation](installation.md) und [Anforderungen](requirements.md)
 - [Konfiguration](configuration.md) und [Datenbank](database.md)
-- [Module](modules.md) und [Routen](routes.md)
+- [Module](modules/README.md) und [Routen](routes.md)
 - [Tests](testing.md) sowie [Technologien und Abhängigkeiten](dependencies.md)
 
 ## Entwicklung
@@ -24,6 +24,7 @@ Die [Developer-Dokumentation](development/README.md) beschreibt den nativen Modu
 
 - [Update- und Release-Prozess](release.md)
 - [Release-Historie](releases/README.md)
+- [Module](modules/README.md)
 - [Export und Import](export-import.md)
-- [Technische Architektur](technical/tech-architecture.md)
+- [Technische Dokumentation](technical/README.md)
 - [Dashboard-Grundlage](technical/dashboard-foundation.md)

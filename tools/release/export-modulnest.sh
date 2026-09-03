@@ -554,8 +554,11 @@ EOF
 copy_project() {
     copy_file_if_exists "README.md" "$TARGET/README.md"
     copy_file_if_exists "LICENSE" "$TARGET/LICENSE"
+    copy_file_if_exists ".gitattributes" "$TARGET/.gitattributes"
     copy_file_if_exists "composer.json" "$TARGET/composer.json"
     copy_file_if_exists "composer.lock" "$TARGET/composer.lock"
+    copy_file_if_exists "package.json" "$TARGET/package.json"
+    copy_file_if_exists "package-lock.json" "$TARGET/package-lock.json"
     copy_file_if_exists "pytest.ini" "$TARGET/pytest.ini"
     copy_file_if_exists "install.php" "$TARGET/install.php"
     copy_file_if_exists "recovery.php" "$TARGET/recovery.php"
@@ -597,6 +600,10 @@ copy_project() {
     copy_public_assets
 
     copy_dir "docs" "$TARGET/docs"
+    # Build-Quelle der lokal gebündelten Markdown-Hervorhebung. node_modules
+    # bleibt ausgeschlossen; package-lock.json fixiert die reproduzierbare
+    # Entwicklungsabhängigkeit.
+    copy_file_if_exists "assets/markdown-highlight.js" "$TARGET/assets/markdown-highlight.js"
     # Lehrbeispiele bleiben außerhalb app/Modules und damit außerhalb der
     # Produkt-Discovery, sind aber Teil der öffentlichen Entwicklerressourcen.
     copy_dir "examples" "$TARGET/examples"

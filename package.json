@@ -1,0 +1,28 @@
+{
+  "name": "modulon",
+  "version": "1.1.1",
+  "description": "ModulNest ist eine modulare, selbst hostbare PHP-Webplattform. Ziel ist es, mehrere kleine Web-Apps, Tools und Module unter einer Oberfläche, einem Login und einer Benutzerverwaltung zu bündeln.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "build:markdown-assets": "esbuild assets/markdown-highlight.js --bundle --minify --format=iife --target=es2020 --outfile=public/assets/js/markdown-highlight.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChobitsChii/modulon.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ChobitsChii/modulon/issues"
+  },
+  "homepage": "https://github.com/ChobitsChii/modulon#readme",
+  "devDependencies": {
+    "esbuild": "^0.25.9",
+    "highlight.js": "^11.11.1"
+  }
+}

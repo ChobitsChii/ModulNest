@@ -32,5 +32,6 @@ $assetVersion = rawurlencode((string) ($app_version ?? ''));
 <?php require dirname(__DIR__) . '/partials/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/assets/js/app.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>
+<script src="/assets/js/markdown-highlight.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>" defer></script>
 </body>
 </html>

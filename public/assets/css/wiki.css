@@ -78,16 +78,26 @@
     border-radius: .4rem;
     color: var(--app-text);
     cursor: pointer;
-    display: flex;
+    display: grid;
     font-size: .84rem;
     font-weight: 700;
-    gap: .4rem;
+    grid-template-columns: minmax(0, 1fr) 2.35rem;
     text-align: left;
     width: 100%;
     letter-spacing: .015em;
     margin: 0 0 .2rem;
     padding: .15rem .5rem;
 }
+
+.wiki-nav-group-landing, .wiki-nav-group-toggle-row { align-items: center; background: transparent; border: 0; border-radius: .4rem; color: var(--app-text); cursor: pointer; display: flex; font: inherit; font-size: inherit; font-weight: inherit; gap: .4rem; min-width: 0; min-height: 2.35rem; padding: .15rem .5rem; text-align: left; text-decoration: none; }
+.wiki-nav-group-landing { grid-column: 1; }
+.wiki-nav-group-toggle-row { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) 2.35rem; padding: 0; }
+.wiki-nav-group-toggle-label { align-items: center; display: flex; gap: .4rem; min-width: 0; padding: .15rem .5rem; }
+.wiki-nav-group-toggle-label > span { min-width: 0; overflow-wrap: anywhere; }
+.wiki-nav-group-toggle-cell { align-items: center; display: flex; justify-content: center; min-height: 2.35rem; min-width: 2.35rem; }
+.wiki-nav-group-landing:hover, .wiki-nav-group-landing:focus-visible, .wiki-nav-group-toggle-row:hover, .wiki-nav-group-toggle-row:focus-visible, .wiki-nav-chevron-button:hover, .wiki-nav-chevron-button:focus-visible { background: var(--app-surface-2); color: var(--app-text); }
+.wiki-nav-chevron-button { align-items: center; background: transparent; border: 0; border-radius: .4rem; color: var(--app-muted); cursor: pointer; display: flex; grid-column: 2; justify-content: center; min-height: 2.35rem; min-width: 2.35rem; padding: .15rem; }
+.wiki-nav-chevron-button .wiki-nav-chevron, .wiki-nav-group-toggle-cell .wiki-nav-chevron { margin-left: 0; }
 
 .wiki-nav-group-title:hover,
 .wiki-nav-group-title:focus-visible {
@@ -100,6 +110,7 @@
     margin-left: auto;
     transition: transform .16s ease;
 }
+
 
 .wiki-nav-group.is-collapsed > .wiki-nav-group-title .wiki-nav-chevron {
     transform: rotate(-90deg);
@@ -164,6 +175,32 @@
     font-size: .85em;
     margin-top: 2rem;
     padding-top: 1rem;
+}
+
+.wiki-directory-picker-list .wiki-directory-picker-item {
+    --bs-list-group-bg: var(--app-surface);
+    --bs-list-group-color: var(--app-text);
+    --bs-list-group-border-color: var(--app-border);
+    --bs-list-group-action-hover-bg: var(--app-surface-2);
+    --bs-list-group-action-hover-color: var(--app-text);
+    --bs-list-group-action-active-bg: color-mix(in srgb, var(--app-primary) 16%, var(--app-surface-2));
+    --bs-list-group-action-active-color: var(--app-text);
+    background-color: var(--app-surface);
+    color: var(--app-text);
+}
+
+.wiki-directory-picker-list .wiki-directory-picker-item:hover {
+    background-color: var(--app-surface-2);
+    color: var(--app-text);
+}
+
+.wiki-directory-picker-list .wiki-directory-picker-item:focus-visible {
+    background-color: var(--app-surface-2);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--app-primary) 62%, transparent);
+    color: var(--app-text);
+    outline: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .wiki-toc {

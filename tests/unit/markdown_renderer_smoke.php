@@ -41,4 +41,9 @@ $deep = str_repeat('> ', 30) . 'tief';
 $deepHtml = $renderer->render($deep);
 markdown_assert($deepHtml !== '', 'Tiefe Verschachtelung crasht oder rendert leer.');
 
+$code = $renderer->render("```javascript\nconst value = '<unsafe>';\n```");
+markdown_assert(str_contains($code, 'mn-code-block') && str_contains($code, 'mn-code-language">JavaScript') && str_contains($code, 'mn-code-copy'), 'Fenced code blocks must receive the shared language and copy UI.');
+markdown_assert(str_contains($code, '&lt;unsafe&gt;') && !str_contains($code, '<unsafe>'), 'Code block content must remain escaped.');
+markdown_assert(!str_contains($code, '<script'), 'Code block UI must not inject inline scripts.');
+
 fwrite(STDOUT, "Markdown renderer smoke test passed.\n");
