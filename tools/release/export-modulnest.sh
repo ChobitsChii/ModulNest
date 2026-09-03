@@ -4,7 +4,7 @@ set -Eeuo pipefail
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly DEFAULT_TARGET="/srv/http/modulnest"
 readonly CORE_MODULES=("Admin" "Auth" "Modules" "User")
-readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "Pages" "SneakPreview" "Systeminfo" "Tools" "Updates")
+readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "Pages" "SneakPreview" "Systeminfo" "Tools" "Updates" "Wiki")
 
 TARGET="$DEFAULT_TARGET"
 ASSUME_YES=0
@@ -28,7 +28,7 @@ Optionen:
   --target PATH       Zielordner. Default: $DEFAULT_TARGET
   --modules A,B,C    Optionale Module explizit auswählen.
   --all-modules      Alle gefundenen optionalen Module exportieren.
-  --requires-migrations true|false  Releasebezogene DB-Migrationsangabe (für 1.0.0: false).
+  --requires-migrations true|false  Releasebezogene DB-Migrationsangabe; bei neuen Paketmigrationen true.
   --no-ui            Keine dialog/whiptail-Auswahl verwenden.
   --yes              Nicht interaktiv bestätigen.
   -h, --help         Hilfe anzeigen.
@@ -339,6 +339,7 @@ module_view_dir() {
         Systeminfo) printf 'systeminfo' ;;
         Tools) printf 'tools' ;;
         Updates) printf 'updates' ;;
+        Wiki) printf 'wiki' ;;
         User) printf 'user' ;;
         Admin) printf 'admin' ;;
         Auth) printf 'auth' ;;
@@ -441,6 +442,7 @@ write_package_metadata() {
             "Systeminfo" => "systeminfo",
             "Tools" => "tools",
             "User" => "user",
+            "Wiki" => "wiki",
         ];
         $modules = [];
         foreach ($core as $name) {
@@ -595,8 +597,12 @@ copy_project() {
     copy_public_assets
 
     copy_dir "docs" "$TARGET/docs"
+    # Lehrbeispiele bleiben außerhalb app/Modules und damit außerhalb der
+    # Produkt-Discovery, sind aber Teil der öffentlichen Entwicklerressourcen.
+    copy_dir "examples" "$TARGET/examples"
     copy_dir "scripts" "$TARGET/scripts"
     copy_dir "tools/release" "$TARGET/tools/release"
+    copy_file_if_exists "tools/create-module.php" "$TARGET/tools/create-module.php"
     copy_dir "tests" "$TARGET/tests" \
         --exclude='**/local.env' \
         --exclude='**/__pycache__/' \

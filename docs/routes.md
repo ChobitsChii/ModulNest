@@ -52,4 +52,7 @@ Kompatible Sicherheitspfade können unter `/account/security/*` existieren. Die 
 
 ## Weitere Module
 
-Andere Module können je nach Release-Auswahl weitere Routen bereitstellen. Die tatsächlich enthaltenen Module stehen in [`../modulnest-package.json`](../modulnest-package.json).
+Andere Module können je nach Release-Auswahl weitere Routen bereitstellen. Die
+tatsächlich enthaltenen Module beschreibt die beim Release erzeugte
+`modulnest-package.json`; Aufbau und Export sind in
+[Release & Export](release.md) dokumentiert.

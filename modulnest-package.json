@@ -2,10 +2,10 @@
     "schema": 1,
     "product": "ModulNest",
     "core": "Modulon",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "channel": "stable",
-    "requires_migrations": false,
-    "generated_at": "2026-09-02T13:40:23+00:00",
+    "requires_migrations": true,
+    "generated_at": "2026-09-03T00:25:12+00:00",
     "required_modules": [
         "Admin",
         "Auth",
@@ -23,7 +23,8 @@
         "SneakPreview",
         "Systeminfo",
         "Tools",
-        "Updates"
+        "Updates",
+        "Wiki"
     ],
     "modules": [
         {
@@ -235,6 +236,20 @@
             "show_in_header": false,
             "show_on_home": false,
             "view_dir": null
+        },
+        {
+            "directory": "Wiki",
+            "key": "wiki",
+            "name": "Wiki",
+            "route_prefix": "wiki",
+            "access_level": "user",
+            "description": "Synchronisierte Markdown-Dokumentation aus einem öffentlichen GitHub-Repository.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": false,
+            "view_dir": "wiki"
         }
     ]
 }

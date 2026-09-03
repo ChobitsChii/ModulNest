@@ -4,7 +4,7 @@ ModulNest ist eine modulare, selbst hostbare PHP-Webplattform. Ziel ist es, mehr
 
 Der interne Core-/Arbeitsname lautet Modulon. Für öffentliche Releases, Dokumentation und Installation ist der Produktname **ModulNest**.
 
-Status: **Stable 1.0.1**. Aktuelle Versionen und Downloads findest du unter [GitHub Releases](https://github.com/ChobitsChii/ModulNest/releases/latest).
+Status: **Stable 1.1.0**. Aktuelle Versionen und Downloads findest du unter [GitHub Releases](https://github.com/ChobitsChii/ModulNest/releases/latest).
 
 ## Warum ModulNest?
 
@@ -38,9 +38,11 @@ Manuelle Installation und Details stehen in der [Installationsdokumentation](doc
 
 ## Dokumentation
 
+- [Dokumentationsübersicht](docs/README.md): Einstieg für Installation, Betrieb, Entwicklung und Technik.
 - [Installation](docs/installation.md): Bootstrap-Installer, Webroot, Source/Bundled und manuelle Installation.
 - [Konfiguration](docs/configuration.md): wichtige `.env`-Werte, Datenbank, Sessions, 2FA und Mail-Schlüssel.
 - [Release & Export](docs/release.md): privater Entwicklungsstand, öffentlicher Export, Paketbau und Update-Metadaten.
+- [Release-Historie](docs/releases/README.md): veröffentlichte ModulNest-Versionen und Release Notes.
 - [Export & Import](docs/export-import.md): Moduldaten zwischen ModulNest-Instanzen übertragen.
 - [Anforderungen](docs/requirements.md): PHP-Version, Extensions und Composer-Abhängigkeiten.
 - [Technologien & Abhängigkeiten](docs/dependencies.md): verwendete Libraries, Frameworks und externe Bausteine.
@@ -49,6 +51,7 @@ Manuelle Installation und Details stehen in der [Installationsdokumentation](doc
 - [Datenbank](docs/database.md): Tabellenüberblick und Verweis auf das Schema.
 - [Tests](docs/testing.md): lokale Browser-E2E-Tests mit pytest und Playwright.
 - [Entwicklung](docs/development.md): Projektpflege, KI-Unterstützung und technische Leitlinien.
+- [Modulentwicklung](docs/development/README.md): verbindlicher Vertrag und Anleitung für native Module.
 - [Technische Architektur](docs/technical/tech-architecture.md): Core, Routing, Module und technische Details.
 - [Export-Zusammenfassung](docs/export-summary.md): letzter Public-Export und Review-Hinweise.
 

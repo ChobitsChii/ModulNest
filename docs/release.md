@@ -30,11 +30,20 @@ Für die Installer-Version gilt:
 
 Vor einem Release werden App-Version und Bootstrap-Installer-Version bewusst geprüft und bei öffentlichen ModulNest-Releases synchron auf die Zielversion gesetzt.
 
-ModulNest 1.0.1 verwendet den Channel `stable`.
+ModulNest 1.1.0 verwendet den Channel `stable`.
 
-Jeder öffentliche Release benötigt eine passende Datei
-`docs/release-notes-VERSION.md`. Diese Notes sind die verbindliche Grundlage
+Jeder öffentliche Release benötigt eine passende Datei unter
+`docs/releases/VERSION.md`. Diese Notes sind die verbindliche Grundlage
 für die GitHub-Release-Beschreibung.
+
+Vor der Veröffentlichung müssen für jede neue öffentliche Version mindestens
+vorliegen:
+
+- Release Notes unter `docs/releases/VERSION.md`,
+- konsistente Versions- und Channel-Metadaten im Paket,
+- eine daraus abgeleitete GitHub-Release-Beschreibung.
+
+Release Notes gehören nicht lose in den `docs/`-Root.
 
 ## Recovery-Modus
 
@@ -109,7 +118,7 @@ Die Liste kommt aus den Release-/Paketmetadaten, nicht aus dem privaten Arbeitsr
 
 6. `install.php` liest später die Release-Metadaten, lädt das passende ZIP, prüft SHA256 und installiert es.
 
-`requires_migrations` ist releasebezogen: Der Export schreibt den Wert in `modulnest-package.json`; der Paketbau übernimmt ihn oder erhält ihn bewusst über `--requires-migrations true|false`. Für 1.0.0 und 1.0.1 ist der Wert `false`, weil der Migrationsstand mit Public v0.9.0 identisch ist. Releases mit neuen Migrationen müssen explizit `true` setzen.
+`requires_migrations` ist releasebezogen: Der Export schreibt den Wert in `modulnest-package.json`; der Paketbau übernimmt ihn oder erhält ihn bewusst über `--requires-migrations true|false`. Für 1.0.0 und 1.0.1 ist der Wert `false`, weil der Migrationsstand mit Public v0.9.0 identisch ist. ModulNest 1.1.0 enthält die versionierten Wiki-Modulmigrationen und setzt deshalb `requires_migrations=true`. Releases mit neuen Migrationen müssen explizit `true` setzen.
 
 ## Pakettypen
 

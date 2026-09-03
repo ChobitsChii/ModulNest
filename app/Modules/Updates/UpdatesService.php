@@ -43,7 +43,7 @@ final class UpdatesService
         $state = $this->normalizeStateForInstalledVersion($state, $installedVersion);
 
         return [
-            'installed_version' => $installedVersion,
+            'installed_version' => $this->displayInstalledVersion($installedVersion, $state),
             'channel' => $channel,
             'feed_url' => self::UPDATE_FEED_URL,
             'state' => $state,
@@ -299,6 +299,34 @@ final class UpdatesService
         }
 
         return $state;
+    }
+
+    /**
+     * A successful update writes last_install only after every mutating step,
+     * migrations and the runtime refresh have completed. During the first
+     * redirect after an update, the already loaded controller can still carry
+     * the previous version from its request context. In that narrow case the
+     * verified installation record is the authoritative display value.
+     *
+     * @param array<string,mixed> $state
+     */
+    private function displayInstalledVersion(string $installedVersion, array $state): string
+    {
+        $lastInstall = is_array($state['last_install'] ?? null) ? $state['last_install'] : [];
+        $fromVersion = trim((string) ($lastInstall['from_version'] ?? ''));
+        $installedVersionFromState = trim((string) ($lastInstall['version'] ?? ''));
+
+        if (
+            (string) ($lastInstall['status'] ?? '') === 'installed'
+            && $fromVersion !== ''
+            && $fromVersion === $installedVersion
+            && $installedVersionFromState !== ''
+            && version_compare($installedVersionFromState, $installedVersion, '>')
+        ) {
+            return $installedVersionFromState;
+        }
+
+        return $installedVersion;
     }
 
     /**

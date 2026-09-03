@@ -1,0 +1,15 @@
+<?php
+declare(strict_types=1);
+use Modulon\Core\Database\{Migration,SchemaHelper};
+return new class implements Migration {
+ public function key(): string { return '20260902_164244_wiki'; }
+ public function scope(): string { return 'module'; }
+ public function moduleKey(): ?string { return 'wiki'; }
+ public function description(): string { return 'Legt Quelle, Seiten und Sync-Historie für das lokale Wiki an.'; }
+ public function up(\PDO $pdo, SchemaHelper $schema): void {
+  $pdo->exec("CREATE TABLE IF NOT EXISTS wiki_sources (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, repository_owner VARCHAR(100) NOT NULL DEFAULT '', repository_name VARCHAR(100) NOT NULL DEFAULT '', ref_name VARCHAR(160) NOT NULL DEFAULT '', docs_root VARCHAR(255) NOT NULL DEFAULT 'docs', enabled TINYINT(1) NOT NULL DEFAULT 0, last_commit_sha CHAR(64) NULL, last_sync_status VARCHAR(32) NOT NULL DEFAULT 'never', last_sync_at TIMESTAMP NULL, last_error_code VARCHAR(64) NULL, last_error_message_safe VARCHAR(255) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  $pdo->exec("CREATE TABLE IF NOT EXISTS wiki_pages (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, source_id BIGINT UNSIGNED NOT NULL, relative_path VARCHAR(500) NOT NULL, route_path VARCHAR(500) NOT NULL, title VARCHAR(255) NOT NULL, content_hash CHAR(64) NOT NULL, sort_order INT NOT NULL DEFAULT 0, hidden TINYINT(1) NOT NULL DEFAULT 0, source_mtime BIGINT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY uq_wiki_page_path (source_id, relative_path), UNIQUE KEY uq_wiki_route_path (source_id, route_path), KEY idx_wiki_pages_navigation (source_id, hidden, sort_order), CONSTRAINT fk_wiki_pages_source FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  $pdo->exec("CREATE TABLE IF NOT EXISTS wiki_assets (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, source_id BIGINT UNSIGNED NOT NULL, relative_path VARCHAR(500) NOT NULL, content_hash CHAR(64) NOT NULL, mime_type VARCHAR(100) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_wiki_asset_path (source_id, relative_path), CONSTRAINT fk_wiki_assets_source FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  $pdo->exec("CREATE TABLE IF NOT EXISTS wiki_sync_runs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, source_id BIGINT UNSIGNED NOT NULL, started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, finished_at TIMESTAMP NULL, commit_sha CHAR(64) NULL, status VARCHAR(32) NOT NULL, added_count INT NOT NULL DEFAULT 0, changed_count INT NOT NULL DEFAULT 0, deleted_count INT NOT NULL DEFAULT 0, safe_error_code VARCHAR(64) NULL, CONSTRAINT fk_wiki_sync_source FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+ }
+};

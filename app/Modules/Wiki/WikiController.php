@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modulon\Modules\Wiki;
+
+use Modulon\Core\{DateTimeFormatter, Request, Response, Session, View};
+use DateTimeZone;
+use RuntimeException;
+use Throwable;
+
+final class WikiController
+{
+    public function __construct(private readonly Session $session, private readonly WikiRepository $repository, private readonly WikiService $service, private readonly string $basePath, private readonly ?\Modulon\Modules\Auth\AuthService $auth = null) {}
+    public function index(Request $request): Response
+    {
+        $page = $this->repository->rootPage();
+        if ($page === null) {
+            return $this->emptyState($request);
+        }
+        return $this->renderPage($page, $request);
+    }
+    public function page(Request $request): Response { $route=trim(substr($request->path(),strlen('/wiki')),'/'); return $this->show($route===''?'index':rawurldecode($route),$request); }
+    private function show(string $route, Request $request): Response
+    {
+        $page=$this->repository->page($route);
+        if($page===null) {
+            if ($route === 'index' && $this->repository->visiblePageCount() === 0) return $this->emptyState($request);
+            return new Response(View::render('errors/404',['title'=>'Wiki-Seite nicht gefunden','current_path'=>$request->path()]),404);
+        }
+        return $this->renderPage($page, $request);
+    }
+    private function emptyState(Request $request): Response
+    {
+        return new Response(View::render('wiki/empty', ['title'=>'Wiki noch nicht eingerichtet','current_path'=>$request->path(),'is_admin'=>$this->auth?->isAdmin() ?? false,'source'=>$this->repository->source()]));
+    }
+    private function renderPage(array $page, Request $request): Response
+    {
+        $file=$this->basePath.'/storage/wiki/content/'.$page['relative_path'];
+        if(!is_file($file)) return new Response(View::render('errors/404',['title'=>'Wiki-Inhalt nicht verfügbar','current_path'=>$request->path()]),404);
+        $renderer=new WikiMarkdownRenderer();
+        $rendered = $renderer->renderPage((string) file_get_contents($file), (string) $page['relative_path'], (string) $page['title']);
+        $rootPage = $this->repository->rootPage();
+        $navigation = (new WikiNavigationBuilder())->build(
+            $this->repository->pages(),
+            (string) $page['route_path'],
+            (string) ($rootPage['route_path'] ?? 'index'),
+        );
+        $toc = $rendered['toc'];
+        if (count($toc) >= 2) {
+            array_unshift($toc, ['id' => WikiMarkdownRenderer::headingId((string) $page['title']), 'title' => (string) $page['title'], 'level' => 1]);
+        }
+        return new Response(View::render('wiki/index',['title'=>(string)$page['title'],'current_path'=>$request->path(),'page'=>$page,'content_html'=>$rendered['html'],'toc'=>$toc,'navigation'=>$navigation,'source'=>$this->sourceForView(),'breadcrumbs'=>$this->breadcrumbs((string)$page['route_path'])]));
+    }
+    public function asset(Request $request): Response
+    {
+        $path=rawurldecode(trim(substr($request->path(),strlen('/wiki/assets/')),'/'));
+        if($path===''||str_contains($path,'..')||str_contains($path,'\\')) return new Response('',404);
+        $asset=$this->repository->asset($path); $file=$this->basePath.'/storage/wiki/content/'.$path;
+        if($asset===null||!is_file($file)) return new Response('',404);
+        return new Response((string)file_get_contents($file),200,['Content-Type'=>(string)$asset['mime_type'],'Content-Length'=>(string)filesize($file),'Cache-Control'=>'private, max-age=3600','X-Content-Type-Options'=>'nosniff','Content-Disposition'=>'inline']);
+    }
+    public function admin(Request $request): Response { return new Response(View::render('wiki/admin',['title'=>'Wiki verwalten','current_path'=>$request->path(),'source'=>$this->repository->source(),'page_count'=>$this->repository->pageCount(),'asset_count'=>$this->repository->assetCount(),'message'=>$this->session->pullFlash('wiki_info'),'error'=>$this->session->pullFlash('wiki_error')])); }
+    public function adminSave(Request $request): Response
+    {
+        try { $this->service->saveConfig((string)$request->input('owner',''),(string)$request->input('repository',''),(string)$request->input('ref',''),(string)$request->input('docs_root','docs'),(string)$request->input('enabled','')==='1'); $this->session->flash('wiki_info','Wiki-Quelle gespeichert.'); }
+        catch(Throwable $e){$this->session->flash('wiki_error',$e instanceof RuntimeException?$e->getMessage():'Die Wiki-Quelle konnte nicht gespeichert werden.');}
+        return Response::redirect('/admin/wiki');
+    }
+    public function sync(Request $request): Response
+    {
+        try {$result=$this->service->sync();$this->session->flash('wiki_info',sprintf('Synchronisierung abgeschlossen: %d neu, %d geändert, %d entfernt.',$result['added'],$result['changed'],$result['deleted']));}
+        catch(Throwable){$this->session->flash('wiki_error','Synchronisierung fehlgeschlagen. Der bisherige lokale Stand bleibt verfügbar.');}
+        return Response::redirect('/admin/wiki');
+    }
+    private function sourceForView(): array
+    {
+        $source = $this->repository->source() ?? [];
+        $timezone = $this->userTimezone();
+        $source['last_sync_at_local'] = DateTimeFormatter::formatUserDateTime($source['last_sync_at'] ?? '', $timezone);
+        $source['timezone_name'] = $timezone->getName();
+        return $source;
+    }
+    private function userTimezone(): DateTimeZone
+    {
+        try {
+            $user = $this->auth?->currentUser();
+            return DateTimeFormatter::resolveTimezone(is_array($user) ? (string) ($user['timezone'] ?? '') : '');
+        } catch (Throwable) {
+            return DateTimeFormatter::resolveTimezone();
+        }
+    }
+    /** @return list<array{label:string,url:string}> */ private function breadcrumbs(string $route): array { $items=[['label'=>'Wiki','url'=>'/wiki']];if($route==='index')return $items;$parts=explode('/',$route);$path=[];foreach($parts as $part){$path[]=$part;$items[]=['label'=>ucwords(str_replace(['-','_'],' ',$part)),'url'=>'/wiki/'.implode('/',$path)];}return $items; }
+}

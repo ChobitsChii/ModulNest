@@ -20,7 +20,11 @@ final class MarkdownRenderer
         ]);
     }
 
-    public function render(string $markdown): string
+    /**
+     * $allowImages is deliberately opt-in for controlled consumers such as Wiki.
+     * Callers must still rewrite and allow-list every image URL before output.
+     */
+    public function render(string $markdown, bool $allowImages = false): string
     {
         $markdown = trim($markdown);
         if ($markdown === '') {
@@ -30,7 +34,7 @@ final class MarkdownRenderer
         try {
             $html = (string) $this->converter->convert($markdown);
 
-            return preg_replace('/<img\b[^>]*>/i', '', $html) ?? $html;
+            return $allowImages ? $html : (preg_replace('/<img\b[^>]*>/i', '', $html) ?? $html);
         } catch (Throwable $exception) {
             error_log('Markdown rendering failed: ' . $exception->getMessage());
 

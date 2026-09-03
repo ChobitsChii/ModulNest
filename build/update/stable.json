@@ -1,21 +1,21 @@
 {
-    "latest": "1.0.1",
+    "latest": "1.1.0",
     "channel": "stable",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.0.1/modulnest-source-1.0.1.zip",
-            "sha256": "90b29117d6c5087b327d4c1f2eb669ff9043094a1a9d66739f9004675a6441db",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.1.0/modulnest-source-1.1.0.zip",
+            "sha256": "0662a6cd1d507ed5a543a45ab8d3c444d695a6ae416ab69983c4c9dd216d7ed8",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.0.1/modulnest-bundled-1.0.1.zip",
-            "sha256": "993e7e817f98ab092e7f1e53b35377da5a337f4f437312f344f24a514b4ccafd",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v1.1.0/modulnest-bundled-1.1.0.zip",
+            "sha256": "86bcefd343238f3cea57c5b5e358c67d736e8d201641c4e20151b58ed69a38bb",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v1.0.1",
-    "requires_migrations": false,
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v1.1.0",
+    "requires_migrations": true,
     "package_metadata": "modulnest-package.json",
     "modules": [
         {
@@ -227,7 +227,21 @@
             "show_in_header": false,
             "show_on_home": false,
             "view_dir": null
+        },
+        {
+            "directory": "Wiki",
+            "key": "wiki",
+            "name": "Wiki",
+            "route_prefix": "wiki",
+            "access_level": "user",
+            "description": "Synchronisierte Markdown-Dokumentation aus einem öffentlichen GitHub-Repository.",
+            "required": false,
+            "default_enabled": true,
+            "native": true,
+            "show_in_header": true,
+            "show_on_home": false,
+            "view_dir": "wiki"
         }
     ],
-    "generated_at": "2026-09-02T13:40:27+00:00"
+    "generated_at": "2026-09-03T00:25:49+00:00"
 }

@@ -112,7 +112,7 @@ Die `modules`-Tabelle steuert Modul-Metadaten:
 
 ### `handler = native`
 
-- Modul stellt optional eine Klasse `Modulon\Modules\<Ordner>\<Ordner>Module` bereit
+- Ein auto-discoverbares natives Modul **muss** die Klasse `Modulon\Modules\<Ordner>\<Ordner>Module` bereitstellen und `NativeModuleInterface` implementieren.
 - diese Modulklasse registriert eigene Frontend-Routen, Admin-Routen, Untermenüs und Binding-Metadaten
 - keine Legacy-Dateipfade nötig
 - Aktivierung/Deaktivierung erfolgt über `is_active` in `modules`
@@ -290,6 +290,9 @@ Wenn ein neues **natives** Modul gebaut wird:
 4. Modulverwaltung öffnen, damit Auto-Discovery den DB-Eintrag deaktiviert anlegt
 5. Modul in `/admin/modules` aktivieren und Sichtbarkeit/Zugriff konfigurieren
 6. optional Provider für Modul-Untermenüs, Admin-Navigation oder User-Navigation registrieren
+
+Die normative Entwicklerreferenz mit exakten API-Verträgen steht unter
+[`docs/development/`](../development/README.md).
 
 Wenn ein **Legacy**-Modul eingebunden wird:
 

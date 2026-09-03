@@ -37,6 +37,10 @@ Weitere private oder experimentelle Module können im Entwicklungsstand existier
 
 Neue native Modulordner unter `app/Modules` können in der Modulverwaltung erkannt werden. Initiale Metadaten kommen aus dem Modul selbst und können anschließend in der Modulverwaltung angepasst werden.
 
+Für die Entwicklung nativer Module gelten die verbindlichen Verträge unter
+[`docs/development/`](development/README.md). Ein Ordner unter `app/Modules`
+ist kein bloßes Beispielverzeichnis: Er wird von der Auto-Discovery geprüft.
+
 ## Homepage / Startseite
 
 Das Homepage-Modul bereitet eine konfigurierbare Startseite für `/` vor. Es rendert nur veröffentlichte, aktivierte Blöcke. Wenn das Modul deaktiviert ist, nicht veröffentlicht wurde, keine gültigen Blöcke vorhanden sind oder beim Rendern ein Fehler auftritt, wird automatisch die bisherige Standard-Startseite angezeigt.

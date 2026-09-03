@@ -11,3 +11,6 @@ Wo es sinnvoll und sicherer ist, nutzt ModulNest etablierte externe Libraries st
 Eine Übersicht der verwendeten Libraries und Technologien steht in [Technologien und Abhängigkeiten](dependencies.md).
 
 Ziel bleibt ein wartbares, selbst hostbares Modulsystem mit klarer Trennung zwischen Core, optionalen Modulen und lokalen Installationsdaten.
+
+Für den verbindlichen Vertrag und die praktische Erstellung nativer Module siehe
+die [Developer-Dokumentation](development/README.md).
