@@ -16,6 +16,11 @@ $pagesHeaderGroups = is_array($pages_header_groups ?? null) ? $pages_header_grou
 $productMeta = is_array($product_meta ?? null) ? $product_meta : [];
 $productName = (string) ($productMeta['product_name'] ?? 'Modulon');
 $csrfToken = (string) ($csrf_token ?? '');
+$themeCandidate = (string) ($theme_mode ?? 'system');
+$themeMode = in_array($themeCandidate, ['system', 'light', 'dark'], true) ? $themeCandidate : 'system';
+$themeSwitcherVisible = (bool) ($theme_switcher_visible ?? true);
+$themeLabels = ['system' => 'System', 'light' => 'Hell', 'dark' => 'Dunkel'];
+$themeIcons = ['system' => 'bi-display', 'light' => 'bi-sun', 'dark' => 'bi-moon-stars'];
 
 $isActive = static function (string $path) use ($currentPath): string {
     $normalizedPath = rtrim($path, '/');
@@ -164,6 +169,27 @@ $isActive = static function (string $path) use ($currentPath): string {
                 <?php endif; ?>
 
                 <div class="app-user-zone">
+                    <?php if ($themeSwitcherVisible): ?>
+                        <div class="nav-item dropdown app-theme-switcher" data-theme-switcher data-authenticated="<?= $isAuthenticated ? 'true' : 'false' ?>" data-csrf-token="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <button class="app-theme-button dropdown-toggle" type="button" id="theme-switcher-dropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Darstellung: <?= htmlspecialchars($themeLabels[$themeMode], ENT_QUOTES, 'UTF-8') ?>" title="Darstellung ändern">
+                                <i class="bi <?= htmlspecialchars($themeIcons[$themeMode], ENT_QUOTES, 'UTF-8') ?>" data-theme-current-icon aria-hidden="true"></i>
+                                <span class="visually-hidden" data-theme-current-label><?= htmlspecialchars($themeLabels[$themeMode], ENT_QUOTES, 'UTF-8') ?></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end app-module-dropdown app-theme-menu" aria-labelledby="theme-switcher-dropdown">
+                                <?php foreach ($themeLabels as $mode => $label): ?>
+                                    <li>
+                                        <button class="dropdown-item app-theme-option d-flex align-items-center gap-2<?= $themeMode === $mode ? ' active' : '' ?>" type="button" data-theme-option="<?= $mode ?>"<?= $themeMode === $mode ? ' aria-current="true"' : '' ?>>
+                                            <i class="bi <?= htmlspecialchars($themeIcons[$mode], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></i>
+                                            <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
+                                            <i class="bi bi-check-lg ms-auto app-theme-check" aria-hidden="true"></i>
+                                        </button>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <span class="visually-hidden" data-theme-status role="status" aria-live="polite"></span>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if ($isAuthenticated): ?>
                         <?php if ($userItems !== []): ?>
                             <div class="nav-item dropdown">

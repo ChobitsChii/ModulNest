@@ -36,6 +36,11 @@ $toc = is_array($toc ?? null) ? $toc : [];
   <aside class="wiki-sidebar" aria-label="Wiki-Navigation">
     <nav class="wiki-tree">
       <div class="wiki-nav-title">Wiki</div>
+      <form class="wiki-search-form" action="/wiki/search" method="get" role="search" data-wiki-search>
+        <label class="visually-hidden" for="wiki-search-query">Wiki durchsuchen</label>
+        <input class="form-control form-control-sm" id="wiki-search-query" type="search" name="q" maxlength="120" placeholder="Wiki durchsuchen …" autocomplete="off" data-wiki-search-input aria-autocomplete="list" aria-expanded="false" aria-controls="wiki-search-results">
+        <div class="wiki-search-popover" id="wiki-search-results" data-wiki-search-results role="listbox" aria-live="polite" hidden></div>
+      </form>
       <ul class="wiki-nav-list wiki-nav-start">
         <li><a class="wiki-nav-link<?= ($page['route_path'] === ($navigation['root_route'] ?? 'index')) ? ' is-active' : '' ?>"<?= ($page['route_path'] === ($navigation['root_route'] ?? 'index')) ? ' aria-current="page"' : '' ?> href="/wiki">Start</a></li>
       </ul>

@@ -42,6 +42,8 @@ $pdo->exec('CREATE TABLE users (
     username TEXT NULL,
     email TEXT NOT NULL,
     timezone TEXT NOT NULL DEFAULT "UTC",
+    theme_mode TEXT NOT NULL DEFAULT "system",
+    theme_switcher_visible INTEGER NOT NULL DEFAULT 1,
     dashboard_auto_refresh_enabled INTEGER NOT NULL DEFAULT 1,
     dashboard_auto_refresh_interval_minutes INTEGER NOT NULL DEFAULT 30,
     password_hash TEXT NOT NULL,

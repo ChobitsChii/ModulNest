@@ -14,6 +14,9 @@ $timezoneOptions = is_array($timezone_options ?? null) ? $timezone_options : [];
 $settingsTimezone = (string) ($settings_timezone ?? 'UTC');
 $settingsDashboardAutoRefreshEnabled = (bool) ($settings_dashboard_auto_refresh_enabled ?? true);
 $settingsDashboardAutoRefreshIntervalMinutes = (int) ($settings_dashboard_auto_refresh_interval_minutes ?? 30);
+$settingsThemeCandidate = (string) ($settings_theme_mode ?? 'system');
+$settingsThemeMode = in_array($settingsThemeCandidate, ['system', 'light', 'dark'], true) ? $settingsThemeCandidate : 'system';
+$settingsThemeSwitcherVisible = (bool) ($settings_theme_switcher_visible ?? true);
 $fantasyCardsProfileAvailable = (bool) ($fantasy_cards_profile_available ?? false);
 $fantasyCardsProfile = is_array($fantasy_cards_profile ?? null) ? $fantasy_cards_profile : [];
 $profileCardsMessage = (string) ($profile_cards_message ?? '');
@@ -354,6 +357,24 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
         <div class="card-body p-4">
             <form method="post" action="/profil/settings" class="row g-3">
                 <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                <fieldset class="col-12 border-0 border-bottom pb-4 mb-2">
+                    <legend class="h5 mb-3">Darstellung</legend>
+                    <div class="mb-3">
+                        <span class="form-label d-block mb-2">Theme</span>
+                        <div class="btn-group" role="group" aria-label="Theme auswählen">
+                            <?php foreach (['system' => 'System', 'light' => 'Hell', 'dark' => 'Dunkel'] as $mode => $label): ?>
+                                <input class="btn-check" type="radio" name="theme_mode" id="settings_theme_<?= $mode ?>" value="<?= $mode ?>"<?= $settingsThemeMode === $mode ? ' checked' : '' ?>>
+                                <label class="btn btn-outline-secondary" for="settings_theme_<?= $mode ?>"><?= $label ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="form-text">System verwendet die Einstellung deines Betriebssystems bzw. Browsers.</div>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input id="settings_theme_switcher_visible" class="form-check-input" type="checkbox" name="theme_switcher_visible" value="1"<?= $settingsThemeSwitcherVisible ? ' checked' : '' ?>>
+                        <label class="form-check-label" for="settings_theme_switcher_visible">Theme-Umschalter in der Kopfzeile anzeigen</label>
+                    </div>
+                    <div class="form-text">Blendet den schnellen Theme-Umschalter in der Kopfzeile ein oder aus.</div>
+                </fieldset>
                 <div class="col-12 col-md-7 col-lg-6">
                     <label class="form-label mb-1" for="profile_timezone">Zeitzone</label>
                     <select id="profile_timezone" class="form-select" name="timezone" required>

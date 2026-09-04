@@ -20,7 +20,7 @@ final class UserRepository
     public function findByEmail(string $email): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, username, email, timezone, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
+            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
              FROM users WHERE email = :email LIMIT 1'
         );
         $statement->execute(['email' => $email]);
@@ -37,7 +37,7 @@ final class UserRepository
     public function findByUsername(string $username): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, username, email, timezone, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
+            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
              FROM users WHERE username = :username LIMIT 1'
         );
         $statement->execute(['username' => $username]);
@@ -54,7 +54,7 @@ final class UserRepository
     public function findById(int $id): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, username, email, timezone, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, is_blocked, totp_secret, totp_enabled, webauthn_enabled
+            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, is_blocked, totp_secret, totp_enabled, webauthn_enabled
              FROM users WHERE id = :id LIMIT 1'
         );
         $statement->execute(['id' => $id]);
@@ -279,13 +279,17 @@ final class UserRepository
         int $userId,
         string $timezone,
         bool $dashboardAutoRefreshEnabled,
-        int $dashboardAutoRefreshIntervalMinutes
+        int $dashboardAutoRefreshIntervalMinutes,
+        string $themeMode,
+        bool $themeSwitcherVisible,
     ): void {
         $statement = $this->pdo->prepare(
             'UPDATE users
              SET timezone = :timezone,
                  dashboard_auto_refresh_enabled = :dashboard_auto_refresh_enabled,
                  dashboard_auto_refresh_interval_minutes = :dashboard_auto_refresh_interval_minutes,
+                 theme_mode = :theme_mode,
+                 theme_switcher_visible = :theme_switcher_visible,
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = :id'
         );
@@ -294,7 +298,20 @@ final class UserRepository
             'timezone' => $timezone,
             'dashboard_auto_refresh_enabled' => $dashboardAutoRefreshEnabled ? 1 : 0,
             'dashboard_auto_refresh_interval_minutes' => $dashboardAutoRefreshIntervalMinutes,
+            'theme_mode' => $themeMode,
+            'theme_switcher_visible' => $themeSwitcherVisible ? 1 : 0,
         ]);
+    }
+
+    public function updateThemeMode(int $userId, string $themeMode): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE users
+             SET theme_mode = :theme_mode,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        );
+        $statement->execute(['id' => $userId, 'theme_mode' => $themeMode]);
     }
 
     public function updateDashboardAutoRefreshSettings(int $userId, bool $enabled, int $intervalMinutes): void

@@ -9,6 +9,7 @@ use DateTimeZone;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Session;
+use Modulon\Core\ThemePreference;
 use Modulon\Core\View;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\UserRepository;
@@ -204,6 +205,16 @@ final class UserController
         }
 
         $autoRefreshEnabled = $this->toBool($request->inputRaw('dashboard_auto_refresh_enabled', 0));
+        $themeMode = (string) $request->input('theme_mode', ThemePreference::SYSTEM);
+        if (!ThemePreference::isValid($themeMode)) {
+            $this->session->flash('settings_error', 'Ungültige Theme-Auswahl.');
+            return Response::redirect('/profil/settings');
+        }
+        $themeSwitcherVisible = $this->strictBoolean($request->inputRaw('theme_switcher_visible', '0'));
+        if ($themeSwitcherVisible === null) {
+            $this->session->flash('settings_error', 'Ungültige Einstellung für den Theme-Umschalter.');
+            return Response::redirect('/profil/settings');
+        }
         $intervalRaw = $request->inputRaw('dashboard_auto_refresh_interval_minutes', self::DASHBOARD_AUTO_REFRESH_DEFAULT_MINUTES);
         $interval = $this->normalizeDashboardAutoRefreshInterval($intervalRaw);
         if ($interval === null) {
@@ -218,9 +229,29 @@ final class UserController
             return Response::redirect('/profil/settings');
         }
 
-        $this->users->updateSettings($userId, $timezone, $autoRefreshEnabled, $interval);
+        $this->users->updateSettings($userId, $timezone, $autoRefreshEnabled, $interval, $themeMode, $themeSwitcherVisible);
         $this->session->flash('settings_info', 'Einstellungen gespeichert.');
         return Response::redirect('/profil/settings');
+    }
+
+    public function updateTheme(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return $this->json(['success' => false, 'error' => 'service_unavailable'], 503);
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return $this->json(['success' => false, 'error' => 'authentication_required'], 401);
+        }
+
+        $themeMode = $request->input('theme_mode');
+        if (!ThemePreference::isValid($themeMode)) {
+            return $this->json(['success' => false, 'error' => 'invalid_theme_mode'], 422);
+        }
+
+        $this->users->updateThemeMode((int) ($user['id'] ?? 0), $themeMode);
+        return $this->json(['success' => true, 'theme_mode' => $themeMode]);
     }
 
     private function renderUserArea(Request $request, string $tab): Response
@@ -252,6 +283,8 @@ final class UserController
         $dashboardAutoRefreshEnabled = (int) ($user['dashboard_auto_refresh_enabled'] ?? 1) === 1;
         $dashboardAutoRefreshIntervalMinutes = $this->normalizeDashboardAutoRefreshInterval($user['dashboard_auto_refresh_interval_minutes'] ?? null)
             ?? self::DASHBOARD_AUTO_REFRESH_DEFAULT_MINUTES;
+        $themeMode = ThemePreference::normalize($user['theme_mode'] ?? ThemePreference::SYSTEM);
+        $themeSwitcherVisible = (int) ($user['theme_switcher_visible'] ?? 1) === 1;
 
         return new Response(View::render('user/area', $this->viewData($request, [
             'title' => match ($activeTab) {
@@ -266,6 +299,8 @@ final class UserController
             'settings_timezone' => $timezoneValue,
             'settings_dashboard_auto_refresh_enabled' => $dashboardAutoRefreshEnabled,
             'settings_dashboard_auto_refresh_interval_minutes' => $dashboardAutoRefreshIntervalMinutes,
+            'settings_theme_mode' => $themeMode,
+            'settings_theme_switcher_visible' => $themeSwitcherVisible,
             'profile_message' => $this->session->pullFlash('profile_info'),
             'profile_error' => $this->session->pullFlash('profile_error'),
             'security_message' => $this->session->pullFlash('security_info'),
@@ -368,5 +403,24 @@ final class UserController
         }
 
         return false;
+    }
+
+    private function strictBoolean(mixed $value): ?bool
+    {
+        return match ($value) {
+            true, 1, '1' => true,
+            false, 0, '0' => false,
+            default => null,
+        };
+    }
+
+    /** @param array<string,mixed> $payload */
+    private function json(array $payload, int $status = 200): Response
+    {
+        return new Response(
+            json_encode($payload, JSON_THROW_ON_ERROR),
+            $status,
+            ['Content-Type' => 'application/json; charset=UTF-8'],
+        );
     }
 }

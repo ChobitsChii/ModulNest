@@ -13,15 +13,17 @@ final class WikiModule implements NativeModuleInterface
     {
         if ($context->pdo === null) return null;
         $repository = new WikiRepository($context->pdo);
-        $service = new WikiService($repository, $context->pdo, $context->basePath, new GitHubWikiClient());
+        $indexer = new WikiSearchIndexer($context->pdo);
+        $search = new WikiSearchService($context->pdo, $indexer, $context->basePath . '/storage/wiki/content');
+        $service = new WikiService($repository, $context->pdo, $context->basePath, new GitHubWikiClient(), $indexer);
         $auth = $context->service('authService');
-        return new self(new WikiController($context->session, $repository, $service, $context->basePath, $auth instanceof \Modulon\Modules\Auth\AuthService ? $auth : null));
+        return new self(new WikiController($context->session, $repository, $service, $context->basePath, $auth instanceof \Modulon\Modules\Auth\AuthService ? $auth : null, $search));
     }
     public function __construct(private readonly WikiController $controller) {}
     public function key(): string { return 'wiki'; }
     public function routePrefix(): string { return 'wiki'; }
     public function registerNavigation(ModuleSubnavigationRegistry $moduleNavigation, AdminNavigationRegistry $adminNavigation, UserNavigationRegistry $userNavigation): void { $adminNavigation->registerProvider(new WikiAdminNavigationProvider()); }
-    public function registerRoutes(Router $router): void { $router->get('/wiki', [$this->controller,'index'],'user'); $router->get('/wiki/assets/*',[$this->controller,'asset'],'user'); $router->get('/wiki/*',[$this->controller,'page'],'user'); }
-    public function registerAdminRoutes(Router $router): void { $router->get('/admin/wiki',[$this->controller,'admin'],'admin');$router->get('/admin/wiki/local-directories',[$this->controller,'localDirectories'],'admin');$router->post('/admin/wiki/save',[$this->controller,'adminSave'],'admin');$router->post('/admin/wiki/sync',[$this->controller,'sync'],'admin'); }
+    public function registerRoutes(Router $router): void { $router->get('/wiki', [$this->controller,'index'],'user'); $router->get('/wiki/search',[$this->controller,'search'],'user'); $router->get('/wiki/assets/*',[$this->controller,'asset'],'user'); $router->get('/wiki/*',[$this->controller,'page'],'user'); }
+    public function registerAdminRoutes(Router $router): void { $router->get('/admin/wiki',[$this->controller,'admin'],'admin');$router->get('/admin/wiki/local-directories',[$this->controller,'localDirectories'],'admin');$router->post('/admin/wiki/save',[$this->controller,'adminSave'],'admin');$router->post('/admin/wiki/sync',[$this->controller,'sync'],'admin');$router->post('/admin/wiki/search/rebuild',[$this->controller,'rebuildSearch'],'admin'); }
     public function nativeBinding(): array { return ['module_key'=>'wiki','internal_name'=>'Wiki','controller'=>WikiController::class,'implementation_path'=>'app/Modules/Wiki/WikiController.php','route_binding'=>'GET /wiki']; }
 }

@@ -67,14 +67,15 @@ const WikiSourceUrl = (() => {
         [owner, repository, ref, docsRoot].forEach((field) => field.addEventListener('input', updateUrl));
         updateUrl();
         const type = form.querySelector('[data-wiki-source-type]');
+        const pickerButton = form.querySelector('[data-wiki-directory-picker]');
         const applyType = () => {
             const local = type?.value === 'local';
             form.querySelectorAll('[data-wiki-github-field]').forEach((node) => { node.hidden = local; });
             const help = form.querySelector('[data-wiki-local-help]'); if (help) help.hidden = !local;
+            if (pickerButton) pickerButton.hidden = !local;
             const pathHelp = form.querySelector('[data-wiki-path-help]'); if (pathHelp) pathHelp.textContent = local ? 'Pfad relativ zur ModulNest-Installation. Verzeichnisse außerhalb der Installation sind nicht verfügbar.' : 'Pfad innerhalb des GitHub-Repositories, z. B. docs.';
         };
         type?.addEventListener('change', applyType); applyType();
-        const pickerButton = form.querySelector('[data-wiki-directory-picker]');
         const modalElement = document.querySelector('#wikiDirectoryPicker');
         const pathLabel = modalElement?.querySelector('[data-wiki-picker-path]');
         const directories = modalElement?.querySelector('[data-wiki-picker-directories]');
@@ -132,8 +133,48 @@ const WikiNavigation = (() => {
     return { bind };
 })();
 
+const WikiSearch = (() => {
+    const delay = 280;
+    const appendHighlighted = (node, text, terms) => {
+        const source = String(text || '');
+        const needles = [...new Set((terms || []).map((term) => String(term)).filter(Boolean))].sort((a, b) => b.length - a.length);
+        if (!needles.length) { node.textContent = source; return; }
+        const lower = source.toLocaleLowerCase(); let offset = 0;
+        while (offset < source.length) {
+            let next = null;
+            needles.forEach((needle) => { const position=lower.indexOf(needle.toLocaleLowerCase(),offset);if(position>=0&&(next===null||position<next.position||(position===next.position&&needle.length>next.needle.length)))next={position,needle}; });
+            if (next === null) { node.append(document.createTextNode(source.slice(offset))); break; }
+            if (next.position > offset) node.append(document.createTextNode(source.slice(offset,next.position)));
+            const mark=document.createElement('mark');mark.textContent=source.slice(next.position,next.position+next.needle.length);node.append(mark);offset=next.position+next.needle.length;
+        }
+    };
+    const resultNode = (result) => {
+        const article = document.createElement('article'); article.className = 'wiki-search-result'; article.setAttribute('role', 'option');
+        const route = result.route_path === 'index' ? '' : String(result.route_path).split('/').map(encodeURIComponent).join('/');
+        const link = document.createElement('a'); link.href = `/wiki/${route}`; appendHighlighted(link,result.title,result.matched_terms); article.append(link);
+        const context = document.createElement('div'); context.className = 'wiki-search-context'; appendHighlighted(context,result.context,result.matched_terms); article.append(context);
+        const snippet = document.createElement('p'); appendHighlighted(snippet,result.snippet,result.matched_terms);
+        article.append(snippet); return article;
+    };
+    const bind = () => document.querySelectorAll('[data-wiki-search]').forEach((form) => {
+        const input=form.querySelector('[data-wiki-search-input]');const output=form.querySelector('[data-wiki-search-results]');if(!input||!output)return;
+        const floating = output.classList.contains('wiki-search-popover');
+        const place = () => { if(!floating)return;const rect=input.getBoundingClientRect();const left=Math.max(8,rect.left);output.style.left=`${left}px`;output.style.top=`${rect.bottom+4}px`;output.style.width=`${Math.min(672,window.innerWidth-left-8)}px`; };
+        if(floating){document.body.append(output);window.addEventListener('resize',place);document.addEventListener('scroll',place,true);}
+        let timer=0,controller=null,active=-1,requestSequence=0;
+        const close=()=>{if(!form.classList.contains('wiki-search-form-page'))output.hidden=true;input.setAttribute('aria-expanded','false');active=-1;};
+        const render=(data)=>{output.replaceChildren();const query=input.value.trim();if(query.length<2){close();return;}if(!data.available){const p=document.createElement('p');p.className='wiki-search-message';p.textContent='Suchindex noch nicht verfügbar.';output.append(p);}else if(!data.results.length){const p=document.createElement('p');p.className='wiki-search-message';p.textContent='Keine Treffer gefunden.';output.append(p);}else output.append(...data.results.map(resultNode));place();output.hidden=false;input.setAttribute('aria-expanded','true');};
+        const run=async(sequence)=>{const query=input.value.trim();if(query.length<2){render({available:true,results:[]});return;}controller=new AbortController();try{const response=await fetch(`/wiki/search?q=${encodeURIComponent(query)}`,{headers:{Accept:'application/json'},signal:controller.signal});const data=response.ok?await response.json():null;if(data!==null&&sequence===requestSequence&&query===input.value.trim())render(data);}catch(error){if(error.name!=='AbortError'&&sequence===requestSequence)close();}};
+        input.addEventListener('input',()=>{window.clearTimeout(timer);requestSequence++;controller?.abort();const sequence=requestSequence;timer=window.setTimeout(()=>run(sequence),delay);});
+        input.addEventListener('keydown',(event)=>{const links=[...output.querySelectorAll('a')];if(event.key==='Escape'){close();return;}if(!['ArrowDown','ArrowUp'].includes(event.key)||links.length===0)return;event.preventDefault();active=(active+(event.key==='ArrowDown'?1:-1)+links.length)%links.length;links[active].focus();});
+        form.addEventListener('focusout',()=>window.setTimeout(()=>{if(!form.contains(document.activeElement)&&!output.contains(document.activeElement))close();},0));
+    });
+    return { bind };
+})();
+
 if (typeof module !== 'undefined' && module.exports) module.exports = WikiSourceUrl;
 if (typeof document !== 'undefined') {
     WikiSourceUrl.bind();
     WikiNavigation.bind();
+    WikiSearch.bind();
 }

@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(40) NULL UNIQUE,
     email VARCHAR(190) NOT NULL UNIQUE,
     timezone VARCHAR(64) NOT NULL DEFAULT 'UTC',
+    theme_mode VARCHAR(16) NOT NULL DEFAULT 'system',
+    theme_switcher_visible TINYINT(1) NOT NULL DEFAULT 1,
     dashboard_auto_refresh_enabled TINYINT(1) NOT NULL DEFAULT 1,
     dashboard_auto_refresh_interval_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30,
     password_hash VARCHAR(255) NOT NULL,
@@ -25,6 +27,8 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS username VARCHAR(40) NULL,
     ADD COLUMN IF NOT EXISTS timezone VARCHAR(64) NOT NULL DEFAULT 'UTC',
+    ADD COLUMN IF NOT EXISTS theme_mode VARCHAR(16) NOT NULL DEFAULT 'system',
+    ADD COLUMN IF NOT EXISTS theme_switcher_visible TINYINT(1) NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS dashboard_auto_refresh_enabled TINYINT(1) NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS dashboard_auto_refresh_interval_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30,
     ADD COLUMN IF NOT EXISTS is_blocked TINYINT(1) NOT NULL DEFAULT 0,

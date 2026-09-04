@@ -75,24 +75,25 @@ try {
     $runner = new MigrationRunner($server, $basePath);
     $first = $runner->run($publicModules);
     migration_smoke_assert(count($first['errors']) === 0, 'Erster Migrationslauf enthält Fehler.');
-    migration_smoke_assert(count($first['executed']) === 14, 'Erster Migrationslauf sollte 14 Migrationen ausführen.');
+    migration_smoke_assert(count($first['executed']) === 16, 'Erster Migrationslauf sollte 16 Migrationen ausführen.');
 
     $second = $runner->run($publicModules);
     migration_smoke_assert(count($second['executed']) === 0, 'Zweiter Migrationslauf darf nichts erneut ausführen.');
-    migration_smoke_assert(count($second['skipped']) === 14, 'Zweiter Migrationslauf sollte 14 Migrationen überspringen.');
+    migration_smoke_assert(count($second['skipped']) === 16, 'Zweiter Migrationslauf sollte 16 Migrationen überspringen.');
 
     $tables = migration_smoke_tables($server);
-    foreach (['schema_migrations', 'users', 'modules', 'news_entries', 'homepage_blocks', 'homepage_block_buttons', 'homepage_block_items', 'dashboard_widgets', 'dashboard_tasks', 'dashboard_notes', 'banking_accounts', 'banking_transactions', 'banking_recurring_rules', 'sneak_preview_entries', 'sneak_preview_settings', 'wiki_sources', 'wiki_pages', 'wiki_assets', 'wiki_sync_runs'] as $table) {
+    foreach (['schema_migrations', 'users', 'modules', 'news_entries', 'homepage_blocks', 'homepage_block_buttons', 'homepage_block_items', 'dashboard_widgets', 'dashboard_tasks', 'dashboard_notes', 'banking_accounts', 'banking_transactions', 'banking_recurring_rules', 'sneak_preview_entries', 'sneak_preview_settings', 'wiki_sources', 'wiki_pages', 'wiki_assets', 'wiki_sync_runs', 'wiki_search_state', 'wiki_search_documents', 'wiki_search_terms', 'wiki_search_postings', 'wiki_search_trigrams'] as $table) {
         migration_smoke_assert(in_array($table, $tables, true), "Tabelle fehlt nach Migration: {$table}");
     }
     migration_smoke_assert((int) $server->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dashboard_tasks' AND COLUMN_NAME = 'archived_at'")->fetchColumn() === 1, 'dashboard_tasks.archived_at fehlt.');
     migration_smoke_assert((int) $server->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dashboard_notes' AND COLUMN_NAME = 'archived_at'")->fetchColumn() === 1, 'dashboard_notes.archived_at fehlt.');
+    migration_smoke_assert((int) $server->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME IN ('theme_mode', 'theme_switcher_visible')")->fetchColumn() === 2, 'Theme-Profileinstellungen fehlen.');
     foreach (['mail_accounts', 'mail_message_index', 'card_sets', 'cards', 'user_cards', 'fantasy_card_user_state'] as $table) {
         migration_smoke_assert(!in_array($table, $tables, true), "Nicht ausgewähltes Modul wurde migriert: {$table}");
     }
 
     $executedCount = (int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
-    migration_smoke_assert($executedCount === 14, 'schema_migrations sollte 14 Einträge enthalten.');
+    migration_smoke_assert($executedCount === 16, 'schema_migrations sollte 16 Einträge enthalten.');
 } finally {
     $server->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $dbName) . '`');
 }
@@ -109,7 +110,7 @@ try {
     $result = $runner->run($publicModules);
     migration_smoke_assert(count($result['errors']) === 0, 'Migration über bestehendes Gesamtschema enthält Fehler.');
     migration_smoke_assert((string) $server->query("SELECT `value` FROM app_settings WHERE `key` = 'migration_smoke_marker'")->fetchColumn() === 'keep', 'Bestehende Daten wurden verändert.');
-    migration_smoke_assert((int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 14, 'Migrationen wurden in alter DB nicht markiert.');
+    migration_smoke_assert((int) $server->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 16, 'Migrationen wurden in alter DB nicht markiert.');
 } finally {
     $server->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $oldDbName) . '`');
 }

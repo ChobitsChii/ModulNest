@@ -2,13 +2,18 @@
 declare(strict_types=1);
 
 $assetVersion = rawurlencode((string) ($app_version ?? ''));
+$layoutAuth = is_array($auth ?? null) ? $auth : [];
+$layoutAuthenticated = (bool) ($layoutAuth['is_authenticated'] ?? false);
+$layoutThemeCandidate = (string) ($theme_mode ?? 'system');
+$layoutThemeMode = in_array($layoutThemeCandidate, ['system', 'light', 'dark'], true) ? $layoutThemeCandidate : 'system';
 ?>
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme-mode="<?= htmlspecialchars($layoutThemeMode, ENT_QUOTES, 'UTF-8') ?>" data-theme-authenticated="<?= $layoutAuthenticated ? 'true' : 'false' ?>"<?= $layoutThemeMode !== 'system' ? ' data-theme="' . htmlspecialchars($layoutThemeMode, ENT_QUOTES, 'UTF-8') . '"' : '' ?>>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars((string) ($title ?? 'Modulon'), ENT_QUOTES, 'UTF-8') ?></title>
+    <script src="/assets/js/theme-init.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/assets/css/app.css<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>" rel="stylesheet">

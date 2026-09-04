@@ -1,6 +1,92 @@
 (function () {
     'use strict';
 
+    function initThemeSwitcher() {
+        var switcher = document.querySelector('[data-theme-switcher]');
+        var theme = window.ModulonTheme;
+        if (!(switcher instanceof HTMLElement) || !theme) {
+            return;
+        }
+
+        var button = switcher.querySelector('.app-theme-button');
+        var currentIcon = switcher.querySelector('[data-theme-current-icon]');
+        var currentLabel = switcher.querySelector('[data-theme-current-label]');
+        var status = switcher.querySelector('[data-theme-status]');
+        var authenticated = switcher.dataset.authenticated === 'true';
+        var labels = { system: 'System', light: 'Hell', dark: 'Dunkel' };
+        var icons = { system: 'bi-display', light: 'bi-sun', dark: 'bi-moon-stars' };
+
+        function render(mode) {
+            var label = labels[mode] || labels.system;
+            switcher.querySelectorAll('[data-theme-option]').forEach(function (option) {
+                var active = option.getAttribute('data-theme-option') === mode;
+                option.classList.toggle('active', active);
+                if (active) option.setAttribute('aria-current', 'true');
+                else option.removeAttribute('aria-current');
+            });
+            if (currentIcon instanceof Element) {
+                currentIcon.className = 'bi ' + (icons[mode] || icons.system);
+            }
+            if (currentLabel instanceof Element) currentLabel.textContent = label;
+            if (button instanceof HTMLButtonElement) button.setAttribute('aria-label', 'Darstellung: ' + label);
+        }
+
+        function announce(message) {
+            if (status instanceof Element) status.textContent = message;
+        }
+
+        switcher.addEventListener('click', function (event) {
+            var option = event.target instanceof Element ? event.target.closest('[data-theme-option]') : null;
+            if (!(option instanceof HTMLButtonElement)) return;
+            var nextMode = option.getAttribute('data-theme-option') || '';
+            if (!Object.prototype.hasOwnProperty.call(labels, nextMode)) return;
+
+            var previousMode = theme.getMode();
+            if (!authenticated) {
+                theme.setMode(nextMode, true);
+                render(nextMode);
+                announce('Darstellung auf ' + labels[nextMode] + ' gesetzt.');
+                return;
+            }
+
+            theme.setMode(nextMode, false);
+            render(nextMode);
+            option.disabled = true;
+            fetch('/profil/theme', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': switcher.dataset.csrfToken || ''
+                },
+                body: JSON.stringify({ theme_mode: nextMode })
+            }).then(function (response) {
+                if (!response.ok) throw new Error('theme_save_failed');
+                return response.json();
+            }).then(function (payload) {
+                if (!payload || payload.success !== true || payload.theme_mode !== nextMode) {
+                    throw new Error('theme_save_failed');
+                }
+                announce('Darstellung auf ' + labels[nextMode] + ' gesetzt und gespeichert.');
+            }).catch(function () {
+                theme.setMode(previousMode, false);
+                render(previousMode);
+                announce('Darstellung konnte nicht gespeichert werden. Die vorherige Auswahl wurde wiederhergestellt.');
+            }).finally(function () {
+                option.disabled = false;
+            });
+        });
+
+        window.addEventListener('modulon:themechange', function (event) {
+            var mode = event.detail && event.detail.mode;
+            if (Object.prototype.hasOwnProperty.call(labels, mode)) render(mode);
+        });
+        render(theme.getMode());
+    }
+
+    initThemeSwitcher();
+
     function legacyCopy(text) {
         var textarea = document.createElement('textarea');
         textarea.value = text;

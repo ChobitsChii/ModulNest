@@ -267,6 +267,20 @@
     padding: .55rem .7rem;
 }
 
+.wiki-search-form { margin: .8rem 0 1rem; position: relative; }
+.wiki-search-popover { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: .55rem; box-shadow: var(--bs-box-shadow); box-sizing: border-box; max-height: min(30rem, 65vh); max-width: calc(100vw - 1rem); overflow-x: hidden; overflow-y: auto; padding: .35rem; position: fixed; z-index: 1080; }
+.wiki-search-result { border-bottom: 1px solid var(--app-border); min-width: 0; overflow-wrap: anywhere; padding: .65rem .7rem; word-break: normal; }
+.wiki-search-result:last-child { border-bottom: 0; }
+.wiki-search-result > a { display: inline; font-weight: 650; overflow-wrap: anywhere; text-decoration: none; }
+.wiki-search-result > a:hover, .wiki-search-result > a:focus-visible { text-decoration: underline; }
+.wiki-search-result p { color: var(--app-muted); font-size: .86rem; line-height: 1.4; margin: .25rem 0 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+.wiki-search-context { color: var(--app-muted); font-size: .75rem; margin-top: .1rem; }
+.wiki-search-message { color: var(--app-muted); font-size: .85rem; margin: 0; padding: .65rem; }
+.wiki-search-result mark { background: color-mix(in srgb, var(--app-primary) 22%, transparent); color: inherit; border-radius: .15rem; padding: 0 .08rem; }
+.wiki-search-page { margin-inline: auto; max-width: 58rem; }
+.wiki-search-form-page { margin: 1rem 0 1.5rem; }
+.wiki-search-page-results .wiki-search-result { padding-inline: 0; }
+
 .wiki-toc-mobile summary {
     border-bottom: 1px solid var(--app-border);
     color: var(--app-muted);

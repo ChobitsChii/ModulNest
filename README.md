@@ -4,7 +4,7 @@ ModulNest ist eine modulare, selbst hostbare PHP-Webplattform. Ziel ist es, mehr
 
 Der interne Core-/Arbeitsname lautet Modulon. Für öffentliche Releases, Dokumentation und Installation ist der Produktname **ModulNest**.
 
-Status: **Stable 1.1.1**. Aktuelle Versionen und Downloads findest du unter [GitHub Releases](https://github.com/ChobitsChii/ModulNest/releases/latest).
+Status: **Stable 1.2.0**. Aktuelle Versionen und Downloads findest du unter [GitHub Releases](https://github.com/ChobitsChii/ModulNest/releases/latest).
 
 ## Warum ModulNest?
 

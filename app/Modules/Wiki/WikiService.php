@@ -25,6 +25,7 @@ final class WikiService
         private readonly PDO $pdo,
         private readonly string $basePath,
         private readonly GitHubWikiClient $client,
+        private readonly ?WikiSearchIndexer $searchIndexer = null,
     ) {
     }
 
@@ -179,6 +180,7 @@ final class WikiService
             if (!rename($newContent, $live)) { throw new WikiSyncException('content_switch_failed'); }
             $this->pdo->beginTransaction();
             $result = $this->repository->replaceIndex((int) $source['id'], $pages, $assets, $sha, $source);
+            ($this->searchIndexer ?? new WikiSearchIndexer($this->pdo))->synchronize((int) $source['id'], $live);
             $this->pdo->commit();
             if ($moved) { $this->removeTree($backup); }
             return $result;

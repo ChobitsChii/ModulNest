@@ -77,6 +77,7 @@ final class UserModule implements NativeModuleInterface
         $router->post('/profil/update', [$this->controller, 'updateProfile'], 'user');
         $router->post('/profil/password', [$this->controller, 'updatePassword'], 'user');
         $router->post('/profil/settings', [$this->controller, 'updateSettings'], 'user');
+        $router->post('/profil/theme', [$this->controller, 'updateTheme'], 'user');
         $router->post('/profil/fantasy-cards', [$this->controller, 'updateFantasyCardsProfile'], 'user');
     }
 
@@ -91,7 +92,7 @@ final class UserModule implements NativeModuleInterface
             'internal_name' => 'User / Profil',
             'controller' => UserController::class,
             'implementation_path' => 'app/Modules/User/UserController.php',
-        'route_binding' => 'GET /profil, GET /profil/*, POST /profil/update, POST /profil/password, POST /profil/settings, POST /profil/fantasy-cards',
+            'route_binding' => 'GET /profil, GET /profil/*, POST /profil/update, POST /profil/password, POST /profil/settings, POST /profil/theme, POST /profil/fantasy-cards',
         ];
     }
 }

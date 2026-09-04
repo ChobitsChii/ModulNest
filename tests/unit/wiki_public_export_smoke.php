@@ -20,6 +20,7 @@ try {
         'docs/releases/1.0.1.md',
         'docs/releases/1.1.0.md',
         'docs/releases/1.1.1.md',
+        'docs/releases/1.2.0.md',
         'docs/third-party.md',
         'assets/markdown-highlight.js',
         'package.json',
@@ -31,6 +32,10 @@ try {
         'app/Modules/Wiki/LocalWikiSource.php',
         'app/Modules/Wiki/Database/Migrations/20260903_010000_wiki_local_source.php',
         'app/Modules/Wiki/Database/Migrations/20260903_020000_wiki_active_source.php',
+        'app/Modules/Wiki/Database/Migrations/20260904_010000_wiki_search.php',
+        'app/Modules/Wiki/WikiSearchIndexer.php',
+        'app/Modules/Wiki/WikiSearchHighlighter.php',
+        'app/Modules/Wiki/WikiSearchService.php',
         'app/Modules/Wiki/WikiNavigationBuilder.php',
         'app/Views/wiki/index.php',
     ] as $path) {
@@ -38,7 +43,7 @@ try {
     }
     wiki_export_assert(!is_dir($target . '/app/Modules/ExampleNotes'), 'ExampleNotes must remain reference code outside productive module discovery.');
     $metadata = json_decode((string) file_get_contents($target . '/modulnest-package.json'), true);
-    wiki_export_assert(is_array($metadata) && ($metadata['version'] ?? '') === '1.1.1' && ($metadata['requires_migrations'] ?? false) === true, 'The 1.1.1 public package must require its Wiki source migrations.');
+    wiki_export_assert(is_array($metadata) && ($metadata['version'] ?? '') === '1.2.0' && ($metadata['requires_migrations'] ?? false) === true, 'The 1.2.0 public package must require its Theme and Wiki search migrations.');
 } finally {
     if (is_dir($target)) {
         system('rm -rf ' . escapeshellarg($target));

@@ -36,7 +36,7 @@ $routes = [
     '/admin/modules/create', '/admin/modules/update', '/admin/modules/toggle', '/admin/modules/reorder', '/admin/modules/delete',
     '/admin/users/create', '/admin/users/update', '/admin/users/toggle-block', '/admin/users/delete',
     '/admin/settings/registration', '/admin/settings/registration/toggle',
-    '/profil/update', '/profil/settings', '/profil/password',
+    '/profil/update', '/profil/settings', '/profil/theme', '/profil/password',
     '/admin/pages/create', '/admin/pages/update', '/admin/pages/delete', '/admin/pages/toggle', '/admin/pages/move',
     '/admin/news/create', '/admin/news/update', '/admin/news/delete',
 ];

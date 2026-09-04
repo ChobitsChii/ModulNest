@@ -66,6 +66,25 @@ WebAuthn-Versuche pro Aktion, IP und gehashtem Benutzerbezug in 15 Minuten.
 Er speichert keine Passwörter, Codes oder Tokens. Erfolgreiche Schritte setzen
 den jeweiligen Bucket zurück.
 
+## Darstellung
+
+Der Theme-Umschalter in der Kopfzeile bietet drei Modi:
+
+- **System** folgt automatisch dem Light-/Dark-Modus des Betriebssystems oder Browsers.
+- **Hell** erzwingt die helle Darstellung.
+- **Dunkel** erzwingt die dunkle Darstellung.
+
+Für Gäste wird die Auswahl ausschließlich lokal im Browser gespeichert. Für
+angemeldete Benutzer ist der Wert Teil der Profileinstellungen und gilt damit
+auch in einer neuen Sitzung oder einem anderen Browser. Der serverseitige
+Profilwert hat nach dem Login Vorrang vor einer zuvor gewählten Gastdarstellung.
+Nach dem Logout wird wieder die unabhängig gespeicherte Gastdarstellung dieses
+Browsers verwendet.
+
+Angemeldete Benutzer können unter **Profil → Einstellungen → Darstellung** das
+Theme wählen und den schnellen Umschalter in der Kopfzeile ausblenden. Die
+Theme-Auswahl bleibt im Profil auch bei ausgeblendetem Umschalter erreichbar.
+
 ## TOTP und WebAuthn
 
 ```env

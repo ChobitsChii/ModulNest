@@ -22,6 +22,7 @@ Diese Übersicht nennt wichtige Routen des aktuellen Public-Exports. Module kön
 - `POST /profil/update`
 - `POST /profil/password`
 - `POST /profil/settings`
+- `POST /profil/theme` (JSON/fetch, schneller Theme-Wechsel)
 
 Kompatible Sicherheitspfade können unter `/account/security/*` existieren. Die primäre UI nutzt `/profil/security`.
 

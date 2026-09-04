@@ -21,6 +21,7 @@ use Modulon\Core\Response;
 use Modulon\Core\Router;
 use Modulon\Core\Session;
 use Modulon\Core\SystemHealthCheck;
+use Modulon\Core\ThemePreference;
 use Modulon\Core\UserNavigationRegistry;
 use Modulon\Core\View;
 use Modulon\Modules\Admin\AdminController;
@@ -271,6 +272,8 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
     $currentPath = (string) ($data['current_path'] ?? '/');
     $user = $authService?->currentUser();
     $isAdmin = $authService?->isAdmin() ?? false;
+    $themeMode = ThemePreference::normalize($user['theme_mode'] ?? ThemePreference::SYSTEM);
+    $themeSwitcherVisible = $user === null || (int) ($user['theme_switcher_visible'] ?? 1) === 1;
     $pagesNavUngrouped = [];
     $pagesNavGroups = [];
     if ($pagesModuleActive) {
@@ -307,6 +310,8 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
         'admin_nav_items' => $isAdmin ? $adminNavigationRegistry->items($currentPath) : [],
         'user_nav_items' => $user !== null ? $userNavigationRegistry->items($currentPath) : [],
         'module_features' => $moduleFeatures,
+        'theme_mode' => $themeMode,
+        'theme_switcher_visible' => $themeSwitcherVisible,
         'public_registration_enabled' => $publicRegistrationEnabled,
         'app_version' => (string) ($versionConfig['version'] ?? '0.0.0'),
         'product_meta' => $versionConfig,

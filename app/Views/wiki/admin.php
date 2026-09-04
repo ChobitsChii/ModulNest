@@ -19,6 +19,10 @@ $activeLocal = $activeType === 'local';
 $configuredMatchesActive = $hasSuccessfulSync && $activeType === $sourceType
     && ($sourceType !== 'github' || ((string) ($source['active_repository_owner'] ?? '') === (string) ($source['repository_owner'] ?? '') && (string) ($source['active_repository_name'] ?? '') === (string) ($source['repository_name'] ?? '') && (string) ($source['active_ref_name'] ?? '') === (string) ($source['ref_name'] ?? '')))
     && (string) ($source['active_docs_root'] ?? '') === (string) ($source['docs_root'] ?? '');
+$searchIndex = is_array($search_index ?? null) ? $search_index : ['status'=>'missing','version'=>\Modulon\Modules\Wiki\WikiSearchIndexer::VERSION,'pages'=>0,'terms'=>0,'updated_at_local'=>''];
+$searchStatus = (string) $searchIndex['status'];
+$searchStatusLabel = $searchStatus === 'current' ? 'Aktuell' : ($searchStatus === 'stale' ? 'Veraltet' : 'Nicht erstellt');
+$searchStatusClass = $searchStatus === 'current' ? 'text-bg-success' : ($searchStatus === 'stale' ? 'text-bg-warning' : 'text-bg-secondary');
 ?>
 <link rel="stylesheet" href="/assets/css/wiki.css">
 <div class="row g-4 wiki-admin">
@@ -66,7 +70,7 @@ $configuredMatchesActive = $hasSuccessfulSync && $activeType === $sourceType
                     </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label" for="wiki_docs_root">Dokumentationsordner</label>
-                        <div class="input-group"><input class="form-control" id="wiki_docs_root" required name="docs_root" maxlength="255" value="<?= $e($source['docs_root'] ?? 'docs') ?>"><button class="btn btn-outline-secondary" type="button" data-wiki-directory-picker>Ordner auswählen</button></div>
+                        <div class="input-group"><input class="form-control" id="wiki_docs_root" required name="docs_root" maxlength="255" value="<?= $e($source['docs_root'] ?? 'docs') ?>"><button class="btn btn-outline-secondary" type="button" data-wiki-directory-picker<?= $sourceType === 'local' ? '' : ' hidden' ?>>Ordner auswählen</button></div>
                         <div class="form-text" data-wiki-path-help>Pfad relativ zur ModulNest-Installation bzw. innerhalb des GitHub-Repositories.</div>
                     </div>
                     <div class="col-12">
@@ -132,4 +136,5 @@ $configuredMatchesActive = $hasSuccessfulSync && $activeType === $sourceType
     </div>
 </div>
 <div class="modal fade" id="wikiDirectoryPicker" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Ordner auswählen</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button></div><div class="modal-body"><p class="small text-body-secondary">Aktueller Pfad: <code data-wiki-picker-path>/</code></p><button class="btn btn-sm btn-outline-secondary mb-3" type="button" data-wiki-picker-parent hidden>← Zurück</button><div class="list-group wiki-directory-picker-list" data-wiki-picker-directories></div><div class="alert alert-danger mt-3 d-none" data-wiki-picker-error></div></div><div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Abbrechen</button><button class="btn btn-primary" type="button" data-wiki-picker-select>Dieses Verzeichnis auswählen</button></div></div></div></div>
+<div class="row g-4 wiki-admin mt-0"><div class="col-12"><section class="card shadow-sm border-0 app-card"><div class="card-body p-4"><h2 class="h5 mb-2">Suchindex</h2><p class="text-body-secondary small mb-3">Die Suche verwendet einen lokalen Index und benötigt beim Suchen keinen Zugriff auf die Quelle.</p><dl class="row small mb-3" data-wiki-search-status><dt class="col-sm-4 text-body-secondary">Status</dt><dd class="col-sm-8"><span class="badge <?= $searchStatusClass ?>"><?= $e($searchStatusLabel) ?></span></dd><dt class="col-sm-4 text-body-secondary">Indexversion</dt><dd class="col-sm-8"><?= (int)$searchIndex['version'] ?></dd><dt class="col-sm-4 text-body-secondary">Indexierte Seiten</dt><dd class="col-sm-8"><?= (int)$searchIndex['pages'] ?></dd><dt class="col-sm-4 text-body-secondary">Begriffe</dt><dd class="col-sm-8"><?= (int)$searchIndex['terms'] ?></dd><dt class="col-sm-4 text-body-secondary">Zuletzt aktualisiert</dt><dd class="col-sm-8"><?= $e($searchIndex['updated_at_local'] ?: '—') ?></dd></dl><form method="post" action="/admin/wiki/search/rebuild"><?= \Modulon\Core\View::csrfField($csrf_token) ?><button class="btn btn-outline-primary" type="submit" <?= !$hasSuccessfulSync ? 'disabled' : '' ?>>Suchindex neu aufbauen</button></form></div></section></div></div>
 <script src="/assets/js/wiki.js" defer></script>

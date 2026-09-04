@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Modulon\Modules\Wiki;
 
-use Modulon\Core\{DateTimeFormatter, Request, Response, Session, View};
+use Modulon\Core\{DateTimeFormatter, Request, Response, RotatingFileLogger, Session, View};
 use DateTimeZone;
 use RuntimeException;
 use Throwable;
 
 final class WikiController
 {
-    public function __construct(private readonly Session $session, private readonly WikiRepository $repository, private readonly WikiService $service, private readonly string $basePath, private readonly ?\Modulon\Modules\Auth\AuthService $auth = null) {}
+    public function __construct(private readonly Session $session, private readonly WikiRepository $repository, private readonly WikiService $service, private readonly string $basePath, private readonly ?\Modulon\Modules\Auth\AuthService $auth = null, private readonly ?WikiSearchService $searchService = null) {}
     public function index(Request $request): Response
     {
         $page = $this->repository->rootPage();
@@ -60,7 +60,13 @@ final class WikiController
         if($asset===null||!is_file($file)) return new Response('',404);
         return new Response((string)file_get_contents($file),200,['Content-Type'=>(string)$asset['mime_type'],'Content-Length'=>(string)filesize($file),'Cache-Control'=>'private, max-age=3600','X-Content-Type-Options'=>'nosniff','Content-Disposition'=>'inline']);
     }
-    public function admin(Request $request): Response { return new Response(View::render('wiki/admin',['title'=>'Wiki verwalten','current_path'=>$request->path(),'source'=>$this->sourceForView(),'page_count'=>$this->repository->pageCount(),'asset_count'=>$this->repository->assetCount(),'message'=>$this->session->pullFlash('wiki_info'),'error'=>$this->session->pullFlash('wiki_error')])); }
+    public function search(Request $request): Response
+    {
+        $result = $this->searchService?->search((string) $request->query('q', '')) ?? ['query'=>'','too_short'=>false,'available'=>false,'results'=>[]];
+        if ($request->expectsJson()) return new Response((string) json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), 200, ['Content-Type'=>'application/json; charset=UTF-8','Cache-Control'=>'no-store']);
+        return new Response(View::render('wiki/search',['title'=>'Wiki durchsuchen','current_path'=>$request->path(),'search'=>$result]));
+    }
+    public function admin(Request $request): Response { $status=$this->searchService?->status()??['status'=>'missing','version'=>WikiSearchIndexer::VERSION,'pages'=>0,'terms'=>0,'updated_at'=>null];$status['updated_at_local']=DateTimeFormatter::formatUserDateTime($status['updated_at']??'', $this->userTimezone());return new Response(View::render('wiki/admin',['title'=>'Wiki verwalten','current_path'=>$request->path(),'source'=>$this->sourceForView(),'page_count'=>$this->repository->pageCount(),'asset_count'=>$this->repository->assetCount(),'search_index'=>$status,'message'=>$this->session->pullFlash('wiki_info'),'error'=>$this->session->pullFlash('wiki_error')])); }
     public function adminSave(Request $request): Response
     {
         try { if((string)$request->input('source_type','github')==='local') $this->service->saveLocalConfig((string)$request->input('docs_root',''),(string)$request->input('enabled','')==='1'); else $this->service->saveConfig((string)$request->input('owner',''),(string)$request->input('repository',''),(string)$request->input('ref',''),(string)$request->input('docs_root','docs'),(string)$request->input('enabled','')==='1'); $this->session->flash('wiki_info','Wiki-Quelle gespeichert.'); }
@@ -72,6 +78,12 @@ final class WikiController
     {
         try {$result=$this->service->sync();$this->session->flash('wiki_info',sprintf('Synchronisierung abgeschlossen: %d neu, %d geändert, %d entfernt.',$result['added'],$result['changed'],$result['deleted']));}
         catch(Throwable){$this->session->flash('wiki_error','Synchronisierung fehlgeschlagen. Der bisherige lokale Stand bleibt verfügbar.');}
+        return Response::redirect('/admin/wiki');
+    }
+    public function rebuildSearch(Request $request): Response
+    {
+        try { $result=$this->searchService?->rebuild();if($result===null)throw new RuntimeException('Suchindex nicht verfügbar.');$this->session->flash('wiki_info',sprintf('Suchindex neu aufgebaut: %d Seiten, %d Begriffe.',$result['pages'],$result['terms'])); }
+        catch(Throwable){(new RotatingFileLogger($this->basePath))->write('wiki',['event'=>'search_rebuild_failed','code'=>'wiki_search_rebuild_failed']);$this->session->flash('wiki_error','Der Suchindex konnte nicht neu aufgebaut werden. Der bisherige Index bleibt erhalten.');}
         return Response::redirect('/admin/wiki');
     }
     private function sourceForView(): ?array
