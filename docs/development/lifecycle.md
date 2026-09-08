@@ -1,6 +1,6 @@
 # Modul-Lebenszyklus heute
 
-Dieses Dokument beschreibt bewusst nur den aktuellen Stand von ModulNest 1.2.0.
+Dieses Dokument beschreibt bewusst nur den aktuellen Stand von ModulNest 1.3.0.
 
 ## Discovery und Aktivierung
 

@@ -6,10 +6,14 @@ function wiki_export_assert(bool $condition, string $message): void { if (!$cond
 
 $root = dirname(__DIR__, 2);
 $target = sys_get_temp_dir() . '/modulnest-wiki-export-' . bin2hex(random_bytes(5));
-$command = 'cd ' . escapeshellarg($root) . ' && bash tools/release/export-modulnest.sh --target ' . escapeshellarg($target) . ' --no-ui --yes --requires-migrations true 2>&1';
+mkdir($target . '/build/update', 0775, true);
+file_put_contents($target . '/build/update/stable.json', '{"latest":"1.2.0"}');
+file_put_contents($target . '/build/update/prerelease.json', '{"latest":"2.0.0-rc.1"}');
+$command = 'cd ' . escapeshellarg($root) . ' && bash tools/release/export-modulnest.sh --target ' . escapeshellarg($target) . ' --no-ui --yes --requires-migrations false 2>&1';
 exec($command, $output, $status);
 try {
     wiki_export_assert($status === 0, 'The public export must succeed for the Wiki documentation resources.');
+    wiki_export_assert(is_file($target . '/build/update/stable.json') && is_file($target . '/build/update/prerelease.json'), 'Public export must preserve both release feeds.');
     foreach ([
         'docs/README.md',
         '.gitattributes',
@@ -21,6 +25,7 @@ try {
         'docs/releases/1.1.0.md',
         'docs/releases/1.1.1.md',
         'docs/releases/1.2.0.md',
+        'docs/releases/1.3.0.md',
         'docs/third-party.md',
         'assets/markdown-highlight.js',
         'package.json',
@@ -43,7 +48,7 @@ try {
     }
     wiki_export_assert(!is_dir($target . '/app/Modules/ExampleNotes'), 'ExampleNotes must remain reference code outside productive module discovery.');
     $metadata = json_decode((string) file_get_contents($target . '/modulnest-package.json'), true);
-    wiki_export_assert(is_array($metadata) && ($metadata['version'] ?? '') === '1.2.0' && ($metadata['requires_migrations'] ?? false) === true, 'The 1.2.0 public package must require its Theme and Wiki search migrations.');
+    wiki_export_assert(is_array($metadata) && ($metadata['version'] ?? '') === '1.3.0' && ($metadata['requires_migrations'] ?? true) === false, 'The 1.3.0 bridge release must not claim database migrations.');
 } finally {
     if (is_dir($target)) {
         system('rm -rf ' . escapeshellarg($target));

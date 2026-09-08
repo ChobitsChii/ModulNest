@@ -217,15 +217,16 @@ confirm_export() {
 reset_target() {
     local preserve_dir=""
     mkdir -p "$TARGET"
-    if [[ -f "$TARGET/build/update/stable.json" ]]; then
+    if [[ -f "$TARGET/build/update/stable.json" || -f "$TARGET/build/update/prerelease.json" ]]; then
         preserve_dir="$(mktemp -d)"
         mkdir -p "$preserve_dir/build/update"
-        cp -p "$TARGET/build/update/stable.json" "$preserve_dir/build/update/stable.json"
+        [[ ! -f "$TARGET/build/update/stable.json" ]] || cp -p "$TARGET/build/update/stable.json" "$preserve_dir/build/update/stable.json"
+        [[ ! -f "$TARGET/build/update/prerelease.json" ]] || cp -p "$TARGET/build/update/prerelease.json" "$preserve_dir/build/update/prerelease.json"
     fi
     find "$TARGET" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
     if [[ -n "$preserve_dir" ]]; then
         mkdir -p "$TARGET/build/update"
-        cp -p "$preserve_dir/build/update/stable.json" "$TARGET/build/update/stable.json"
+        cp -p "$preserve_dir/build/update/"*.json "$TARGET/build/update/"
         rm -rf "$preserve_dir"
     fi
 }

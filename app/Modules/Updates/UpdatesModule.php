@@ -11,6 +11,7 @@ use Modulon\Core\NativeModuleInterface;
 use Modulon\Core\Router;
 use Modulon\Core\UserNavigationRegistry;
 use Modulon\Modules\Auth\AuthService;
+use Modulon\Modules\Admin\AppSettingRepository;
 
 final class UpdatesModule implements NativeModuleInterface
 {
@@ -30,12 +31,14 @@ final class UpdatesModule implements NativeModuleInterface
     public static function create(ModuleContext $context): ?NativeModuleInterface
     {
         $authService = $context->service('authService');
+        $settings = $context->service('appSettingRepository');
         $controller = new UpdatesController(
             new UpdatesService($context->basePath, $context->pdo),
             $context->session,
             (string) $context->config('app_version', ''),
             (string) $context->config('app_channel', 'alpha'),
             $authService instanceof AuthService ? $authService : null,
+            $settings instanceof AppSettingRepository ? $settings : null,
         );
 
         return new self($controller, $context->moduleRow('updates'));
@@ -77,6 +80,7 @@ final class UpdatesModule implements NativeModuleInterface
         $router->post('/admin/updates/check', [$this->controller, 'check'], 'admin');
         $router->post('/admin/updates/prepare', [$this->controller, 'prepare'], 'admin');
         $router->post('/admin/updates/install', [$this->controller, 'install'], 'admin');
+        $router->post('/admin/updates/channel', [$this->controller, 'updateChannelSetting'], 'admin');
     }
 
     public function nativeBinding(): array
@@ -86,7 +90,7 @@ final class UpdatesModule implements NativeModuleInterface
             'internal_name' => 'Updates',
             'controller' => UpdatesController::class,
             'implementation_path' => 'app/Modules/Updates/UpdatesController.php',
-            'route_binding' => 'GET /admin/updates, POST /admin/updates/check, POST /admin/updates/prepare, POST /admin/updates/install',
+            'route_binding' => 'GET /admin/updates, POST /admin/updates/check, POST /admin/updates/prepare, POST /admin/updates/install, POST /admin/updates/channel',
         ];
     }
 

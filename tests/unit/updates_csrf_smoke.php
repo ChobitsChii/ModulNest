@@ -36,6 +36,7 @@ $routes = [
     '/admin/updates/check',
     '/admin/updates/prepare',
     '/admin/updates/install',
+    '/admin/updates/channel',
 ];
 
 foreach ($routes as $route) {

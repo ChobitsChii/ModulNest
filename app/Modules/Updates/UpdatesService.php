@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modulon\Modules\Updates;
 
+use Closure;
 use Modulon\Core\Database\MigrationRunner;
 use Modulon\Core\RecoveryManager;
 use Modulon\Core\RotatingFileLogger;
@@ -18,6 +19,7 @@ use ZipArchive;
 final class UpdatesService
 {
     public const UPDATE_FEED_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/stable.json';
+    public const PRERELEASE_FEED_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/prerelease.json';
 
     private string $storagePath;
     private string $downloadsPath;
@@ -25,7 +27,12 @@ final class UpdatesService
     private string $statePath;
     private string $maintenanceFlag;
 
-    public function __construct(private readonly string $basePath, private readonly ?PDO $pdo = null)
+    /** @param null|Closure(string):string $feedFetcher */
+    public function __construct(
+        private readonly string $basePath,
+        private readonly ?PDO $pdo = null,
+        private readonly ?Closure $feedFetcher = null,
+    )
     {
         $this->storagePath = $this->basePath . '/storage/updates';
         $this->downloadsPath = $this->storagePath . '/downloads';
@@ -37,15 +44,23 @@ final class UpdatesService
     /**
      * @return array<string, mixed>
      */
-    public function status(string $installedVersion, string $channel): array
+    public function status(string $installedVersion, string $channel, string $updateChannel = UpdateChannel::STABLE): array
     {
+        $updateChannel = UpdateChannel::normalize($updateChannel);
         $state = $this->readState();
         $state = $this->normalizeStateForInstalledVersion($state, $installedVersion);
+        if (isset($state['last_check']) && is_array($state['last_check'])
+            && UpdateChannel::normalize($state['last_check']['update_channel'] ?? null) !== $updateChannel
+        ) {
+            unset($state['last_check']);
+        }
 
         return [
             'installed_version' => $this->displayInstalledVersion($installedVersion, $state),
             'channel' => $channel,
             'feed_url' => self::UPDATE_FEED_URL,
+            'prerelease_feed_url' => self::PRERELEASE_FEED_URL,
+            'update_channel' => $updateChannel,
             'state' => $state,
         ];
     }
@@ -53,9 +68,10 @@ final class UpdatesService
     /**
      * @return array<string, mixed>
      */
-    public function check(string $installedVersion): array
+    public function check(string $installedVersion, string $updateChannel = UpdateChannel::STABLE): array
     {
-        $metadata = $this->fetchMetadata();
+        $updateChannel = UpdateChannel::normalize($updateChannel);
+        $metadata = $this->fetchMetadata($updateChannel);
         $latest = (string) ($metadata['latest'] ?? '');
         if ($latest === '') {
             throw new RuntimeException('Update-Metadaten enthalten keine latest-Version.');
@@ -69,6 +85,8 @@ final class UpdatesService
             'installed_version' => $installedVersion,
             'latest' => $latest,
             'available' => $available,
+            'update_channel' => $updateChannel,
+            'selected_feed' => (string) ($metadata['_feed_url'] ?? self::UPDATE_FEED_URL),
             'metadata' => $this->publicMetadata($metadata),
             'package' => $package,
             'message' => $available ? 'Update verfügbar.' : 'Kein Update erforderlich.',
@@ -84,9 +102,10 @@ final class UpdatesService
     /**
      * @return array<string, mixed>
      */
-    public function prepare(string $installedVersion): array
+    public function prepare(string $installedVersion, string $updateChannel = UpdateChannel::STABLE): array
     {
-        $metadata = $this->fetchMetadata();
+        $updateChannel = UpdateChannel::normalize($updateChannel);
+        $metadata = $this->fetchMetadata($updateChannel);
         $latest = (string) ($metadata['latest'] ?? '');
         if ($latest === '' || !version_compare($latest, $installedVersion, '>')) {
             throw new RuntimeException('Es ist kein neueres Update verfügbar.');
@@ -115,7 +134,7 @@ final class UpdatesService
         $packageMetadata = $this->readPackageMetadata($stagingRoot);
         $packageVersion = (string) ($packageMetadata['version'] ?? '');
         if ($packageVersion !== $latest) {
-            throw new RuntimeException('Paketversion passt nicht zu stable.json.');
+            throw new RuntimeException('Paketversion passt nicht zum ausgewählten Update-Feed.');
         }
 
         $prepared = [
@@ -129,6 +148,8 @@ final class UpdatesService
             'download_path' => $downloadPath,
             'staging_path' => $stagingRoot,
             'metadata' => $this->publicMetadata($metadata),
+            'update_channel' => $updateChannel,
+            'selected_feed' => (string) ($metadata['_feed_url'] ?? self::UPDATE_FEED_URL),
             'package_metadata' => [
                 'version' => $packageVersion,
                 'channel' => (string) ($packageMetadata['channel'] ?? ''),
@@ -251,15 +272,62 @@ final class UpdatesService
     /**
      * @return array<string, mixed>
      */
-    public function fetchMetadata(): array
+    public function fetchMetadata(string $updateChannel = UpdateChannel::STABLE): array
     {
-        $payload = $this->httpGet(self::UPDATE_FEED_URL);
+        $stable = $this->readFeed(self::UPDATE_FEED_URL);
+        if ($this->isPrerelease((string) $stable['latest'])) {
+            throw new RuntimeException('Der Stable-Feed enthält keine stabile Version.');
+        }
+        $stable['_feed_url'] = self::UPDATE_FEED_URL;
+        if (UpdateChannel::normalize($updateChannel) === UpdateChannel::STABLE) {
+            return $stable;
+        }
+
+        try {
+            $preview = $this->readFeed(self::PRERELEASE_FEED_URL);
+            $preview['_feed_url'] = self::PRERELEASE_FEED_URL;
+            if (version_compare((string) $preview['latest'], (string) $stable['latest'], '>')) {
+                return $preview;
+            }
+        } catch (Throwable $exception) {
+            $this->log('Vorab-Feed ignoriert', ['reason' => $exception->getMessage()]);
+        }
+
+        return $stable;
+    }
+
+    public function resetChannelSelection(): void
+    {
+        $state = $this->readState();
+        unset($state['last_check'], $state['prepared']);
+        $this->writeState($state);
+    }
+
+    /** @return array<string,mixed> */
+    private function readFeed(string $url): array
+    {
+        $payload = $this->feedFetcher !== null ? ($this->feedFetcher)($url) : $this->httpGet($url);
         $metadata = json_decode($payload, true);
         if (!is_array($metadata)) {
             throw new RuntimeException('Update-Metadaten konnten nicht gelesen werden.');
         }
+        $latest = trim((string) ($metadata['latest'] ?? ''));
+        if (!$this->isValidVersion($latest)) {
+            throw new RuntimeException('Update-Metadaten enthalten keine gültige latest-Version.');
+        }
+        $metadata['latest'] = $latest;
 
         return $metadata;
+    }
+
+    private function isValidVersion(string $version): bool
+    {
+        return preg_match('/^[0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)(?:[.-]?[0-9]+)?)?(?:\+[0-9A-Za-z.-]+)?$/i', $version) === 1;
+    }
+
+    private function isPrerelease(string $version): bool
+    {
+        return str_contains($version, '-');
     }
 
     /**
@@ -356,7 +424,7 @@ final class UpdatesService
         $packages = is_array($metadata['packages'] ?? null) ? $metadata['packages'] : [];
         $bundled = is_array($packages['bundled'] ?? null) ? $packages['bundled'] : [];
         if ($bundled === []) {
-            throw new RuntimeException('stable.json enthält kein bundled Paket.');
+            throw new RuntimeException('Update-Feed enthält kein bundled Paket.');
         }
 
         return [

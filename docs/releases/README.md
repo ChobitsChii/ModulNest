@@ -7,6 +7,7 @@ verfügbar.
 
 ## Stable
 
+- [1.3.0](1.3.0.md) — 09.09.2026 — wählbare Stable-/Vorab-Updatekanäle.
 - [1.2.0](1.2.0.md) — 04.09.2026 — Theme-System und indizierte Wiki-Suche.
 - [1.1.1](1.1.1.md) — 03.09.2026 — sichere lokale Wiki-Quellen und Dokumentationsdarstellung.
 - [1.1.0](1.1.0.md) — 03.09.2026 — Wiki v1 und Werkzeuge für native Module.

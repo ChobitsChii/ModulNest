@@ -11,6 +11,7 @@ use Modulon\Core\Response;
 use Modulon\Core\Session;
 use Modulon\Core\View;
 use Modulon\Modules\Auth\AuthService;
+use Modulon\Modules\Admin\AppSettingRepository;
 use Throwable;
 
 final class UpdatesController
@@ -21,6 +22,7 @@ final class UpdatesController
         private readonly string $installedVersion,
         private readonly string $channel,
         private readonly ?AuthService $auth = null,
+        private readonly ?AppSettingRepository $settings = null,
     ) {
     }
 
@@ -39,7 +41,7 @@ final class UpdatesController
     public function check(Request $request): Response
     {
         try {
-            $result = $this->updates->check($this->installedVersion);
+            $result = $this->updates->check($this->installedVersion, $this->updateChannel());
             $this->session->flash('updates_info', (string) ($result['message'] ?? 'Update-Prüfung abgeschlossen.'));
         } catch (Throwable $exception) {
             $this->session->flash('updates_error', $exception->getMessage());
@@ -51,7 +53,7 @@ final class UpdatesController
     public function prepare(Request $request): Response
     {
         try {
-            $result = $this->updates->prepare($this->installedVersion);
+            $result = $this->updates->prepare($this->installedVersion, $this->updateChannel());
             $this->session->flash('updates_info', 'Update ' . (string) ($result['version'] ?? '') . ' wurde heruntergeladen, geprüft und vorbereitet.');
         } catch (Throwable $exception) {
             $this->session->flash('updates_error', $exception->getMessage());
@@ -75,13 +77,37 @@ final class UpdatesController
         return Response::redirect('/admin/updates');
     }
 
+    public function updateChannelSetting(Request $request): Response
+    {
+        if ($this->settings === null) {
+            $this->session->flash('updates_error', 'Updatekanal konnte nicht gespeichert werden.');
+            return Response::redirect('/admin/updates');
+        }
+
+        $candidate = (string) $request->input('update_channel', '');
+        if (!in_array($candidate, UpdateChannel::values(), true)) {
+            $this->session->flash('updates_error', 'Ungültiger Updatekanal.');
+            return Response::redirect('/admin/updates');
+        }
+
+        $this->settings->set(UpdateChannel::SETTING_KEY, $candidate);
+        $this->updates->resetChannelSelection();
+        $this->session->flash(
+            'updates_info',
+            $candidate === UpdateChannel::PREVIEW
+                ? 'Stable + Vorabversionen wurde aktiviert.'
+                : 'Der Stable-Updatekanal wurde aktiviert.'
+        );
+        return Response::redirect('/admin/updates');
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function viewStatus(): array
     {
         $timezone = $this->userTimezone();
-        $status = $this->updates->status($this->installedVersion, $this->channel);
+        $status = $this->updates->status($this->installedVersion, $this->channel, $this->updateChannel());
         $status['timezone_name'] = $timezone->getName();
 
         if (!isset($status['state']) || !is_array($status['state'])) {
@@ -106,6 +132,11 @@ final class UpdatesController
         }
 
         return $status;
+    }
+
+    private function updateChannel(): string
+    {
+        return UpdateChannel::normalize($this->settings?->get(UpdateChannel::SETTING_KEY));
     }
 
     private function userTimezone(): DateTimeZone
