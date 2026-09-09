@@ -14,10 +14,11 @@ $csrfToken = (string) ($csrf_token ?? '');
 $message = (string) ($message ?? '');
 $error = (string) ($error ?? '');
 $installedVersion = (string) ($status['installed_version'] ?? '');
-$channel = (string) ($status['channel'] ?? '');
+$installedReleaseLabel = (string) ($status['installed_release_label'] ?? 'Stable');
 $feedUrl = (string) ($status['feed_url'] ?? '');
 $prereleaseFeedUrl = (string) ($status['prerelease_feed_url'] ?? '');
 $updateChannel = (string) ($status['update_channel'] ?? 'stable');
+$updateChannelLabel = (string) ($status['update_channel_label'] ?? 'Stable');
 $timezoneName = (string) ($status['timezone_name'] ?? '');
 $updateAvailable = (bool) ($lastCheck['available'] ?? false);
 $externalIcon = '<svg class="external-link-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M10.5 2a.5.5 0 0 0 0 1h1.793L6.146 9.146a.5.5 0 1 0 .708.708L13 3.707V5.5a.5.5 0 0 0 1 0v-3A.5.5 0 0 0 13.5 2h-3Z"/><path fill="currentColor" d="M3.5 4A1.5 1.5 0 0 0 2 5.5v7A1.5 1.5 0 0 0 3.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-4a.5.5 0 0 0-1 0v4a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-7a.5.5 0 0 1 .5-.5h4a.5.5 0 0 0 0-1h-4Z"/></svg>';
@@ -46,8 +47,8 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                         <p class="text-body-secondary mb-0">Offizielle Releases prüfen, herunterladen und nach SHA256-Prüfung installieren.</p>
                     </div>
                     <div class="updates-version-meta small">
-                        <div><span>Installiert:</span> <strong><?= $e($installedVersion) ?></strong></div>
-                        <div><span>Channel:</span> <strong><?= $e($channel) ?></strong></div>
+                        <div><span>Installiert:</span> <strong><?= $e($installedVersion) ?> (<?= $e($installedReleaseLabel) ?>)</strong></div>
+                        <div><span>Updatekanal:</span> <strong><?= $e($updateChannelLabel) ?></strong></div>
                     </div>
                 </div>
 
@@ -72,25 +73,39 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
 
     <div class="col-12">
         <div class="card shadow-sm border-0 app-card">
-            <div class="card-body p-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-                    <div><h2 class="h6 mb-2">Updatekanal</h2><p class="text-body-secondary small mb-0">Diese Einstellung gilt für die gesamte ModulNest-Installation.</p></div>
-                    <?php if ($updateChannel === 'preview'): ?><span class="badge text-bg-warning">Vorabversionen aktiviert</span><?php endif; ?>
+            <details class="updates-channel-details">
+                <summary class="updates-channel-summary p-4">
+                    <span class="updates-channel-current">
+                        <span class="h6 mb-0">Updatekanal</span>
+                        <strong><?= $e($updateChannelLabel) ?></strong>
+                        <?php if ($updateChannel === 'preview'): ?>
+                            <span class="badge text-bg-warning">Vorabversionen aktiviert</span>
+                        <?php endif; ?>
+                    </span>
+                    <span class="btn btn-outline-primary btn-sm updates-channel-action" aria-hidden="true">
+                        <span class="updates-channel-open-label">Ändern</span>
+                        <span class="updates-channel-close-label">Schließen</span>
+                    </span>
+                </summary>
+                <div class="card-body px-4 pt-0 pb-4">
+                    <p class="text-body-secondary small">Diese Einstellung gilt für die gesamte ModulNest-Installation.</p>
+                    <form method="post" action="/admin/updates/channel">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="update_channel" value="stable" id="update_channel_stable"<?= $updateChannel === 'stable' ? ' checked' : '' ?>>
+                            <label class="form-check-label" for="update_channel_stable"><strong>Stable</strong><br><span class="small text-body-secondary">Nur fertige, empfohlene Releases.</span></label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="update_channel" value="preview" id="update_channel_preview"<?= $updateChannel === 'preview' ? ' checked' : '' ?>>
+                            <label class="form-check-label" for="update_channel_preview"><strong>Stable + Vorabversionen</strong><br><span class="small text-body-secondary">Zusätzlich Alpha-, Beta- und Release-Candidate-Versionen. Diese können noch Fehler enthalten.</span></label>
+                        </div>
+                        <button class="btn btn-primary btn-sm mt-3" type="submit">Updatekanal speichern</button>
+                    </form>
+                    <?php if ($updateChannel === 'preview'): ?>
+                        <div class="alert alert-warning small mt-3 mb-0" role="status"><strong>Vorabversionen sind aktiviert.</strong> Stable-Releases werden weiterhin berücksichtigt und ersetzen ältere Vorabversionen automatisch.</div>
+                    <?php endif; ?>
                 </div>
-                <form method="post" action="/admin/updates/channel" class="mt-3">
-                    <?= \Modulon\Core\View::csrfField($csrfToken) ?>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="radio" name="update_channel" value="stable" id="update_channel_stable"<?= $updateChannel === 'stable' ? ' checked' : '' ?>>
-                        <label class="form-check-label" for="update_channel_stable"><strong>Stable</strong><br><span class="small text-body-secondary">Nur fertige, empfohlene Releases.</span></label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="update_channel" value="preview" id="update_channel_preview"<?= $updateChannel === 'preview' ? ' checked' : '' ?>>
-                        <label class="form-check-label" for="update_channel_preview"><strong>Stable + Vorabversionen</strong><br><span class="small text-body-secondary">Zusätzlich Alpha-, Beta- und Release-Candidate-Versionen. Diese können noch Fehler enthalten.</span></label>
-                    </div>
-                    <button class="btn btn-outline-primary btn-sm mt-3" type="submit">Updatekanal speichern</button>
-                </form>
-                <?php if ($updateChannel === 'preview'): ?><div class="alert alert-warning small mt-3 mb-0" role="status"><strong>Vorabmodus aktiv.</strong> Stable-Releases werden weiterhin berücksichtigt und ersetzen ältere Vorabversionen automatisch.</div><?php endif; ?>
-            </div>
+            </details>
         </div>
     </div>
 
@@ -101,7 +116,10 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                 <dl class="mb-3 small">
                     <dt class="text-body-secondary">Updatequelle</dt>
                     <dd class="text-break"><?= $externalLink($feedUrl) ?></dd>
-                    <?php if ($updateChannel === 'preview'): ?><dt class="text-body-secondary">Vorab-Feed</dt><dd class="text-break"><?= $externalLink($prereleaseFeedUrl) ?></dd><?php endif; ?>
+                    <?php if ($updateChannel === 'preview'): ?>
+                        <dt class="text-body-secondary">Vorab-Feed</dt>
+                        <dd class="text-break"><?= $externalLink($prereleaseFeedUrl) ?></dd>
+                    <?php endif; ?>
                 </dl>
                 <form method="post" action="/admin/updates/check">
                     <?= \Modulon\Core\View::csrfField($csrfToken) ?>

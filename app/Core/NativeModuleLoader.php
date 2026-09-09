@@ -14,7 +14,7 @@ final class NativeModuleLoader
     /**
      * @return array<string, class-string<NativeModuleInterface>>
      */
-    public static function discover(string $basePath): array
+    public static function discover(string $basePath, array $excludedPrefixes = []): array
     {
         $modulesPath = rtrim($basePath, '/') . '/app/Modules';
         if (!is_dir($modulesPath)) {
@@ -44,6 +44,9 @@ final class NativeModuleLoader
             if ($prefix === '') {
                 continue;
             }
+            if (in_array($prefix, $excludedPrefixes, true)) {
+                continue;
+            }
 
             $classes[$prefix] = $class;
         }
@@ -55,10 +58,10 @@ final class NativeModuleLoader
     /**
      * @return array<string, NativeModuleInterface>
      */
-    public static function createActiveModules(string $basePath, ModuleContext $context): array
+    public static function createActiveModules(string $basePath, ModuleContext $context, array $excludedPrefixes = []): array
     {
         $modules = [];
-        foreach (self::discover($basePath) as $prefix => $class) {
+        foreach (self::discover($basePath, $excludedPrefixes) as $prefix => $class) {
             if (!$context->isNativeActive($prefix)) {
                 continue;
             }

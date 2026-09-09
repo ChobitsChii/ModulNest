@@ -55,12 +55,15 @@ final class UpdatesService
             unset($state['last_check']);
         }
 
+        $displayVersion = $this->displayInstalledVersion($installedVersion, $state);
+
         return [
-            'installed_version' => $this->displayInstalledVersion($installedVersion, $state),
-            'channel' => $channel,
+            'installed_version' => $displayVersion,
+            'installed_release_label' => UpdateChannel::releaseLabel($displayVersion, $channel),
             'feed_url' => self::UPDATE_FEED_URL,
             'prerelease_feed_url' => self::PRERELEASE_FEED_URL,
             'update_channel' => $updateChannel,
+            'update_channel_label' => UpdateChannel::label($updateChannel),
             'state' => $state,
         ];
     }

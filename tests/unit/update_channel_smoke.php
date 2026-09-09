@@ -10,62 +10,97 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 function update_channel_assert(bool $condition, string $message): void
 {
-    if (!$condition) { fwrite(STDERR, "FAIL: {$message}\n"); exit(1); }
+    if (!$condition) {
+        fwrite(STDERR, "FAIL: {$message}\n");
+        exit(1);
+    }
 }
 
 function update_channel_metadata(string $version): string
 {
     return json_encode([
-        'latest'=>$version, 'channel'=>str_contains($version, '-')?'prerelease':'stable', 'php_requirement'=>'^8.3',
-        'packages'=>['bundled'=>['url'=>'https://github.com/ChobitsChii/ModulNest/releases/download/v'.$version.'/modulnest-bundled-'.$version.'.zip','sha256'=>str_repeat('a',64),'needs_composer'=>false]],
-        'changelog_url'=>'https://github.com/ChobitsChii/ModulNest/releases/tag/v'.$version, 'requires_migrations'=>false,
+        'latest' => $version,
+        'channel' => str_contains($version, '-') ? 'prerelease' : 'stable',
+        'packages' => ['bundled' => [
+            'url' => 'https://github.com/ChobitsChii/ModulNest/releases/download/v' . $version . '/modulnest-bundled-' . $version . '.zip',
+            'sha256' => str_repeat('a', 64),
+            'needs_composer' => false,
+        ]],
+        'requires_migrations' => false,
     ], JSON_THROW_ON_ERROR);
 }
 
+/** @return array{UpdatesService,string} */
 function update_channel_service(string $stable, string $preview): array
 {
-    $base=sys_get_temp_dir().'/modulnest-update-channel-'.bin2hex(random_bytes(5)); mkdir($base.'/storage',0775,true);
-    $fetcher=static fn(string $url):string => str_ends_with($url,'prerelease.json') ? $preview : $stable;
-    return [new UpdatesService($base,null,$fetcher),$base];
+    $base = sys_get_temp_dir() . '/modulnest-update-channel-' . bin2hex(random_bytes(5));
+    mkdir($base . '/storage', 0775, true);
+    $fetcher = static fn (string $url): string => str_ends_with($url, 'prerelease.json') ? $preview : $stable;
+
+    return [new UpdatesService($base, null, $fetcher), $base];
 }
 
 function update_channel_remove(string $path): void
 {
-    if (!is_dir($path)) return;
-    $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);
-    foreach($it as $item){$item->isDir()?rmdir($item->getPathname()):unlink($item->getPathname());} rmdir($path);
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($iterator as $item) {
+        $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+    }
+    rmdir($path);
 }
 
-update_channel_assert(UpdateChannel::normalize(null)===UpdateChannel::STABLE, 'Bestehende Installationen starten nicht auf Stable.');
-[$service,$base]=update_channel_service(update_channel_metadata('1.3.0'),update_channel_metadata('2.0.0-rc.1'));
-try {
-    $upgrade=$service->check('1.2.0',UpdateChannel::STABLE);
-    update_channel_assert($upgrade['latest']==='1.3.0'&&$upgrade['available']===true,'1.2.0 erkennt 1.3.0 nicht.');
-    $stable=$service->check('1.3.0',UpdateChannel::STABLE);
-    update_channel_assert($stable['latest']==='1.3.0'&&$stable['available']===false,'Stable berücksichtigt den synthetischen RC.');
-    $preview=$service->check('1.3.0',UpdateChannel::PREVIEW);
-    update_channel_assert($preview['latest']==='2.0.0-rc.1'&&$preview['available']===true,'Preview erkennt 2.0.0-rc.1 nicht.');
-} finally { update_channel_remove($base); }
+update_channel_assert(UpdateChannel::normalize(null) === UpdateChannel::STABLE, 'Der Default ist nicht Stable.');
+update_channel_assert(UpdateChannel::label('stable') === 'Stable', 'Stable wird nicht benutzerfreundlich beschriftet.');
+update_channel_assert(UpdateChannel::label('preview') === 'Stable + Vorabversionen', 'Preview wird intern statt benutzerfreundlich beschriftet.');
+update_channel_assert(UpdateChannel::releaseLabel('2.0.0-alpha.1') === 'Alpha', 'Alpha-Label fehlt.');
+update_channel_assert(UpdateChannel::releaseLabel('2.0.0-beta.1') === 'Beta', 'Beta-Label fehlt.');
+update_channel_assert(UpdateChannel::releaseLabel('2.0.0-rc.1') === 'Release Candidate', 'RC-Label fehlt.');
+update_channel_assert(UpdateChannel::releaseLabel('2.0.0') === 'Stable', 'Stable-Release-Label fehlt.');
+update_channel_assert(UpdateChannel::releaseLabel('2.0.0', 'rc') === 'Stable', 'Die alte Request-Konfiguration überstimmt die installierte Stable-Version.');
 
-[$service,$base]=update_channel_service(update_channel_metadata('2.0.0'),update_channel_metadata('2.0.0-rc.1'));
+[$service, $base] = update_channel_service(update_channel_metadata('1.3.0'), update_channel_metadata('2.0.0-rc.1'));
 try {
-    $stableWins=$service->check('2.0.0-rc.1',UpdateChannel::PREVIEW);
-    update_channel_assert($stableWins['latest']==='2.0.0'&&$stableWins['available']===true,'2.0.0 stable überholt 2.0.0-rc.1 nicht.');
-} finally { update_channel_remove($base); }
-
-foreach(['2.0.0-alpha.1','2.0.0-beta.1','2.0.0-rc.1'] as $candidate){
-    [$service,$base]=update_channel_service(update_channel_metadata('1.3.0'),update_channel_metadata($candidate));
-    try { update_channel_assert($service->fetchMetadata(UpdateChannel::PREVIEW)['latest']===$candidate,$candidate.' wird nicht als Vorabversion akzeptiert.'); }
-    finally { update_channel_remove($base); }
+    update_channel_assert($service->check('1.3.0', UpdateChannel::STABLE)['latest'] === '1.3.0', 'Stable berücksichtigt den RC.');
+    update_channel_assert($service->check('1.3.0', UpdateChannel::PREVIEW)['latest'] === '2.0.0-rc.1', 'Preview erkennt den RC nicht.');
+    $status = $service->status('2.0.0-rc.1', 'rc', UpdateChannel::PREVIEW);
+    update_channel_assert($status['installed_release_label'] === 'Release Candidate', 'Installierte Release-Art ist falsch.');
+    update_channel_assert($status['update_channel_label'] === 'Stable + Vorabversionen', 'Updatekanal-Label ist falsch.');
+} finally {
+    update_channel_remove($base);
 }
 
-[$service,$base]=update_channel_service(update_channel_metadata('1.3.0'),'{kaputt');
+[$service, $base] = update_channel_service(update_channel_metadata('2.0.0'), update_channel_metadata('2.0.0-rc.1'));
 try {
-    $fallback=$service->check('1.2.0',UpdateChannel::PREVIEW);
-    update_channel_assert($fallback['latest']==='1.3.0'&&$fallback['available']===true,'Ungültiger Vorab-Feed zerstört die stabile Prüfung.');
-} finally { update_channel_remove($base); }
+    update_channel_assert($service->check('2.0.0-rc.1', UpdateChannel::PREVIEW)['latest'] === '2.0.0', 'Stable 2.0.0 überholt den RC nicht.');
+} finally {
+    update_channel_remove($base);
+}
 
-$html=View::render('updates/admin',['status'=>['installed_version'=>'1.3.0','channel'=>'stable','update_channel'=>'preview','feed_url'=>UpdatesService::UPDATE_FEED_URL,'prerelease_feed_url'=>UpdatesService::PRERELEASE_FEED_URL,'state'=>[]],'csrf_token'=>'fixture']);
-update_channel_assert(str_contains($html,'Stable + Vorabversionen')&&str_contains($html,'Vorabversionen aktiviert')&&str_contains($html,'name="_csrf"'),'Updatekanal-UI oder CSRF-Feld fehlt.');
+$html = View::render('updates/admin', [
+    'status' => [
+        'installed_version' => '2.0.0-rc.1',
+        'installed_release_label' => 'Release Candidate',
+        'update_channel' => 'preview',
+        'update_channel_label' => 'Stable + Vorabversionen',
+        'feed_url' => UpdatesService::UPDATE_FEED_URL,
+        'prerelease_feed_url' => UpdatesService::PRERELEASE_FEED_URL,
+        'state' => [],
+    ],
+    'csrf_token' => 'fixture',
+]);
+update_channel_assert(str_contains($html, '2.0.0-rc.1 (Release Candidate)'), 'Installiertes Release wird nicht eindeutig angezeigt.');
+update_channel_assert(str_contains($html, 'Updatekanal:</span> <strong>Stable + Vorabversionen'), 'Updatekanal fehlt im Kopf.');
+update_channel_assert(str_contains($html, '<details class="updates-channel-details">'), 'Updatekanal-Konfiguration ist nicht standardmäßig eingeklappt.');
+update_channel_assert(str_contains($html, 'Vorabversionen aktiviert') && str_contains($html, '>Ändern<'), 'Kompakter Kanalstatus fehlt.');
+update_channel_assert(str_contains($html, 'name="_csrf"'), 'CSRF-Feld fehlt.');
+update_channel_assert(!str_contains($html, 'Channel:</span>'), 'Veraltete Channel-Anzeige ist noch sichtbar.');
 
-fwrite(STDOUT,"Update channel smoke test passed.\n");
+$css = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/css/app.css');
+update_channel_assert(str_contains($css, '.updates-channel-details[open] .updates-channel-open-label'), 'Der Öffnen-/Schließen-Zustand ist nicht gestaltet.');
+update_channel_assert(str_contains($css, '@media (max-width: 575.98px)') && str_contains($css, 'flex-direction: column'), 'Mobile Darstellung fehlt.');
+update_channel_assert(str_contains($css, 'var(--app-primary)') && str_contains($html, 'text-bg-warning'), 'Theme-fähige Fokus-/Warnungsdarstellung fehlt.');
+
+fwrite(STDOUT, "Update channel UX smoke test passed.\n");

@@ -806,6 +806,14 @@ body.is-mail-resizing {
     color: #ef4444;
 }
 
+.module-column-picker {
+    min-width: 14rem;
+}
+
+.module-management-table {
+    min-width: 58rem;
+}
+
 .modulon-feedback-stack {
     display: grid;
     gap: 0.75rem;
@@ -1161,6 +1169,56 @@ button.app-sort-handle {
 .updates-version-meta strong {
     color: var(--app-text);
     font-weight: 700;
+}
+
+.updates-channel-summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    list-style: none;
+}
+
+.updates-channel-summary::marker {
+    content: "";
+}
+
+.updates-channel-summary::-webkit-details-marker {
+    display: none;
+}
+
+.updates-channel-summary:focus-visible {
+    border-radius: var(--bs-border-radius);
+    outline: 3px solid color-mix(in srgb, var(--app-primary) 28%, transparent);
+    outline-offset: -3px;
+}
+
+.updates-channel-current {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.updates-channel-close-label,
+.updates-channel-details[open] .updates-channel-open-label {
+    display: none;
+}
+
+.updates-channel-details[open] .updates-channel-close-label {
+    display: inline;
+}
+
+@media (max-width: 575.98px) {
+    .updates-version-meta {
+        text-align: left;
+    }
+
+    .updates-channel-summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
 
 .data-portability-hero-copy {

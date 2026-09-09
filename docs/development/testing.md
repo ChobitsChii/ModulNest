@@ -35,6 +35,14 @@ Details zu Installation und lokaler E2E-Konfiguration stehen in
 git diff --check
 ```
 
+Der echte Katalog-Lifecycle-Test liegt in
+`tests/e2e/test_module_catalog_v2.py`. Er benötigt ausdrücklich eine isolierte
+Installation sowie `MODULON_E2E_CATALOG_FIXTURE_TARGET` auf einen veränderbaren
+temporären Katalogpfad, dessen Name `modulnest-e2e` enthält. Der Test publiziert
+nacheinander die signierten Sequence-1-/Sequence-2-Fixtures und beweist im
+Browser Installation 0.1.0, Update 0.2.0, Datenerhalt, Retain/Reinstall, Purge,
+Clean Install, Adminschutz, CSRF, Themes, mobile Darstellung und Assets.
+
 ## Sinnvolle zusätzliche Tests
 
 - Ein `admin`-Endpunkt: Gast wird zum Login geführt, normaler User erhält keinen

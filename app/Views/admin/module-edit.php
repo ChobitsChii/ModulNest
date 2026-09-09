@@ -21,6 +21,9 @@ $showInHeader = (int) ($module['show_in_header'] ?? 1) === 1;
 $showOnHome = (int) ($module['show_on_home'] ?? 1) === 1;
 $nativeBinding = is_array($native_binding ?? null) ? $native_binding : null;
 $csrfToken = (string) ($csrf_token ?? '');
+$moduleType = (string) ($module['module_type'] ?? 'local');
+$managed = ($module['module_key'] ?? null) !== null;
+$protected = $managed || $moduleType === 'core';
 ?>
 <div class="d-flex align-items-center justify-content-between mb-4">
     <h1 class="h4 mb-0">Modul bearbeiten</h1>
@@ -36,28 +39,31 @@ $csrfToken = (string) ($csrf_token ?? '');
 
 <div class="card shadow-sm border-0 app-card">
     <div class="card-body">
+        <?php if ($protected): ?>
+            <div class="alert alert-info">Technische Identität, Route und Zugriff dieses <?= htmlspecialchars((string) ($module['module_type_label'] ?? 'verwalteten Moduls'), ENT_QUOTES, 'UTF-8') ?> werden vom Core beziehungsweise Paketvertrag verwaltet. Sichtbarkeit und Aktivstatus ändern Sie direkt in der Modulverwaltung.</div>
+        <?php endif; ?>
         <form method="post" action="/admin/modules/update" class="row g-3 align-items-end">
             <?= \Modulon\Core\View::csrfField($csrfToken) ?>
             <input type="hidden" name="module_id" value="<?= $moduleId ?>">
 
             <div class="col-12 col-md-4">
                 <label class="form-label mb-1" for="module_name">Name</label>
-                <input id="module_name" class="form-control" type="text" name="name" value="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>" required>
+                <input id="module_name" class="form-control" type="text" name="name" value="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>" required<?= $protected ? ' readonly' : '' ?>>
             </div>
 
             <div class="col-12 col-md-4">
                 <label class="form-label mb-1" for="module_description">Beschreibung</label>
-                <input id="module_description" class="form-control" type="text" name="description" maxlength="255" value="<?= htmlspecialchars($description, ENT_QUOTES, 'UTF-8') ?>" placeholder="Kurze Beschreibung">
+                <input id="module_description" class="form-control" type="text" name="description" maxlength="255" value="<?= htmlspecialchars($description, ENT_QUOTES, 'UTF-8') ?>" placeholder="Kurze Beschreibung"<?= $protected ? ' readonly' : '' ?>>
             </div>
 
             <div class="col-12 col-md-4">
                 <label class="form-label mb-1" for="module_prefix">Route Prefix</label>
-                <input id="module_prefix" class="form-control" type="text" name="route_prefix" value="<?= htmlspecialchars($routePrefix, ENT_QUOTES, 'UTF-8') ?>" required>
+                <input id="module_prefix" class="form-control" type="text" name="route_prefix" value="<?= htmlspecialchars($routePrefix, ENT_QUOTES, 'UTF-8') ?>" required<?= $protected ? ' readonly' : '' ?>>
             </div>
 
             <div class="col-12 col-md-4">
                 <label class="form-label mb-1" for="module_access">Zugriff</label>
-                <select id="module_access" class="form-select" name="access_level">
+                <select id="module_access" class="form-select" name="access_level"<?= $protected ? ' disabled' : '' ?>>
                     <?php foreach (['public', 'user', 'admin'] as $level): ?>
                         <option value="<?= $level ?>"<?= $accessLevel === $level ? ' selected' : '' ?>><?= $level ?></option>
                     <?php endforeach; ?>
@@ -66,9 +72,9 @@ $csrfToken = (string) ($csrf_token ?? '');
 
             <div class="col-12 col-md-4">
                 <label class="form-label mb-1" for="module_handler">Typ</label>
-                <select id="module_handler" class="form-select" name="handler">
-                    <?php foreach (['native', 'placeholder', 'legacy'] as $type): ?>
-                        <option value="<?= $type ?>"<?= $handler === $type ? ' selected' : '' ?>><?= $type ?></option>
+                <select id="module_handler" class="form-select" name="handler"<?= $protected ? ' disabled' : '' ?>>
+                    <?php foreach (['native' => 'Native (Modul v1 – veraltet)', 'placeholder' => 'Placeholder', 'legacy' => 'Legacy'] as $type => $typeLabel): ?>
+                        <option value="<?= $type ?>"<?= $handler === $type ? ' selected' : '' ?>><?= $typeLabel ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -93,22 +99,22 @@ $csrfToken = (string) ($csrf_token ?? '');
             <div class="col-12">
                 <div class="d-flex flex-column flex-md-row gap-3 gap-md-4 align-items-md-center pt-2">
                     <div class="form-check mb-0">
-                        <input id="module_active" class="form-check-input" type="checkbox" name="is_active" value="1"<?= $moduleIsActive ? ' checked' : '' ?>>
+                        <input id="module_active" class="form-check-input" type="checkbox" name="is_active" value="1"<?= $moduleIsActive ? ' checked' : '' ?><?= $protected ? ' disabled' : '' ?>>
                         <label class="form-check-label" for="module_active">Aktiv</label>
                     </div>
                     <div class="form-check mb-0">
-                        <input id="module_show_in_header" class="form-check-input" type="checkbox" name="show_in_header" value="1"<?= $showInHeader ? ' checked' : '' ?>>
+                        <input id="module_show_in_header" class="form-check-input" type="checkbox" name="show_in_header" value="1"<?= $showInHeader ? ' checked' : '' ?><?= $protected ? ' disabled' : '' ?>>
                         <label class="form-check-label" for="module_show_in_header">Im Header anzeigen</label>
                     </div>
                     <div class="form-check mb-0">
-                        <input id="module_show_on_home" class="form-check-input" type="checkbox" name="show_on_home" value="1"<?= $showOnHome ? ' checked' : '' ?>>
+                        <input id="module_show_on_home" class="form-check-input" type="checkbox" name="show_on_home" value="1"<?= $showOnHome ? ' checked' : '' ?><?= $protected ? ' disabled' : '' ?>>
                         <label class="form-check-label" for="module_show_on_home">Auf Startseite anzeigen</label>
                     </div>
                 </div>
             </div>
 
             <div class="col-12">
-                <button type="submit" class="btn btn-primary">Speichern</button>
+                <?php if (!$protected): ?><button type="submit" class="btn btn-primary">Speichern</button><?php elseif ($managed): ?><a class="btn btn-primary" href="/admin/module-catalog/<?= rawurlencode((string) $module['module_key']) ?>">Katalogdetails</a><?php endif; ?>
                 <a href="/admin/modules" class="btn btn-outline-secondary ms-1">Abbrechen</a>
             </div>
 

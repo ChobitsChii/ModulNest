@@ -10,8 +10,8 @@ use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Session;
 use Modulon\Core\View;
-use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Admin\AppSettingRepository;
+use Modulon\Modules\Auth\AuthService;
 use Throwable;
 
 final class UpdatesController
@@ -98,6 +98,7 @@ final class UpdatesController
                 ? 'Stable + Vorabversionen wurde aktiviert.'
                 : 'Der Stable-Updatekanal wurde aktiviert.'
         );
+
         return Response::redirect('/admin/updates');
     }
 

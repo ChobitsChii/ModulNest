@@ -8,6 +8,8 @@ use RuntimeException;
 
 final class View
 {
+    /** @var array<string,string> */
+    private static array $moduleRoots = [];
     /**
      * @var null|callable(array<string, mixed>): array<string, mixed>
      */
@@ -22,6 +24,13 @@ final class View
     {
         $viewsPath = dirname(__DIR__) . '/Views';
         $templatePath = $viewsPath . '/' . trim($template, '/') . '.php';
+        if (str_starts_with($template, '@')) {
+            [$moduleId, $moduleTemplate] = array_pad(explode('/', substr($template, 1), 2), 2, '');
+            if (!isset(self::$moduleRoots[$moduleId]) || $moduleTemplate === '' || str_contains($moduleTemplate, '..')) {
+                throw new RuntimeException('Ungültige Modul-View: ' . $template);
+            }
+            $templatePath = self::$moduleRoots[$moduleId] . '/' . trim($moduleTemplate, '/') . '.php';
+        }
         $layoutPath = $viewsPath . '/layouts/app.php';
 
         if (!is_file($templatePath)) {
@@ -64,6 +73,15 @@ final class View
     public static function setComposer(callable $composer): void
     {
         self::$composer = $composer;
+    }
+
+    public static function registerModuleRoot(string $moduleId, string $path): void
+    {
+        \Modulon\Core\Modules\ModuleId::assert($moduleId);
+        if (!is_dir($path)) {
+            throw new RuntimeException('Modul-View-Root fehlt.');
+        }
+        self::$moduleRoots[$moduleId] = rtrim($path, '/');
     }
 
     /**

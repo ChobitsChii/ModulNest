@@ -6,9 +6,13 @@ namespace Modulon\Modules\Modules;
 
 use Modulon\Core\NativeModuleLoader;
 use PDO;
+use Throwable;
 
 final class ModuleRepository
 {
+    private ?bool $moduleKeyAvailable = null;
+    private ?bool $installationsAvailable = null;
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -19,7 +23,7 @@ final class ModuleRepository
     public function listAll(): array
     {
         $statement = $this->pdo->query(
-            'SELECT id, name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home
+            'SELECT id, ' . $this->moduleKeySelect() . ', name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home' . $this->installationSelect() . '
              FROM modules
              ORDER BY sort_order ASC, id ASC'
         );
@@ -34,7 +38,7 @@ final class ModuleRepository
     public function listActive(): array
     {
         $statement = $this->pdo->query(
-            'SELECT id, name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, sort_order, show_in_header, show_on_home
+            'SELECT id, ' . $this->moduleKeySelect() . ', name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, sort_order, show_in_header, show_on_home
              FROM modules
              WHERE is_active = 1
              ORDER BY sort_order ASC, id ASC'
@@ -63,7 +67,7 @@ final class ModuleRepository
     public function findActiveByPrefix(string $prefix): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home
+            'SELECT id, ' . $this->moduleKeySelect() . ', name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home' . $this->installationSelect() . '
              FROM modules
              WHERE route_prefix = :prefix AND is_active = 1
              LIMIT 1'
@@ -80,7 +84,7 @@ final class ModuleRepository
     public function findById(int $id): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home
+            'SELECT id, ' . $this->moduleKeySelect() . ', name, description, route_prefix, access_level, handler, legacy_entry, admin_entry, enable_overlay, is_active, sort_order, show_in_header, show_on_home' . $this->installationSelect() . '
              FROM modules
              WHERE id = :id
              LIMIT 1'
@@ -146,6 +150,36 @@ final class ModuleRepository
         );
 
         $this->initializeSortOrderIfMissing();
+    }
+
+    private function moduleKeySelect(): string
+    {
+        if ($this->moduleKeyAvailable === null) {
+            try {
+                $this->pdo->query('SELECT module_key FROM modules LIMIT 0');
+                $this->moduleKeyAvailable = true;
+            } catch (Throwable) {
+                $this->moduleKeyAvailable = false;
+            }
+        }
+        return $this->moduleKeyAvailable ? 'module_key' : 'NULL AS module_key';
+    }
+
+    private function installationSelect(): string
+    {
+        if ($this->installationsAvailable === null) {
+            try {
+                $this->pdo->query('SELECT module_row_id FROM module_installations LIMIT 0');
+                $this->installationsAvailable = true;
+            } catch (Throwable) {
+                $this->installationsAvailable = false;
+            }
+        }
+        if (!$this->installationsAvailable) {
+            return ', NULL AS origin, NULL AS installed_version';
+        }
+        return ', (SELECT origin FROM module_installations WHERE module_row_id = modules.id LIMIT 1) AS origin'
+            . ', (SELECT installed_version FROM module_installations WHERE module_row_id = modules.id LIMIT 1) AS installed_version';
     }
 
     public function discoverNativeModules(string $basePath): int
@@ -344,6 +378,18 @@ final class ModuleRepository
             'id' => $id,
             'enable_overlay' => $enableOverlay ? 1 : 0,
             'is_active' => $isActive ? 1 : 0,
+        ]);
+    }
+
+    public function updateVisibility(int $id, bool $showInHeader, bool $showOnHome): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE modules SET show_in_header = :show_in_header, show_on_home = :show_on_home, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $id,
+            'show_in_header' => $showInHeader ? 1 : 0,
+            'show_on_home' => $showOnHome ? 1 : 0,
         ]);
     }
 

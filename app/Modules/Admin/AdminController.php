@@ -8,8 +8,12 @@ use Modulon\Core\AdminNavigationRegistry;
 use Modulon\Core\NativeModuleMigrationService;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
+use Modulon\Core\Router;
 use Modulon\Core\Session;
 use Modulon\Core\View;
+use Modulon\Core\Modules\ModuleManagementColumns;
+use Modulon\Core\Modules\ModulePresentation;
+use Modulon\Core\Modules\ModuleLifecycleService;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\UserRepository;
 use Modulon\Modules\Modules\ModuleRepository;
@@ -31,6 +35,8 @@ final class AdminController
         private readonly ?AdminNavigationRegistry $adminNavigation = null,
         private readonly array $nativeModuleBindings = [],
         private readonly ?NativeModuleMigrationService $moduleMigrations = null,
+        private readonly ?ModuleLifecycleService $moduleLifecycle = null,
+        private readonly ?Router $router = null,
     ) {
     }
 
@@ -62,8 +68,10 @@ final class AdminController
             'admin_section' => 'modules',
             'message' => $this->session->pullFlash('admin_info'),
             'error' => $this->session->pullFlash('admin_error'),
-            'modules' => $this->withModuleLinks($this->modules->listAll()),
+            'modules' => $this->presentModules($this->modules->listAll()),
             'legacy_entries' => $this->discoverLegacyEntries(),
+            'module_columns' => $this->currentModuleColumns(),
+            'available_module_columns' => ModuleManagementColumns::AVAILABLE,
         ])));
     }
 
@@ -375,7 +383,7 @@ final class AdminController
         $description = $this->normalizeDescription((string) $request->input('description', ''));
         $routePrefix = $this->normalizePrefix((string) $request->input('route_prefix', ''));
         $access = strtolower((string) $request->input('access_level', 'public'));
-        $handler = strtolower((string) $request->input('handler', 'native'));
+        $handler = strtolower((string) $request->input('handler', 'placeholder'));
         $legacyEntry = $this->normalizeLegacyEntry((string) $request->input('legacy_entry', ''));
         $adminEntry = $this->normalizeLegacyEntry((string) $request->input('admin_entry', ''));
         $enableOverlay = $request->input('enable_overlay') === '1';
@@ -403,8 +411,8 @@ final class AdminController
             return Response::redirect('/admin/modules');
         }
 
-        if (!in_array($handler, ['native', 'placeholder', 'legacy'], true)) {
-            $this->session->flash('admin_error', 'Ungültiger Handler.');
+        if (!in_array($handler, ['placeholder', 'legacy'], true)) {
+            $this->session->flash('admin_error', 'Modul-v1- und Modul-v2-Einträge können nicht manuell angelegt werden.');
             return Response::redirect('/admin/modules');
         }
 
@@ -430,10 +438,6 @@ final class AdminController
         }
 
         try {
-            if ($isActive && $handler === 'native') {
-                $this->runModuleActivationMigrations($routePrefix, $handler, false, true);
-            }
-
             $this->modules->createModule(
                 $name,
                 $description,
@@ -483,6 +487,14 @@ final class AdminController
         $currentModule = $this->modules->findById($moduleId);
         if ($currentModule === null) {
             $this->session->flash('admin_error', 'Modul nicht gefunden.');
+            return Response::redirect('/admin/modules');
+        }
+        if (($currentModule['module_key'] ?? null) !== null) {
+            $this->session->flash('admin_error', 'Verwaltete v2-Module werden ausschließlich im Modul-Katalog geändert. Technische Identität, Route und Release sind unveränderlich.');
+            return Response::redirect('/admin/module-catalog/' . rawurlencode((string) $currentModule['module_key']));
+        }
+        if (ModulePresentation::type($currentModule) === 'core') {
+            $this->session->flash('admin_error', 'Core-Identität und technische Core-Konfiguration sind unveränderlich.');
             return Response::redirect('/admin/modules');
         }
 
@@ -590,7 +602,7 @@ final class AdminController
             default => false,
         };
 
-        if ($moduleId <= 0 || !in_array($field, ['enable_overlay', 'is_active'], true)) {
+        if ($moduleId <= 0 || !in_array($field, ['enable_overlay', 'is_active', 'show_in_header', 'show_on_home'], true)) {
             return $this->json(['ok' => false, 'message' => 'Ungültige Eingabe.'], 422);
         }
 
@@ -598,10 +610,40 @@ final class AdminController
         if ($module === null) {
             return $this->json(['ok' => false, 'message' => 'Modul nicht gefunden.'], 404);
         }
+        if ($field === 'is_active' && ModulePresentation::type($module) === 'core') {
+            return $this->json(['ok' => false, 'message' => 'Core-Komponenten können nicht deaktiviert werden.'], 422);
+        }
+        $managedId = $module['module_key'] ?? null;
+        if ($managedId !== null && $field === 'enable_overlay') {
+            return $this->json(['ok' => false, 'message' => 'Diese Einstellung ist für verwaltete Module nicht verfügbar.'], 422);
+        }
+        if ($managedId !== null && $field === 'is_active') {
+            if ($this->moduleLifecycle === null) {
+                return $this->json(['ok' => false, 'message' => 'Lifecycle-Service ist nicht verfügbar.'], 503);
+            }
+            try {
+                $enabled ? $this->moduleLifecycle->activate((string) $managedId) : $this->moduleLifecycle->deactivate((string) $managedId);
+            } catch (\Throwable $exception) {
+                return $this->json(['ok' => false, 'message' => $exception->getMessage()], 409);
+            }
+            return $this->json(['ok' => true, 'module_id' => $moduleId, 'is_active' => $enabled, 'managed' => true]);
+        }
 
         $handler = strtolower((string) ($module['handler'] ?? 'placeholder'));
         if ($field === 'enable_overlay' && $handler !== 'legacy') {
             return $this->json(['ok' => false, 'message' => 'Overlay ist nur für Legacy-Module verfügbar.'], 422);
+        }
+
+        if (in_array($field, ['show_in_header', 'show_on_home'], true)) {
+            $showInHeader = $field === 'show_in_header' ? $enabled : ((int) ($module['show_in_header'] ?? 0) === 1);
+            $showOnHome = $field === 'show_on_home' ? $enabled : ((int) ($module['show_on_home'] ?? 0) === 1);
+            $this->modules->updateVisibility($moduleId, $showInHeader, $showOnHome);
+            return $this->json([
+                'ok' => true,
+                'module_id' => $moduleId,
+                'show_in_header' => $showInHeader,
+                'show_on_home' => $showOnHome,
+            ]);
         }
 
         $newOverlay = $field === 'enable_overlay' ? $enabled : ((int) ($module['enable_overlay'] ?? 0) === 1);
@@ -668,6 +710,32 @@ final class AdminController
         return $this->json(['ok' => true, 'message' => 'Reihenfolge gespeichert.']);
     }
 
+    public function updateModuleColumns(Request $request): Response
+    {
+        if ($this->users === null) {
+            return $this->json(['ok' => false, 'message' => 'Service Unavailable'], 503);
+        }
+        $userId = (int) (($this->auth?->currentUser()['id'] ?? 0));
+        if ($userId <= 0) {
+            return $this->json(['ok' => false, 'message' => 'Benutzer nicht gefunden.'], 401);
+        }
+
+        $resetRaw = $request->inputRaw('reset', false);
+        $reset = $resetRaw === true || $resetRaw === 1 || $resetRaw === '1';
+        if ($reset) {
+            $this->users->updateModuleManagementColumns($userId, null);
+            return $this->json(['ok' => true, 'columns' => ModuleManagementColumns::DEFAULTS]);
+        }
+
+        $raw = $request->inputRaw('columns', []);
+        if (!is_array($raw)) {
+            return $this->json(['ok' => false, 'message' => 'Ungültige Spaltenauswahl.'], 422);
+        }
+        $columns = ModuleManagementColumns::normalize($raw);
+        $this->users->updateModuleManagementColumns($userId, $columns);
+        return $this->json(['ok' => true, 'columns' => $columns]);
+    }
+
     public function deleteModule(Request $request): Response
     {
         if ($this->modules === null) {
@@ -678,6 +746,16 @@ final class AdminController
         if ($moduleId <= 0) {
             $this->session->flash('admin_error', 'Ungültige Modul-ID.');
             return Response::redirect('/admin/modules');
+        }
+
+        $module = $this->modules->findById($moduleId);
+        if (is_array($module) && ModulePresentation::type($module) === 'core') {
+            $this->session->flash('admin_error', 'Core-Komponenten können nicht gelöscht werden.');
+            return Response::redirect('/admin/modules');
+        }
+        if (($module['module_key'] ?? null) !== null) {
+            $this->session->flash('admin_error', 'Verwaltete Module werden im Modul-Katalog sicher deinstalliert.');
+            return Response::redirect('/admin/module-catalog/' . rawurlencode((string) $module['module_key']));
         }
 
         $this->modules->deleteModule($moduleId);
@@ -701,7 +779,10 @@ final class AdminController
             'admin_section' => 'modules',
             'message' => $this->session->pullFlash('admin_info'),
             'error' => $this->session->pullFlash('admin_error'),
-            'module' => $module,
+            'module' => array_merge($module, [
+                'module_type' => ModulePresentation::type($module),
+                'module_type_label' => ModulePresentation::typeLabel(ModulePresentation::type($module)),
+            ]),
             'native_binding' => $this->resolveNativeBinding($module),
             'legacy_entries' => $this->discoverLegacyEntries(),
         ])));
@@ -908,15 +989,34 @@ final class AdminController
      * @param array<int, array<string, mixed>> $modules
      * @return array<int, array<string, mixed>>
      */
-    private function withModuleLinks(array $modules): array
+    private function presentModules(array $modules): array
     {
         foreach ($modules as &$module) {
             $prefix = trim((string) ($module['route_prefix'] ?? ''), '/');
-            $module['module_url'] = $prefix !== '' ? '/' . $prefix . '/' : null;
-            $module['module_admin_url'] = $this->resolveModuleAdminUrl($module, $prefix);
+            $module['module_url'] = $prefix !== '' && $this->router?->hasRoute('GET', '/' . $prefix) === true
+                ? '/' . $prefix
+                : null;
+            $module['module_admin_url'] = $prefix !== '' && $this->router?->hasRoute('GET', '/admin/' . $prefix) === true
+                ? '/admin/' . $prefix
+                : $this->resolveModuleAdminUrl($module, $prefix);
+            $module['module_type'] = ModulePresentation::type($module);
+            $module['module_type_label'] = ModulePresentation::typeLabel((string) $module['module_type']);
+            $module['module_type_badge'] = ModulePresentation::typeBadgeClass((string) $module['module_type']);
+            $module['origin_badge_label'] = ModulePresentation::originLabel((string) ($module['origin'] ?? ''));
+            $module['access_badge'] = ModulePresentation::accessBadgeClass((string) ($module['access_level'] ?? ''));
+            $module['managed'] = ($module['module_key'] ?? null) !== null;
         }
 
         return $modules;
+    }
+
+    /** @return list<string> */
+    private function currentModuleColumns(): array
+    {
+        $userId = (int) (($this->auth?->currentUser()['id'] ?? 0));
+        return $userId > 0 && $this->users !== null
+            ? $this->users->moduleManagementColumns($userId)
+            : ModuleManagementColumns::DEFAULTS;
     }
 
     /**

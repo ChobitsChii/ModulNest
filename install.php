@@ -11,8 +11,8 @@ declare(strict_types=1);
  * implementiert statt an die eigentliche Anwendung zu delegieren.
  */
 
-const MODULNEST_INSTALLER_VERSION = '1.3.0';
-const MODULNEST_METADATA_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/stable.json';
+const MODULNEST_INSTALLER_VERSION = '2.0.0-rc.1';
+const MODULNEST_METADATA_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/prerelease.json';
 const MODULNEST_MIN_PHP = '8.3.0';
 const MODULNEST_REQUIRED_EXTENSIONS = [
     'pdo',
@@ -1204,6 +1204,9 @@ function install(array $input): array
         'self_deleted' => $selfDeleted,
         'self_path' => $selfPath,
         'root_url' => detectedRootUrl(),
+        'catalog_setup_url' => detectedRootUrl() !== null
+            ? rtrim((string) detectedRootUrl(), '/') . '/admin/module-catalog?einrichtung=1'
+            : null,
         'install_path' => $paths['project_root'],
         'public_path' => $paths['public_dir'],
         'installer_in_public' => $paths['installer_in_public'],
@@ -1392,6 +1395,10 @@ $submittedEnabledModules = array_map('strval', $submittedEnabledModules);
                 <?php endif; ?>
                 <?php if (!empty($result['root_url'])): ?>
                     <p><a class="button" href="<?= e((string) $result['root_url']) ?>">ModulNest öffnen</a></p>
+                    <p class="muted">Melde dich mit dem neuen Admin-Konto an und öffne anschließend den Modulkatalog, um die gewünschten Produktmodule über den regulären Lifecycle zu installieren.</p>
+                    <?php if (!empty($result['catalog_setup_url'])): ?>
+                        <p><a class="button secondary" href="<?= e((string) $result['catalog_setup_url']) ?>">Modulauswahl im Katalog öffnen</a></p>
+                    <?php endif; ?>
                 <?php else: ?>
                     <p class="muted">
                         <?php if (!empty($result['installer_in_public'])): ?>

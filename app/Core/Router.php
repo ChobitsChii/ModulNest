@@ -139,6 +139,21 @@ final class Router
         return $response;
     }
 
+    public function hasRoute(string $method, string $path): bool
+    {
+        $method = strtoupper($method);
+        $path = $this->normalizePath($path);
+        if (isset($this->routes[$method][$path])) {
+            return true;
+        }
+        foreach ($this->wildcardRoutes[$method] ?? [] as $route) {
+            if ($route['prefix'] === $path) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function normalizePath(string $path): string
     {
         $path = '/' . trim($path, '/');

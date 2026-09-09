@@ -12,7 +12,7 @@ function link_design_assert(bool $condition, string $message): void
 
 $root = dirname(__DIR__, 2);
 $appCss = (string) file_get_contents($root . '/public/assets/css/app.css');
-$wikiCss = (string) file_get_contents($root . '/public/assets/css/wiki.css');
+$wikiCss = (string) file_get_contents($root . '/modules-src/wiki/1.3.0/assets/wiki.css');
 
 link_design_assert(substr_count($appCss, '--app-link:') >= 2, 'Light and dark themes must each define a text-link token.');
 link_design_assert(substr_count($appCss, '--app-link-hover:') >= 2, 'Light and dark themes must each define a text-link hover token.');

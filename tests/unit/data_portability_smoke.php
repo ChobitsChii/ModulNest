@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-use Modulon\Modules\DataPortability\DataPortabilityArchiveReader;
+use Modulon\Core\Modules\DataPortability\DataPortabilityArchiveReader;
+use Modulon\Core\Modules\DataPortability\DataPortabilityFileCollector;
+use Modulon\Core\Modules\DataPortability\DataPortabilityProviderInterface;
+use ModulNest\Banking\BankingDataPortabilityProvider;
+use Modulon\Modules\Dashboard\DashboardDataPortabilityProvider;
 use Modulon\Modules\DataPortability\DataPortabilityController;
-use Modulon\Modules\DataPortability\DataPortabilityFileCollector;
-use Modulon\Modules\DataPortability\DataPortabilityProviderInterface;
 use Modulon\Modules\DataPortability\DataPortabilityService;
-use Modulon\Modules\DataPortability\Providers\BankingDataPortabilityProvider;
-use Modulon\Modules\DataPortability\Providers\DashboardDataPortabilityProvider;
-use Modulon\Modules\DataPortability\Providers\NewsDataPortabilityProvider;
+use ModulNest\News\NewsDataPortabilityProvider;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/modules-src/banking/1.2.0/src/BankingDataPortabilityProvider.php';
+require_once dirname(__DIR__, 2) . '/modules-src/news/1.0.0/src/NewsDataPortabilityProvider.php';
 
 final class DataPortabilitySmokeProvider implements DataPortabilityProviderInterface
 {
@@ -104,6 +106,13 @@ $service = new DataPortabilityService($base, '9.9.9', [
     'smoke' => new DataPortabilitySmokeProvider(),
     'admin-only' => new DataPortabilityAdminOnlySmokeProvider(),
 ]);
+$dynamicProviders = [];
+$dynamicService = new DataPortabilityService($base, '9.9.9', static function () use (&$dynamicProviders): array {
+    return $dynamicProviders;
+});
+assert_true($dynamicService->providers() === [], 'Verzögerte Provider-Auflösung startet nicht leer.');
+$dynamicProviders['smoke'] = new DataPortabilitySmokeProvider();
+assert_true(isset($dynamicService->providers()['smoke']), 'Spät registrierter Capability-Provider wird nicht dynamisch erkannt.');
 $export = $service->createExport(['smoke'], 123);
 
 $zip = new ZipArchive();

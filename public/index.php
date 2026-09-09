@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 $basePath = dirname(__DIR__);
 
+// When this file is used as PHP's development-server router, let the server
+// deliver existing public assets itself. The real path guard keeps the
+// document-root boundary intact even for encoded traversal attempts.
+if (PHP_SAPI === 'cli-server') {
+    $requestPath = rawurldecode((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH));
+    $publicRoot = realpath(__DIR__);
+    $asset = realpath(__DIR__ . '/' . ltrim($requestPath, '/'));
+    if (is_string($publicRoot) && is_string($asset) && str_starts_with($asset . DIRECTORY_SEPARATOR, $publicRoot . DIRECTORY_SEPARATOR) && is_file($asset)) {
+        return false;
+    }
+}
+
 $autoloadPath = $basePath . '/vendor/autoload.php';
 if (!is_file($autoloadPath)) {
     http_response_code(500);

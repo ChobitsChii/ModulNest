@@ -56,7 +56,7 @@ try {
         'status' => $successfulStatus,
     ]);
     updater_version_display_assert(
-        str_contains($html, 'Installiert:</span> <strong>1.1.0</strong>'),
+        str_contains($html, 'Installiert:</span> <strong>1.1.0 (Stable)</strong>'),
         'Die Updates-View rendert nach erfolgreicher Installation noch die alte Version.',
     );
 

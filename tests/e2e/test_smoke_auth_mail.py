@@ -100,30 +100,16 @@ def test_admin_navigation_dropdown(logged_in_page, base_url: str) -> None:
     admin_toggle.click()
 
     admin_dropdown = page.locator("ul[aria-labelledby='admin-nav-dropdown']")
-    assert admin_dropdown.get_by_role("link", name="Modulverwaltung").is_visible()
+    assert admin_dropdown.get_by_role("link", name="Modulverwaltung", exact=True).is_visible()
     assert admin_dropdown.get_by_role("link", name="Benutzerverwaltung").is_visible()
-    assert admin_dropdown.get_by_role("link", name="News").is_visible()
+    assert admin_dropdown.get_by_role("link", name="Modul-Katalog").is_visible()
     assert admin_dropdown.get_by_role("link", name="Sneak Preview").is_visible()
 
     admin_tabs = page.locator("main .nav-tabs")
-    assert admin_tabs.get_by_role("link", name="Modulverwaltung").is_visible()
+    assert admin_tabs.get_by_role("link", name="Modul-Katalog").is_visible()
+    assert admin_tabs.get_by_role("link", name="Modulverwaltung", exact=True).is_visible()
     assert admin_tabs.get_by_role("link", name="Benutzerverwaltung").is_visible()
-    assert admin_tabs.get_by_role("link", name="News").is_visible()
     assert admin_tabs.get_by_role("link", name="Sneak Preview").is_visible()
-    news_module_row = page.locator("tbody tr", has=page.locator("code", has_text="news")).first
-    assert news_module_row.get_by_role("link", name="Admin").get_attribute("href") == "/admin/news"
-
-    response = page.goto(_url(base_url, "/admin/news"), wait_until="commit", timeout=60000)
-    assert response is not None
-    assert response.status < 500
-    page.wait_for_load_state("domcontentloaded")
-    assert page.get_by_role("heading", name="Admin / News").is_visible()
-
-    response = page.goto(_url(base_url, "/news"), wait_until="commit", timeout=60000)
-    assert response is not None
-    assert response.status < 500
-    page.wait_for_load_state("domcontentloaded")
-    assert page.get_by_role("heading", name="News & Updates").is_visible()
 
     response = page.goto(_url(base_url, "/admin/sneak-preview"), wait_until="commit", timeout=60000)
     assert response is not None

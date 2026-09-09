@@ -3,8 +3,9 @@ set -Eeuo pipefail
 
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly DEFAULT_TARGET="/srv/http/modulnest"
-readonly CORE_MODULES=("Admin" "Auth" "Modules" "User")
-readonly DEFAULT_OPTIONAL_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "Pages" "SneakPreview" "Systeminfo" "Tools" "Updates" "Wiki")
+readonly CORE_MODULES=("Admin" "Auth" "Modules" "User" "Updates")
+readonly V2_PRODUCT_MODULES=("Banking" "Dashboard" "DataPortability" "Homepage" "Logs" "News" "Pages" "SneakPreview" "Systeminfo" "Tools" "Wiki")
+readonly DEFAULT_OPTIONAL_MODULES=()
 
 TARGET="$DEFAULT_TARGET"
 ASSUME_YES=0
@@ -109,6 +110,7 @@ discover_modules() {
     while IFS= read -r module_dir; do
         module="$(basename "$module_dir")"
         is_in_array "$module" "${CORE_MODULES[@]}" && continue
+        is_in_array "$module" "${V2_PRODUCT_MODULES[@]}" && continue
         OPTIONAL_MODULES+=("$module")
     done < <(find app/Modules -mindepth 1 -maxdepth 1 -type d | sort)
 }
@@ -122,6 +124,7 @@ select_modules_from_csv() {
         [[ -z "$module" ]] && continue
         [[ -d "app/Modules/$module" ]] || fail "Modul '$module' existiert nicht unter app/Modules."
         is_in_array "$module" "${CORE_MODULES[@]}" && continue
+        is_in_array "$module" "${V2_PRODUCT_MODULES[@]}" && fail "Modul '$module' wird in ModulNest 2 ausschließlich über den Modulkatalog ausgeliefert."
         SELECTED_MODULES+=("$module")
     done
 }
@@ -365,16 +368,16 @@ copy_module_and_views() {
 }
 
 copy_public_assets() {
-    copy_dir "public/assets/css" "$TARGET/public/assets/css"
+    copy_dir "public/assets/css" "$TARGET/public/assets/css" \
+        --exclude='wiki.css'
     copy_dir "public/assets/js" "$TARGET/public/assets/js" \
         --exclude='fantasycards-*.js' \
         --exclude='mail-*.js' \
-        --exclude='modulon-overlay.js'
+        --exclude='modulon-overlay.js' \
+        --exclude='tools.js' \
+        --exclude='wiki.js'
     copy_dir "public/assets/img" "$TARGET/public/assets/img"
     copy_dir "public/assets/vendor" "$TARGET/public/assets/vendor"
-
-    mkdir -p "$TARGET/public/assets/favicons"
-    touch "$TARGET/public/assets/favicons/.gitkeep"
 
     if is_in_array "SneakPreview" "${SELECTED_MODULES[@]}"; then
         mkdir -p "$TARGET/public/assets/sneak-preview/posters"
@@ -389,15 +392,12 @@ copy_public_assets() {
 
 copy_storage_placeholders() {
     mkdir -p "$TARGET/storage/logs" \
-        "$TARGET/storage/favicons"
-    if is_in_array "Tools" "${SELECTED_MODULES[@]}"; then
-        mkdir -p "$TARGET/storage/tools/speech/uploads" \
-            "$TARGET/storage/tools/speech/wav" \
-            "$TARGET/storage/tools/speech/results" \
-            "$TARGET/storage/tools/speech/jobs" \
-            "$TARGET/storage/tools/speech/logs" \
-            "$TARGET/storage/tools/speech/models"
-    fi
+        "$TARGET/storage/modules" \
+        "$TARGET/storage/cache/modules" \
+        "$TARGET/storage/locks/modules" \
+        "$TARGET/storage/backups/modules" \
+        "$TARGET/storage/module-operations/adoptions" \
+        "$TARGET/storage/module-operations/updates"
     if is_in_array "FantasyCards" "${SELECTED_MODULES[@]}"; then
         mkdir -p "$TARGET/storage/fantasy-cards"
     fi
@@ -414,10 +414,12 @@ write_package_metadata() {
         $core = array_values(array_filter(explode(",", $argv[2])));
         $selected = array_values(array_filter(explode(",", $argv[3])));
         $version = "0.8.0";
+        $channel = "stable";
         if (is_file("app/Core/Env.php") && is_file("app/Config/version.php")) {
             require_once "app/Core/Env.php";
             $config = require "app/Config/version.php";
             $version = (string) ($config["version"] ?? $version);
+            $channel = (string) ($config["channel"] ?? $channel);
         }
         spl_autoload_register(static function (string $class): void {
             $prefix = "Modulon\\";
@@ -495,7 +497,7 @@ write_package_metadata() {
             "product" => "ModulNest",
             "core" => "Modulon",
             "version" => $version,
-            "channel" => "stable",
+            "channel" => $channel,
             "requires_migrations" => $argv[4] === "true",
             "generated_at" => gmdate("c"),
             "required_modules" => $core,
@@ -600,7 +602,8 @@ copy_project() {
         --exclude='.user.ini'
     copy_public_assets
 
-    copy_dir "docs" "$TARGET/docs"
+    copy_dir "docs" "$TARGET/docs" \
+        --exclude='ai-benchmark/'
     # Build-Quelle der lokal gebündelten Markdown-Hervorhebung. node_modules
     # bleibt ausgeschlossen; package-lock.json fixiert die reproduzierbare
     # Entwicklungsabhängigkeit.
@@ -615,16 +618,32 @@ copy_project() {
         --exclude='**/local.env' \
         --exclude='**/__pycache__/' \
         --exclude='**/*.pyc' \
+        --exclude='Fixtures/catalog-v1/' \
+        --exclude='Fixtures/legacy-modules-1.2.0/' \
+        --exclude='Fixtures/module-packages-v2/' \
+        --exclude='unit/module_package_test_bootstrap.php' \
+        --exclude='unit/module_catalog_v2_smoke.php' \
+        --exclude='unit/module_catalog_lifecycle_v2_smoke.php' \
+        --exclude='unit/module_catalog_multi_v2_smoke.php' \
+        --exclude='unit/module_wave_v2_smoke.php' \
+        --exclude='unit/module_wave_adoption_v2_smoke.php' \
+        --exclude='unit/module_v2_clean_install_smoke.php' \
+        --exclude='unit/module_v2_upgrade_120_smoke.php' \
+        --exclude='unit/wiki_v2_adoption_smoke.php' \
+        --exclude='unit/wiki_data_portability_v2_smoke.php' \
+        --exclude='unit/wiki_module_smoke.php' \
+        --exclude='unit/wiki_search_smoke.php' \
+        --exclude='unit/wiki_sync_smoke.php' \
+        --exclude='unit/wiki_local_source_smoke.php' \
+        --exclude='unit/wiki_local_source_integration_smoke.php' \
+        --exclude='unit/wiki_docs_structure_smoke.php' \
+        --exclude='unit/wiki_url_smoke.js' \
         --exclude='e2e/test_fantasy_cards_module.py'
 
     mkdir -p "$TARGET/bin"
-    copy_file_if_exists "bin/tools-speech-worker.php" "$TARGET/bin/tools-speech-worker.php"
-    if is_in_array "Banking" "${SELECTED_MODULES[@]}"; then
-        copy_file_if_exists "bin/migrate-banking.php" "$TARGET/bin/migrate-banking.php"
-    fi
-    if is_in_array "SneakPreview" "${SELECTED_MODULES[@]}"; then
-        copy_file_if_exists "bin/migrate-sneak-preview.php" "$TARGET/bin/migrate-sneak-preview.php"
-    fi
+    copy_file_if_exists "bin/module-health.php" "$TARGET/bin/module-health.php"
+    copy_file_if_exists "bin/module-adoption-worker.php" "$TARGET/bin/module-adoption-worker.php"
+    copy_file_if_exists "bin/module-update-worker.php" "$TARGET/bin/module-update-worker.php"
 
     copy_storage_placeholders
     write_package_metadata
@@ -654,11 +673,11 @@ scan_forbidden_paths() {
 
     if find "$TARGET" -type f \( \
         -iname '*.bak' -o -iname '*.backup' -o -iname '*.dump' -o -iname '*.sql.gz' -o -iname '*.log' -o \
-        -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*.pyc' -o -iname '*backup*' -o -iname '*dump*' \
+        -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*.pyc' \
     \) | grep -q .; then
         find "$TARGET" -type f \( \
             -iname '*.bak' -o -iname '*.backup' -o -iname '*.dump' -o -iname '*.sql.gz' -o -iname '*.log' -o \
-            -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*.pyc' -o -iname '*backup*' -o -iname '*dump*' \
+            -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*.pyc' \
         \) >&2
         found=1
     fi
@@ -749,6 +768,7 @@ write_summary() {
         printf -- '- `app/Legacy` enthält nur `.gitkeep`.\n'
         printf -- '- `app/Database/schema.sql` wurde als Kompatibilitäts-Aggregat aus Core-Schema, Core-Seeds und den ausgewählten Modul-Schemas/-Seeds erzeugt.\n'
         printf -- '- Nicht ausgewählte Module bringen keine Modul-Schema-Dateien in den Export.\n\n'
+        printf -- '- Die elf öffentlichen Modul-v2-Produktmodule werden ausschließlich als signierte Katalogpakete ausgeliefert und sind nicht im Core-Export gebündelt.\n\n'
         printf -- '- `install.php` ist als einzelner Bootstrap-Installer enthalten.\n\n'
         printf -- '- `recovery.php` stellt den geschützten Recovery-Einstieg bereit.\n\n'
         printf -- '- `modulnest-package.json` beschreibt die im Export enthaltenen Pflicht- und optionalen Module.\n\n'

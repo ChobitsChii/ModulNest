@@ -33,7 +33,7 @@ $router->setCsrfGuard((new CsrfGuard($tokenManager))->handle(...));
 $handler = static fn (Request $request): Response => new Response('handled');
 
 $routes = [
-    '/admin/modules/create', '/admin/modules/update', '/admin/modules/toggle', '/admin/modules/reorder', '/admin/modules/delete',
+    '/admin/modules/create', '/admin/modules/update', '/admin/modules/toggle', '/admin/modules/columns', '/admin/modules/reorder', '/admin/modules/delete',
     '/admin/users/create', '/admin/users/update', '/admin/users/toggle-block', '/admin/users/delete',
     '/admin/settings/registration', '/admin/settings/registration/toggle',
     '/profil/update', '/profil/settings', '/profil/theme', '/profil/password',

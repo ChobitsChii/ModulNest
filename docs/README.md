@@ -19,6 +19,8 @@ Die [Developer-Dokumentation](development/README.md) beschreibt den nativen Modu
 - [Vollständiges Example-Modul](development/example-module.md)
 - [Sicherheitsregeln](development/security.md)
 - [Tests für Module](development/testing.md)
+- [Modulpakete v2](development/module-packages-v2.md)
+- [Signierter Modulkatalog v2](development/module-catalog-v2.md)
 
 ## Betrieb und Releases
 

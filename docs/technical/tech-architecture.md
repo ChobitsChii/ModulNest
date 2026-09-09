@@ -245,10 +245,13 @@ Ergebnis: konsistente Navbar/Footer-Logik auf allen Seiten.
 
 ### News (`/news`, `/admin/news`)
 
-- Controller: `app/Modules/News/NewsController.php`
+- v2-Paket: `modulnest.news`, Workspace `modules-src/news/<version>/`
+- Runtime-Controller aus dem atomar aktivierten Paketrelease
 - Public-Listing + Detail
 - Admin-CRUD für Changelog/News
 - Adminbereich wird durch das News-Modul selbst angemeldet
+- Data Portability wird über die Release-Capability entdeckt, nicht über eine
+  konkrete News-Klasse im zentralen Modul
 
 ### Dashboard (`/dashboard`)
 
@@ -269,9 +272,11 @@ Ergebnis: konsistente Navbar/Footer-Logik auf allen Seiten.
 
 ### Systeminfo (`/systeminfo`, admin)
 
-- Controller: `app/Modules/Systeminfo/SysteminfoController.php`
+- v2-Paket: `modulnest.systeminfo`, Workspace
+  `modules-src/systeminfo/<version>/`
 - read-only System-/Runtime-Dashboard
-- nutzt PHP/INI/`$_SERVER`, PDO, `/proc`, `/etc/os-release`
+- nutzt PHP/INI/`$_SERVER`, PDO, `/proc`, `/etc/os-release` sowie stabile
+  Core-Health-/Modulstatus-Verträge; besitzt keine Diagnosedaten
 
 Unterschied zu Legacy:
 

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modulon\Modules\Auth;
 
+use Modulon\Core\Modules\ModuleManagementColumns;
 use PDO;
+use Throwable;
 
 final class UserRepository
 {
@@ -312,6 +314,34 @@ final class UserRepository
              WHERE id = :id'
         );
         $statement->execute(['id' => $userId, 'theme_mode' => $themeMode]);
+    }
+
+    /** @return list<string> */
+    public function moduleManagementColumns(int $userId): array
+    {
+        try {
+            $statement = $this->pdo->prepare('SELECT module_management_columns FROM users WHERE id = :id LIMIT 1');
+            $statement->execute(['id' => $userId]);
+            $value = $statement->fetchColumn();
+            if (!is_string($value) || trim($value) === '') {
+                return ModuleManagementColumns::DEFAULTS;
+            }
+            return ModuleManagementColumns::normalize(json_decode($value, true, 16, JSON_THROW_ON_ERROR));
+        } catch (Throwable) {
+            return ModuleManagementColumns::DEFAULTS;
+        }
+    }
+
+    /** @param list<string>|null $columns */
+    public function updateModuleManagementColumns(int $userId, ?array $columns): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE users SET module_management_columns = :columns, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $userId,
+            'columns' => $columns === null ? null : json_encode(ModuleManagementColumns::normalize($columns), JSON_THROW_ON_ERROR),
+        ]);
     }
 
     public function updateDashboardAutoRefreshSettings(int $userId, bool $enabled, int $intervalMinutes): void

@@ -81,23 +81,30 @@ tools_csrf_assert($status === 419, 'Tools akzeptiert einen Token aus einer ander
 [$status, $body] = $dispatch('/admin/tools/speech/delete', ['_csrf' => $otherSessionToken]);
 tools_csrf_assert($status === 200 && $body === 'handled', 'Tools akzeptiert den aktuellen Session-Token nicht.');
 
-$moduleSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Tools/ToolsModule.php');
-foreach ($routes as $route) {
-    tools_csrf_assert(
-        preg_match("~router->post\\('" . preg_quote($route, '~') . "'.*?'admin'\\);~", $moduleSource) === 1,
-        $route . ' nutzt nicht den sicheren Router-Default.'
-    );
+$root = dirname(__DIR__, 2);
+foreach ([$root . '/app/Modules/Tools/ToolsModule.php', $root . '/modules-src/tools/1.1.0/src/ToolsModule.php'] as $modulePath) {
+    $moduleSource = (string) file_get_contents($modulePath);
+    foreach ($routes as $route) {
+        tools_csrf_assert(
+            preg_match("~router->post\\('" . preg_quote($route, '~') . "'.*?'admin'\\);~", $moduleSource) === 1,
+            $route . ' nutzt nicht den sicheren Router-Default: ' . $modulePath
+        );
+    }
 }
 
-$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Tools/ToolsController.php');
-tools_csrf_assert(str_contains($controllerSource, '$this->network->run($tool, $input)'), 'Die Network-Fachlogik fehlt.');
-tools_csrf_assert(str_contains($controllerSource, '$this->speech->createUploadJob($file,'), 'Die Speech-Upload-Logik fehlt.');
-tools_csrf_assert(str_contains($controllerSource, '$this->speech->deleteJob($jobId)'), 'Die Speech-Löschlogik fehlt.');
+foreach ([$root . '/app/Modules/Tools/ToolsController.php', $root . '/modules-src/tools/1.1.0/src/ToolsController.php'] as $controllerPath) {
+    $controllerSource = (string) file_get_contents($controllerPath);
+    tools_csrf_assert(str_contains($controllerSource, '$this->network->run($tool, $input)'), 'Die Network-Fachlogik fehlt: ' . $controllerPath);
+    tools_csrf_assert(str_contains($controllerSource, '$this->speech->createUploadJob($file,'), 'Die Speech-Upload-Logik fehlt: ' . $controllerPath);
+    tools_csrf_assert(str_contains($controllerSource, '$this->speech->deleteJob($jobId)'), 'Die Speech-Löschlogik fehlt: ' . $controllerPath);
+}
 
-$javascript = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/js/tools.js');
-tools_csrf_assert(str_contains($javascript, "form.querySelector('input[name=\"_csrf\"]')"), 'Der zentrale JS-CSRF-Helper fehlt.');
-tools_csrf_assert(str_contains($javascript, "'X-CSRF-Token': csrfToken"), 'tools.js sendet keinen CSRF-Header.');
-tools_csrf_assert(substr_count($javascript, 'body: new FormData(form)') === 2, 'Die FormData-Uploadpfade wurden verändert.');
-tools_csrf_assert(!str_contains($javascript, 'name="csrf_token"'), 'tools.js enthält noch das alte CSRF-Feld.');
+foreach ([$root . '/public/assets/js/tools.js', $root . '/modules-src/tools/1.1.0/assets/tools.js'] as $javascriptPath) {
+    $javascript = (string) file_get_contents($javascriptPath);
+    tools_csrf_assert(str_contains($javascript, "form.querySelector('input[name=\"_csrf\"]')"), 'Der zentrale JS-CSRF-Helper fehlt: ' . $javascriptPath);
+    tools_csrf_assert(str_contains($javascript, "'X-CSRF-Token': csrfToken"), 'tools.js sendet keinen CSRF-Header: ' . $javascriptPath);
+    tools_csrf_assert(substr_count($javascript, 'body: new FormData(form)') === 2, 'Die FormData-Uploadpfade wurden verändert: ' . $javascriptPath);
+    tools_csrf_assert(!str_contains($javascript, 'name="csrf_token"'), 'tools.js enthält noch das alte CSRF-Feld: ' . $javascriptPath);
+}
 
 fwrite(STDOUT, "Tools CSRF smoke test passed.\n");

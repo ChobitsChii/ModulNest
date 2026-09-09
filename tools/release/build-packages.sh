@@ -29,7 +29,8 @@ Pakete:
 Optionen:
   --public-target PATH  Bereinigter ModulNest-Export. Default: $DEFAULT_PUBLIC_TARGET
   --output PATH         Release-Ausgabeordner. Default: PUBLIC_TARGET/build/releases
-  --metadata PATH       Update-Metadaten-JSON. Default: PUBLIC_TARGET/build/update/stable.json
+  --metadata PATH       Update-Metadaten-JSON. Default: stable.json für stable,
+                        prerelease.json für alle Vorabkanäle.
   --version VERSION     Version überschreiben. Default: modulnest-package.json bzw. app/Config/version.php
   --channel CHANNEL     Release-Channel. Default: $DEFAULT_CHANNEL
   --requires-migrations true|false  Überschreibt die releasebezogene Paketmetadaten-Angabe.
@@ -143,7 +144,13 @@ detect_requires_migrations() {
 
 normalize_paths() {
     OUTPUT_DIR="${OUTPUT_DIR:-$PUBLIC_TARGET/build/releases}"
-    METADATA_FILE="${METADATA_FILE:-$PUBLIC_TARGET/build/update/stable.json}"
+    if [[ -z "$METADATA_FILE" ]]; then
+        if [[ "$CHANNEL" == "stable" ]]; then
+            METADATA_FILE="$PUBLIC_TARGET/build/update/stable.json"
+        else
+            METADATA_FILE="$PUBLIC_TARGET/build/update/prerelease.json"
+        fi
+    fi
     [[ "$OUTPUT_DIR" = /* ]] || fail "--output muss absolut sein."
     [[ "$METADATA_FILE" = /* ]] || fail "--metadata muss absolut sein."
 }
@@ -170,6 +177,7 @@ copy_public_export_to_staging() {
     rsync -a \
         --exclude='.git' \
         --exclude='build' \
+        --exclude='module-catalog' \
         --exclude='vendor' \
         --exclude='.env' \
         --exclude='.local' \
@@ -194,13 +202,13 @@ scan_package_tree() {
         suspicious_files="$(find "$tree" -path "$tree/vendor" -prune -o -type f \( \
             -name '.env' -o -name '.user.ini' -o -path '*/.local/*' -o -path '*/var/cache/*' -o -path '*/var/log/*' -o \
             -iname '*.log' -o -iname '*.bak' -o -iname '*.backup' -o -iname '*.dump' -o -iname '*.sql.gz' -o \
-            -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*backup*' -o -iname '*dump*' \
+            -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*dump*' \
         \) -print)"
     else
         suspicious_files="$(find "$tree" -type f \( \
             -name '.env' -o -name '.user.ini' -o -path '*/.local/*' -o -path '*/var/cache/*' -o -path '*/var/log/*' -o \
             -iname '*.log' -o -iname '*.bak' -o -iname '*.backup' -o -iname '*.dump' -o -iname '*.sql.gz' -o \
-            -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*backup*' -o -iname '*dump*' \
+            -iname '*.tar' -o -iname '*.tar.gz' -o -iname '*.zip' -o -iname '*dump*' \
         \) -print)"
     fi
     if [[ -n "$suspicious_files" ]]; then

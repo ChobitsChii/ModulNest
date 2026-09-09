@@ -15,6 +15,26 @@ use Modulon\Core\ModuleContext;
 use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleLoader;
 use Modulon\Core\NativeModuleMigrationService;
+use Modulon\Core\Modules\ManagedModuleLoader;
+use Modulon\Core\Modules\CapabilityRegistry;
+use Modulon\Core\Modules\LegacyModuleAdoptionService;
+use Modulon\Core\Modules\ModuleAdoptionOperationService;
+use Modulon\Core\Modules\ModuleBatchUpdateService;
+use Modulon\Core\Modules\ModuleLifecycleService;
+use Modulon\Core\Modules\ModuleOperationLock;
+use Modulon\Core\Modules\PageLinkProviderInterface;
+use Modulon\Core\Modules\PdoLogicalBackupProvider;
+use Modulon\Core\Modules\RootPageProviderInterface;
+use Modulon\Core\Modules\WikiAdoptionService;
+use Modulon\Core\Modules\Catalog\CatalogCache;
+use Modulon\Core\Modules\Catalog\CatalogLoader;
+use Modulon\Core\Modules\Catalog\CatalogPackageInstaller;
+use Modulon\Core\Modules\Catalog\CatalogService;
+use Modulon\Core\Modules\Catalog\CleanInstallModuleService;
+use Modulon\Core\Modules\Catalog\CatalogSnapshot;
+use Modulon\Core\Modules\Catalog\CatalogTrustStore;
+use Modulon\Core\Modules\Catalog\HttpCatalogSource;
+use Modulon\Core\Modules\Catalog\LocalCatalogSource;
 use Modulon\Core\Request;
 use Modulon\Core\RecoveryManager;
 use Modulon\Core\Response;
@@ -25,6 +45,7 @@ use Modulon\Core\ThemePreference;
 use Modulon\Core\UserNavigationRegistry;
 use Modulon\Core\View;
 use Modulon\Modules\Admin\AdminController;
+use Modulon\Modules\Admin\ModuleCatalogController;
 use Modulon\Modules\Admin\AppSettingRepository;
 use Modulon\Modules\Auth\AuthController;
 use Modulon\Modules\Auth\AuthRateLimiter;
@@ -34,7 +55,6 @@ use Modulon\Modules\Auth\RememberTokenRepository;
 use Modulon\Modules\Auth\UserRepository;
 use Modulon\Modules\Auth\WebAuthnCredentialRepository;
 use Modulon\Modules\Modules\ModuleRepository;
-use Modulon\Modules\Pages\PagesRepository;
 
 // Projektpfad bestimmen und Konfiguration laden.
 $basePath = dirname(__DIR__);
@@ -55,6 +75,7 @@ $csrfTokenManager = new CsrfTokenManager($session);
 $databaseConfig = require $basePath . '/app/Config/database.php';
 $authConfig = require $basePath . '/app/Config/auth.php';
 $versionConfig = require $basePath . '/app/Config/version.php';
+$moduleCatalogConfig = require $basePath . '/app/Config/module_catalog.php';
 $publicRegistrationEnabled = (bool) ($authConfig['public_registration_enabled'] ?? true);
 $showPublicHealthCheck = strtolower(trim((string) Env::get('APP_ENV', 'production'))) === 'development'
     || Env::getBool('APP_DEBUG', false);
@@ -70,33 +91,32 @@ if ($pdo !== null) {
     try {
         $appVersion = preg_replace('/[^A-Za-z0-9_.-]/', '_', (string) ($versionConfig['version'] ?? 'unknown')) ?: 'unknown';
         $migrationFlag = $basePath . '/storage/migrations/' . $appVersion . '.done';
-        if (!is_file($migrationFlag)) {
-            $packageModules = null;
-            $packagePath = $basePath . '/modulnest-package.json';
-            if (is_file($packagePath)) {
-                $package = json_decode((string) file_get_contents($packagePath), true);
-                if (is_array($package) && is_array($package['modules'] ?? null)) {
-                    $packageModules = [];
-                    foreach ($package['modules'] as $module) {
-                        if (!is_array($module)) {
-                            continue;
-                        }
-                        $directory = (string) ($module['directory'] ?? '');
-                        if ($directory !== '' && (!empty($module['required']) || !empty($module['default_enabled']))) {
-                            $packageModules[] = $directory;
-                        }
+        $packageModules = null;
+        $packagePath = $basePath . '/modulnest-package.json';
+        if (is_file($packagePath)) {
+            $package = json_decode((string) file_get_contents($packagePath), true);
+            if (is_array($package) && is_array($package['modules'] ?? null)) {
+                $packageModules = [];
+                foreach ($package['modules'] as $module) {
+                    if (!is_array($module)) {
+                        continue;
+                    }
+                    $directory = (string) ($module['directory'] ?? '');
+                    if ($directory !== '' && (!empty($module['required']) || !empty($module['default_enabled']))) {
+                        $packageModules[] = $directory;
                     }
                 }
             }
-
-            $runner = new MigrationRunner($pdo, $basePath);
-            $runner->run($packageModules);
-            $migrationDir = dirname($migrationFlag);
-            if (!is_dir($migrationDir)) {
-                @mkdir($migrationDir, 0775, true);
-            }
-            @file_put_contents($migrationFlag, gmdate(DATE_ATOM));
         }
+        // Migrationen werden bei jedem Start checksum-geprüft. Das Versionsflag
+        // ist nur noch Diagnosemetadatum und darf additive Alpha-Migrationen
+        // innerhalb derselben Core-Version nicht überspringen.
+        (new MigrationRunner($pdo, $basePath))->run($packageModules);
+        $migrationDir = dirname($migrationFlag);
+        if (!is_dir($migrationDir)) {
+            @mkdir($migrationDir, 0775, true);
+        }
+        @file_put_contents($migrationFlag, gmdate(DATE_ATOM));
     } catch (\Throwable $throwable) {
         $migrationKey = preg_match('/Migration-Checksum stimmt nicht mehr: ([A-Za-z0-9_.-]+)/', $throwable->getMessage(), $matches) === 1 ? $matches[1] : '';
         (new RecoveryManager($basePath))->requireRecovery([
@@ -116,10 +136,12 @@ if ($pdo !== null) {
 $healthCheckRegistry = new HealthCheckRegistry();
 $healthCheck = new SystemHealthCheck($basePath, $pdo, $healthCheckRegistry);
 $adminNavigationRegistry = new AdminNavigationRegistry();
-$adminNavigationRegistry->registerCoreItem('modules', 'Modulverwaltung', '/admin/modules', 10, 'Module verwalten');
+$adminNavigationRegistry->registerCoreItem('module-catalog', 'Modul-Katalog', '/admin/module-catalog', 10, 'Module entdecken und verwalten');
+$adminNavigationRegistry->registerCoreItem('modules', 'Modulverwaltung', '/admin/modules', 15, 'Bestehende Modulverwaltung');
 $adminNavigationRegistry->registerCoreItem('users', 'Benutzerverwaltung', '/admin/users', 20, 'Benutzer verwalten');
 $moduleSubnavigationRegistry = new ModuleSubnavigationRegistry();
 $userNavigationRegistry = new UserNavigationRegistry();
+$router = new Router();
 
 // Auth-Bausteine nur aktivieren, wenn DB verfügbar ist.
 $authService = null;
@@ -158,6 +180,7 @@ $authRateLimiter = new AuthRateLimiter(
     (int) ($authConfig['auth_rate_limit_window_seconds'] ?? 900),
 );
 $authController = new AuthController($authService, $session, $publicRegistrationEnabled, $authRateLimiter);
+$capabilityRegistry = new CapabilityRegistry();
 $moduleContext = new ModuleContext(
     $basePath,
     $pdo,
@@ -169,6 +192,7 @@ $moduleContext = new ModuleContext(
         'appSettingRepository' => $appSettingRepository,
         'healthCheck' => $healthCheck,
         'healthCheckRegistry' => $healthCheckRegistry,
+        'capabilityRegistry' => $capabilityRegistry,
     ],
     [
         'authConfig' => $authConfig,
@@ -177,26 +201,38 @@ $moduleContext = new ModuleContext(
         'product_name' => (string) ($versionConfig['product_name'] ?? 'Modulon'),
     ],
 );
-$nativeModules = NativeModuleLoader::createActiveModules($basePath, $moduleContext);
-$pagesModuleActive = isset($nativeModules['pages']);
+$managedModules = [];
+if ($pdo !== null) {
+    // v2-Releases werden aus einem unveränderlichen Request-Snapshot ergänzt;
+    // der 1.x-NativeModuleLoader bleibt während der Übergangsphase aktiv.
+    $managedModules = ManagedModuleLoader::createActiveModules($pdo, $basePath, $moduleContext, $capabilityRegistry);
+}
+$nativeModules = array_replace(
+    NativeModuleLoader::createActiveModules($basePath, $moduleContext, array_keys($managedModules)),
+    $managedModules,
+);
+$pagesModuleActive = false;
 $pagesHeaderLinks = [];
 $pagesFooterLinks = [];
-if ($pagesModuleActive && $pdo !== null) {
+foreach ($capabilityRegistry->instances('page_links') as $pageLinkProvider) {
+    if (!$pageLinkProvider instanceof PageLinkProviderInterface) {
+        continue;
+    }
     try {
-        $pagesRepo = new PagesRepository($pdo);
-        $pagesHeaderLinks = $pagesRepo->listPublicHeaderPages();
-        $pagesFooterLinks = $pagesRepo->listPublicFooterPages();
+        $pagesHeaderLinks = array_merge($pagesHeaderLinks, $pageLinkProvider->listPublicHeaderPages());
+        $pagesFooterLinks = array_merge($pagesFooterLinks, $pageLinkProvider->listPublicFooterPages());
+        $pagesModuleActive = true;
     } catch (\Throwable) {
-        $pagesHeaderLinks = [];
-        $pagesFooterLinks = [];
+        // Optionale Link-Provider dürfen das Grundlayout nicht blockieren.
     }
 }
+$rootPageProviders = array_values(array_filter(
+    $capabilityRegistry->instances('root_page'),
+    static fn (object $provider): bool => $provider instanceof RootPageProviderInterface,
+));
 $nativeModuleBindings = [];
-foreach (NativeModuleLoader::discover($basePath) as $moduleClass) {
-    $module = $moduleClass::create($moduleContext);
-    if ($module !== null) {
-        $nativeModuleBindings[$module->routePrefix()] = $module->nativeBinding();
-    }
+foreach ($nativeModules as $module) {
+    $nativeModuleBindings[$module->routePrefix()] = $module->nativeBinding();
 }
 foreach ($nativeModules as $nativeModule) {
     $nativeModule->registerNavigation($moduleSubnavigationRegistry, $adminNavigationRegistry, $userNavigationRegistry);
@@ -209,6 +245,61 @@ $moduleFeatures = [
     'profile_settings_available' => $userNavigationRegistry->hasItem('profil', 'settings'),
     'profile_security_available' => $userNavigationRegistry->hasItem('profil', 'security'),
 ];
+$moduleLifecycle = null;
+$moduleCatalogController = null;
+if ($pdo !== null) {
+    $moduleLifecycle = new ModuleLifecycleService(
+        $pdo,
+        $basePath,
+        (string) ($versionConfig['version'] ?? '0.0.0'),
+        new PdoLogicalBackupProvider($pdo, $basePath . '/storage/backups/modules'),
+        new ModuleOperationLock($basePath . '/storage/locks/modules'),
+    );
+    $catalogWarning = null;
+    $catalogSource = null;
+    $catalogLoader = new CatalogLoader(
+        new CatalogTrustStore(
+            is_array($moduleCatalogConfig['trusted_keys'] ?? null) ? $moduleCatalogConfig['trusted_keys'] : [],
+            is_array($moduleCatalogConfig['root_key_ids'] ?? null) ? $moduleCatalogConfig['root_key_ids'] : [],
+        ),
+        new CatalogCache($basePath . '/storage/catalog'),
+    );
+    if (!empty($moduleCatalogConfig['enabled'])) {
+        try {
+            $catalogSource = (string) ($moduleCatalogConfig['source_url'] ?? '') !== ''
+                ? new HttpCatalogSource((string) $moduleCatalogConfig['source_id'], (string) $moduleCatalogConfig['source_url'])
+                : new LocalCatalogSource((string) $moduleCatalogConfig['source_id'], (string) $moduleCatalogConfig['source_path']);
+            $catalogSnapshot = $catalogLoader->refreshOrLastKnownGood($catalogSource);
+            $catalogWarning = $catalogSnapshot->warning;
+        } catch (\Throwable $throwable) {
+            $catalogWarning = 'Der Modul-Katalog ist derzeit nicht verfügbar: ' . $throwable->getMessage();
+            $catalogSnapshot = new CatalogSnapshot((string) ($moduleCatalogConfig['source_id'] ?? 'disabled'), ['sequence' => 0], []);
+        }
+    } else {
+        $catalogWarning = 'Es ist noch keine vertrauenswürdige Modul-Katalogquelle konfiguriert.';
+        $catalogSnapshot = new CatalogSnapshot((string) ($moduleCatalogConfig['source_id'] ?? 'disabled'), ['sequence' => 0], []);
+    }
+    $catalogService = new CatalogService($pdo, (string) ($versionConfig['version'] ?? '0.0.0'), $catalogSnapshot);
+    $catalogInstaller = $catalogSource !== null && $catalogSnapshot->modules !== []
+        ? new CatalogPackageInstaller($catalogLoader, $catalogSource, $catalogSnapshot, $catalogService, $moduleLifecycle)
+        : null;
+    $legacyAdoption = $catalogInstaller !== null ? new LegacyModuleAdoptionService($pdo, $basePath, $catalogInstaller) : null;
+    $moduleAdoptionOperations = new ModuleAdoptionOperationService($pdo, $basePath, $legacyAdoption);
+    $moduleBatchUpdates = $catalogInstaller !== null ? new ModuleBatchUpdateService($pdo, $basePath, $catalogService, $catalogInstaller) : null;
+    $moduleCatalogController = new ModuleCatalogController(
+        $catalogService,
+        $moduleLifecycle,
+        $catalogInstaller,
+        $session,
+        $catalogWarning,
+        !empty($moduleCatalogConfig['test_key_active']),
+        $catalogInstaller !== null ? new WikiAdoptionService($pdo, $basePath, $catalogInstaller) : null,
+        $legacyAdoption,
+        $moduleAdoptionOperations,
+        $catalogInstaller !== null ? new CleanInstallModuleService($catalogService, $catalogInstaller, $moduleLifecycle) : null,
+        $moduleBatchUpdates,
+    );
+}
 $adminController = new AdminController(
     $moduleRepository,
     $userRepository,
@@ -219,6 +310,8 @@ $adminController = new AdminController(
     $adminNavigationRegistry,
     $nativeModuleBindings,
     $pdo instanceof PDO ? new NativeModuleMigrationService($pdo, $basePath) : null,
+    $moduleLifecycle,
+    $router,
 );
 
 $accessibleModulesForUser = static function (?array $user, bool $isAdmin, string $placement = 'all', string $currentPath = '/') use ($moduleRepository, $moduleSubnavigationRegistry, $activeNativePrefixes): array {
@@ -330,7 +423,6 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
 });
 
 // Router mit Basis- und Auth-Routen aufsetzen.
-$router = new Router();
 $router->setAccessGuard(function (Request $request, string $access) use ($authService, $session): ?Response {
     if ($access === 'public') {
         return null;
@@ -359,7 +451,7 @@ $router->setAccessGuard(function (Request $request, string $access) use ($authSe
 
 $router->setCsrfGuard((new CsrfGuard($csrfTokenManager))->handle(...));
 
-$router->get('/', function (Request $request) use ($pdo, $authService, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck, $nativeModules): Response {
+$router->get('/', function (Request $request) use ($pdo, $authService, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck, $rootPageProviders): Response {
     $message = 'Modulon Grundsystem läuft';
     if ($pdo !== null) {
         $message .= ' (DB verbunden)';
@@ -387,11 +479,10 @@ $router->get('/', function (Request $request) use ($pdo, $authService, $session,
     ];
 
     try {
-        $homepageModule = $nativeModules['homepage'] ?? null;
-        if ($homepageModule instanceof \Modulon\Modules\Homepage\HomepageModule) {
-            $homepage = $homepageModule->renderer()->build($user, $isAdmin, $availableModules);
+        foreach ($rootPageProviders as $rootPageProvider) {
+            $homepage = $rootPageProvider->build($user, $isAdmin, $availableModules);
             if ($homepage !== null) {
-                return new Response(View::render('homepage/render', array_merge($homeData, [
+                return new Response(View::render($rootPageProvider->view(), array_merge($homeData, [
                     'homepage_blocks' => $homepage['blocks'],
                     'homepage_audience' => $homepage['audience'],
                 ])));
@@ -432,8 +523,16 @@ $router->get('/admin/users/*', [$adminController, 'userSubRoute'], 'admin');
 $router->post('/admin/modules/create', [$adminController, 'createModule'], 'admin');
 $router->post('/admin/modules/update', [$adminController, 'updateModule'], 'admin');
 $router->post('/admin/modules/toggle', [$adminController, 'toggleModuleFlags'], 'admin');
+$router->post('/admin/modules/columns', [$adminController, 'updateModuleColumns'], 'admin');
 $router->post('/admin/modules/reorder', [$adminController, 'reorderModules'], 'admin');
 $router->post('/admin/modules/delete', [$adminController, 'deleteModule'], 'admin');
+if ($moduleCatalogController !== null) {
+    $router->get('/admin/module-catalog', [$moduleCatalogController, 'index'], 'admin');
+    $router->get('/admin/module-catalog-operation/status', [$moduleCatalogController, 'operationStatus'], 'admin');
+    $router->get('/admin/module-catalog-update/status', [$moduleCatalogController, 'batchUpdateStatus'], 'admin');
+    $router->get('/admin/module-catalog/*', [$moduleCatalogController, 'detail'], 'admin');
+    $router->post('/admin/module-catalog/action', [$moduleCatalogController, 'action'], 'admin');
+}
 $router->post('/admin/users/create', [$adminController, 'createUser'], 'admin');
 $router->post('/admin/users/update', [$adminController, 'updateUser'], 'admin');
 $router->post('/admin/users/toggle-block', [$adminController, 'toggleUserBlocked'], 'admin');

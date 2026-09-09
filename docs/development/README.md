@@ -19,6 +19,10 @@ sich von **Legacy-Anwendungen**: Legacy-Code wird dateibasiert unter
 - [Lebenszyklus](lifecycle.md) – Discovery, Aktivierung, Release und heutige Grenzen.
 - [Vollständiges Example-Modul](example-module.md) – ausführbare Referenz mit
   Service, Repository, Migration, Assets und CSRF.
+- [Modulpakete v2](module-packages-v2.md) – implementierter Paket-Lifecycle,
+  Retain/Purge und Wiki-Adoption.
+- [Signierter Modulkatalog v2](module-catalog-v2.md) – statisches Format,
+  Trust Store, LKG, Betrieb und Testfixtures.
 
 Bestehende Systemdokumentation ergänzt diese Referenz:
 

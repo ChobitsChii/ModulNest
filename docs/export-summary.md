@@ -1,9 +1,9 @@
 # ModulNest Export Summary
 
 - Zielpfad: `/srv/http/modulnest`
-- Erstellt am: `2026-09-09T01:00:05+02:00`
-- Core-Module: `Admin Auth Modules User`
-- Optionale Module: `Banking Dashboard DataPortability Homepage Logs News Pages SneakPreview Systeminfo Tools Updates Wiki`
+- Erstellt am: `2026-09-09T04:04:59+02:00`
+- Core-Module: `Admin Auth Modules User Updates`
+- Optionale Module: `(keine)`
 
 ## Ausgeschlossen
 
@@ -11,6 +11,8 @@
 - `app/Legacy` enthält nur `.gitkeep`.
 - `app/Database/schema.sql` wurde als Kompatibilitäts-Aggregat aus Core-Schema, Core-Seeds und den ausgewählten Modul-Schemas/-Seeds erzeugt.
 - Nicht ausgewählte Module bringen keine Modul-Schema-Dateien in den Export.
+
+- Die elf öffentlichen Modul-v2-Produktmodule werden ausschließlich als signierte Katalogpakete ausgeliefert und sind nicht im Core-Export gebündelt.
 
 - `install.php` ist als einzelner Bootstrap-Installer enthalten.
 

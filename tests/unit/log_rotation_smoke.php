@@ -5,7 +5,10 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use Modulon\Core\RotatingFileLogger;
-use Modulon\Modules\Logs\LogsController;
+use ModulNest\Logs\LogsController;
+
+require __DIR__ . '/module_package_test_bootstrap.php';
+module_package_test_autoload('ModulNest\\Logs', dirname(__DIR__, 2) . '/modules-src/logs/1.2.0/src');
 
 $base = sys_get_temp_dir() . '/modulon-logs-' . bin2hex(random_bytes(4));
 mkdir($base . '/storage/logs', 0775, true);
@@ -23,7 +26,7 @@ if (gzdecode((string) file_get_contents($base . '/storage/logs/test-2026-08-29.l
 if (is_file($base . '/storage/logs/test-2026-07-01.log') || is_file($base . '/storage/logs/test-2026-07-01.log.gz')) { throw new RuntimeException('Retention hat alte Datei nicht entfernt.'); }
 if (!is_file($today)) { throw new RuntimeException('Aktives Tageslog wurde verändert.'); }
 putenv('LOG_COMPRESS_AFTER_DAYS=invalid'); putenv('LOG_RETENTION_DAYS=invalid'); $logger->rotateIfDue();
-$logsController = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Logs/LogsController.php');
+$logsController = (string) file_get_contents(dirname(__DIR__, 2) . '/modules-src/logs/1.2.0/src/LogsController.php');
 if (!str_contains($logsController, "'/*.log.gz'") || !str_contains($logsController, 'gzopen')) { throw new RuntimeException('Admin-Leser unterstützt gzip nicht.'); }
 $controller = new LogsController($base);
 $method = new ReflectionMethod($controller, 'formatLine');

@@ -10,8 +10,8 @@ use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleInterface;
 use Modulon\Core\Router;
 use Modulon\Core\UserNavigationRegistry;
-use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Admin\AppSettingRepository;
+use Modulon\Modules\Auth\AuthService;
 
 final class UpdatesModule implements NativeModuleInterface
 {

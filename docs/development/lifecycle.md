@@ -1,6 +1,8 @@
 # Modul-Lebenszyklus heute
 
-Dieses Dokument beschreibt bewusst nur den aktuellen Stand von ModulNest 1.3.0.
+Dieses Dokument beschreibt den Legacy-Lebenszyklus von ModulNest 1.x. Der
+aktuelle katalogverwaltete Modul-v2-Lifecycle steht in
+[`module-system-v2.md`](module-system-v2.md).
 
 ## Discovery und Aktivierung
 

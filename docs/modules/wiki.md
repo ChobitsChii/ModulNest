@@ -25,3 +25,24 @@ Nach einem erfolgreichen Sync steht eine persistente lokale Volltextsuche zur Ve
 Der Index wird beim Sync inkrementell anhand der bereits vorhandenen Content-Hashes aktualisiert. Ein fehlgeschlagener Sync oder Rebuild lässt den letzten funktionsfähigen Wiki-Inhalt und Suchindex unverändert. Administratoren sehen Status und Statistik unter `/admin/wiki` und können den Index dort CSRF-geschützt vollständig neu aufbauen. Nach einem Upgrade ohne Index bleibt das Wiki nutzbar; der nächste erfolgreiche Sync oder der manuelle Rebuild erstellt ihn.
 
 Wiki v1 unterstützt keine privaten Repositories, Tokens, mehrere Quellen, automatische Synchronisierung oder Bearbeitung.
+
+## Übergang zum v2-Paket
+
+Auf `develop/2.0` ist Wiki das erste selbstenthaltene Produktpaket mit der
+unveränderlichen ID `modulnest.wiki`. Die unabhängige Modulversion beginnt bei
+`1.0.0`; `1.0.1` ist ein reines Wiki-Update und ändert die Core-Version nicht.
+Paketquellen liegen unter `modules-src/wiki/<version>/`, Runtime-Inhalte unter
+`storage/modules/modulnest.wiki/` und immutable Assets releasebezogen unter
+`public/assets/modules/modulnest.wiki/<release>/`.
+
+Eine vorhandene, unveränderte Wiki-Installation aus 1.2.0 kann im Modul-Katalog
+adoptiert werden. Dabei bleiben Quelle, Seiten, Assets, Sync-Historie,
+Suchindex und Modulaktivität erhalten; die fünf historischen Migrationen werden
+gemappt und nicht erneut ausgeführt. Abweichender Legacy-Code oder ein
+unvollständiges Schema führt zu einem sicheren Abbruch ohne Umschaltung.
+
+„Modul entfernen, Daten behalten“ entfernt Route, Releasecode und immutable
+Assets, lässt aber Wiki-Tabellen, Suchindex und Modulstorage registriert. Eine
+kompatible Neuinstallation macht die Inhalte sofort wieder verfügbar. Nur die
+separat bestätigte Purge-Aktion löscht nach geprüftem Backup exakt die
+deklarierten Wiki-Ressourcen und bereitet eine saubere Neuinstallation vor.

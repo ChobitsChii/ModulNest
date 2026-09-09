@@ -22,4 +22,33 @@ final class UpdateChannel
             ? strtolower(trim($value))
             : self::STABLE;
     }
+
+    public static function label(mixed $value): string
+    {
+        return self::normalize($value) === self::PREVIEW
+            ? 'Stable + Vorabversionen'
+            : 'Stable';
+    }
+
+    public static function releaseLabel(string $version, string $channel = ''): string
+    {
+        if (preg_match('/-(alpha|beta|rc)(?:[.-]|$)/i', $version, $match) === 1) {
+            return match (strtolower($match[1])) {
+                'alpha' => 'Alpha',
+                'beta' => 'Beta',
+                'rc' => 'Release Candidate',
+            };
+        }
+
+        if (preg_match('/^[0-9]+\.[0-9]+\.[0-9]+(?:\+[0-9A-Za-z.-]+)?$/', $version) === 1) {
+            return 'Stable';
+        }
+
+        return match (strtolower(trim($channel))) {
+            'alpha' => 'Alpha',
+            'beta' => 'Beta',
+            'rc' => 'Release Candidate',
+            default => 'Stable',
+        };
+    }
 }
