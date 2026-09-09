@@ -177,7 +177,7 @@ copy_public_export_to_staging() {
     rsync -a \
         --exclude='.git' \
         --exclude='build' \
-        --exclude='module-catalog' \
+        --exclude='/module-catalog' \
         --exclude='vendor' \
         --exclude='.env' \
         --exclude='.local' \

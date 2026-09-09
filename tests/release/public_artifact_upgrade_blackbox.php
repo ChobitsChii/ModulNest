@@ -91,6 +91,16 @@ try {
     blackboxAssert(($coreResult['version'] ?? '') === $expected, 'Public Core Upgrade wurde nicht installiert.');
     blackboxAssert((string) $server->query("SELECT `value` FROM app_settings WHERE `key`='update_channel'")->fetchColumn() === 'preview', 'Updatekanal ging verloren.');
     blackboxAssert(!file_exists($root . '/modules-src'), 'Core Upgrade hat modules-src eingeführt.');
+    blackboxAssert(is_file($root . '/app/Views/admin/module-catalog/index.php'), 'Public Core-Paket enthält die Modul-Katalog-View nicht.');
+
+    // Ein echter Folgerequest lädt den gerade installierten Composer-Autoloader
+    // neu. Der Test bleibt in einem Prozess und lädt deshalb nur die mit v2 neu
+    // hinzugekommene Signaturbibliothek explizit nach.
+    if (!class_exists(ParagonIE_Sodium_Compat::class, false)) {
+        $sodiumAutoload = $root . '/vendor/paragonie/sodium_compat/autoload.php';
+        blackboxAssert(is_file($sodiumAutoload), 'Sodium-Compat fehlt im aktualisierten Public-Artefakt.');
+        require $sodiumAutoload;
+    }
 
     $trust = require $root . '/app/Config/module_catalog_trust.php';
     $keys = [];

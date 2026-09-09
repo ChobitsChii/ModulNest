@@ -35,6 +35,5 @@ Der Modul-Sync wird im Modulrepository ausgeführt:
 
 ```bash
 php tools/sync-repository-mirror.php \
-  --target /srv/http/modulnest-repository \
-  --public-base https://repo.modulnest.de
+  --target /srv/http/modulnest-repository
 ```
