@@ -28,7 +28,7 @@ function blackboxAssert(bool $condition, string $message): void
 
 $root = realpath(dirname(__DIR__, 2));
 blackboxAssert(is_string($root), 'Artefaktwurzel fehlt.');
-$expected = (string) (getenv('BLACKBOX_EXPECTED_VERSION') ?: '2.0.0-rc.2');
+$expected = (string) (getenv('BLACKBOX_EXPECTED_VERSION') ?: '2.0.0-rc.3');
 $catalogUrl = (string) (getenv('BLACKBOX_CATALOG_URL') ?: 'https://raw.githubusercontent.com/ChobitsChii/ModulNest-Modules/main');
 $openBasedir = (string) ini_get('open_basedir');
 blackboxAssert($openBasedir !== '' && str_contains($openBasedir, $root), 'Blackbox-Test läuft nicht in einer Dateisystem-Sandbox.');
@@ -81,14 +81,19 @@ try {
     $server->exec("INSERT INTO wiki_pages(id,source_id,relative_path,route_path,title,content_hash) VALUES(9921,9920,'README.md','readme','Blackbox Wiki',REPEAT('c',64))");
     $historic = (int) $server->query("SELECT COUNT(*) FROM schema_migrations WHERE scope='module'")->fetchColumn();
 
-    $updates = new UpdatesService($root, $server);
-    $stable = $updates->check('1.3.0', UpdateChannel::STABLE);
-    blackboxAssert(($stable['available'] ?? true) === false, 'Stable-Kanal bietet einen RC an.');
-    $preview = $updates->check('1.3.0', UpdateChannel::PREVIEW);
-    blackboxAssert(($preview['latest'] ?? '') === $expected && ($preview['available'] ?? false), 'Preview-Kanal erkennt den erwarteten RC nicht.');
-    $updates->prepare('1.3.0', UpdateChannel::PREVIEW);
-    $coreResult = $updates->install();
-    blackboxAssert(($coreResult['version'] ?? '') === $expected, 'Public Core Upgrade wurde nicht installiert.');
+    if (getenv('BLACKBOX_PREINSTALLED') !== '1') {
+        $updates = new UpdatesService($root, $server);
+        $stable = $updates->check('1.3.0', UpdateChannel::STABLE);
+        blackboxAssert(($stable['available'] ?? true) === false, 'Stable-Kanal bietet einen RC an.');
+        $preview = $updates->check('1.3.0', UpdateChannel::PREVIEW);
+        blackboxAssert(($preview['latest'] ?? '') === $expected && ($preview['available'] ?? false), 'Preview-Kanal erkennt den erwarteten RC nicht.');
+        $updates->prepare('1.3.0', UpdateChannel::PREVIEW);
+        $coreResult = $updates->install();
+        blackboxAssert(($coreResult['version'] ?? '') === $expected, 'Public Core Upgrade wurde nicht installiert.');
+    } else {
+        $version = require $root . '/app/Config/version.php';
+        blackboxAssert(($version['version'] ?? '') === $expected, 'Vorinstalliertes Blackbox-Paket hat nicht die erwartete Version.');
+    }
     blackboxAssert((string) $server->query("SELECT `value` FROM app_settings WHERE `key`='update_channel'")->fetchColumn() === 'preview', 'Updatekanal ging verloren.');
     blackboxAssert(!file_exists($root . '/modules-src'), 'Core Upgrade hat modules-src eingeführt.');
     blackboxAssert(is_file($root . '/app/Views/admin/module-catalog/index.php'), 'Public Core-Paket enthält die Modul-Katalog-View nicht.');

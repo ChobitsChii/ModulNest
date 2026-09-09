@@ -18,6 +18,7 @@ verfügbar.
 
 - [2.0.0-rc.1](2.0.0-rc.1.md) — 09.09.2026 — öffentlicher Release Candidate des Modul-v2-Systems.
 - [2.0.0-rc.2](2.0.0-rc.2.md) — 09.09.2026 — Public-Adoption ohne private Sources und unabhängiges Modulrepository.
+- [2.0.0-rc.3](2.0.0-rc.3.md) — 09.09.2026 — korrigiertes Core-Paket mit vollständiger Modul-Katalog-View.
 
 ## Vor 1.0
 

@@ -8,7 +8,7 @@ $root = dirname(__DIR__, 2);
 $target = sys_get_temp_dir() . '/modulnest-wiki-export-' . bin2hex(random_bytes(5));
 mkdir($target . '/build/update', 0775, true);
 file_put_contents($target . '/build/update/stable.json', '{"latest":"1.3.0"}');
-file_put_contents($target . '/build/update/prerelease.json', '{"latest":"2.0.0-rc.2"}');
+file_put_contents($target . '/build/update/prerelease.json', '{"latest":"2.0.0-rc.3"}');
 $command = 'cd ' . escapeshellarg($root) . ' && bash tools/release/export-modulnest.sh --target ' . escapeshellarg($target) . ' --no-ui --yes --requires-migrations true 2>&1';
 exec($command, $output, $status);
 try {
@@ -26,7 +26,7 @@ try {
         'docs/releases/1.1.1.md',
         'docs/releases/1.2.0.md',
         'docs/releases/1.3.0.md',
-        'docs/releases/2.0.0-rc.2.md',
+        'docs/releases/2.0.0-rc.3.md',
         'docs/third-party.md',
         'assets/markdown-highlight.js',
         'package.json',
@@ -55,7 +55,7 @@ try {
     wiki_export_assert(!is_dir($target . '/app/Modules/ExampleNotes'), 'ExampleNotes must remain reference code outside productive module discovery.');
     $metadata = json_decode((string) file_get_contents($target . '/modulnest-package.json'), true);
     wiki_export_assert(is_array($metadata)
-        && ($metadata['version'] ?? '') === '2.0.0-rc.2'
+        && ($metadata['version'] ?? '') === '2.0.0-rc.3'
         && ($metadata['channel'] ?? '') === 'rc'
         && ($metadata['requires_migrations'] ?? false) === true,
         'The RC package metadata must carry its version, channel, and migration flag.');
