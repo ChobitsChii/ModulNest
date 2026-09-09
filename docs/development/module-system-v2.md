@@ -1,6 +1,6 @@
 # ModulNest 2.0 module architecture
 
-- Status: **ModulNest 2.0.0-rc.1** – öffentlicher Release Candidate des vollständigen Modul-v2-Systems
+- Status: **ModulNest 2.0.0-rc.2** – öffentlicher Release Candidate des vollständigen Modul-v2-Systems
 - Entwicklungsbranch: `develop/2.0`
 - Basis: privater Stand `659cde8b5ed59a530e4a5952d5a7ef48fc8f06d9` (`develop/1.0`, ModulNest 1.2.0)
 - Ziel: ModulNest 2.0 – unabhängiges Modulsystem und **Modul-Katalog**

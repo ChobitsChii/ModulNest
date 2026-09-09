@@ -65,7 +65,7 @@ try {
         version_history_assert(is_array($releases[$currentVersion]['release_notes'] ?? null), 'Release Notes sind nicht strukturiert: ' . $moduleId);
         version_history_assert(($releases[$currentVersion]['release_notes']['changes'] ?? []) === $index['history'][0]['changes'], 'Release Notes weichen von der Historie ab: ' . $moduleId);
 
-        $archive = $temporary . '/source/packages/' . $moduleId . '-' . $currentVersion . '.zip';
+        $archive = $temporary . '/source/packages/' . $moduleId . '/' . $currentVersion . '/' . $moduleId . '-' . $currentVersion . '.zip';
         $zip = new ZipArchive();
         version_history_assert($zip->open($archive) === true && $zip->locateName('CHANGELOG.md') !== false, 'CHANGELOG ist nicht im Paket enthalten: ' . $moduleId);
         $zip->close();

@@ -9,7 +9,7 @@ return [
     'product_name' => Env::get('APP_PRODUCT_NAME', 'Modulon'),
     'core_name' => Env::get('APP_CORE_NAME', 'Modulon'),
     'core_label' => Env::get('APP_CORE_LABEL', 'Modulon Core'),
-    'version' => '2.0.0-rc.1',
+    'version' => '2.0.0-rc.2',
     'channel' => 'rc',
     'php_requirement' => '^8.3',
 ];

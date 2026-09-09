@@ -27,7 +27,7 @@ if (!is_array($trusted)) {
 $sourcePath = (string) Env::get('MODULE_CATALOG_SOURCE_PATH', '');
 $sourceUrl = (string) Env::get(
     'MODULE_CATALOG_SOURCE_URL',
-    $isDevelopment ? '' : 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/module-catalog'
+    $isDevelopment ? '' : 'https://raw.githubusercontent.com/ChobitsChii/ModulNest-Modules/main'
 );
 if ($isDevelopment && $trusted === []) {
     $lines = file(dirname(__DIR__, 2) . '/tests/Fixtures/catalog-v1/keys/TEST_ONLY_ed25519_public.key', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

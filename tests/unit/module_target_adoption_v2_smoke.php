@@ -15,6 +15,9 @@ use Modulon\Core\Modules\ModuleLifecycleService;
 use Modulon\Core\Modules\ModuleOperationLock;
 use Modulon\Core\Modules\ModulePackageInspector;
 use Modulon\Core\Modules\PdoLogicalBackupProvider;
+use Modulon\Core\Request;
+use Modulon\Core\Session;
+use Modulon\Modules\Admin\ModuleCatalogController;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
@@ -173,6 +176,22 @@ try {
     $installer = new CatalogPackageInstaller($loader, $source, $snapshot, $catalog, $lifecycle);
     $adoption = new LegacyModuleAdoptionService($server, $temporary, $installer);
 
+    if ($moduleId === 'modulnest.banking') {
+        $missingMetadataModules = $snapshot->modules;
+        unset($missingMetadataModules[$moduleId]['adoption']);
+        $missingSnapshot = new \Modulon\Core\Modules\Catalog\CatalogSnapshot($snapshot->sourceId, $snapshot->root, $missingMetadataModules);
+        $missingCatalog = new CatalogService($server, '2.0.0-alpha.1', $missingSnapshot);
+        $missingInstaller = new CatalogPackageInstaller($loader, $source, $missingSnapshot, $missingCatalog, $lifecycle);
+        $missingAdoption = new LegacyModuleAdoptionService($server, $temporary, $missingInstaller);
+        $metadataBlocked = $missingAdoption->preflight($moduleId);
+        target_adoption_assert(!$metadataBlocked['eligible'] && $metadataBlocked['status'] === 'metadata-unavailable', 'Fehlende signierte Adoptionsmetadaten blockieren nicht fail-closed.');
+        $controller = new ModuleCatalogController($missingCatalog, $lifecycle, $missingInstaller, new Session(), legacyAdoption: $missingAdoption);
+        ob_start();
+        $controller->index(new Request('GET', '/admin/module-catalog', [], ['bereich' => 'installiert'], []))->send();
+        $catalogBody = (string) ob_get_clean();
+        target_adoption_assert(http_response_code() === 200 && str_contains($catalogBody, 'Automatische Umstellung nicht möglich'), 'Katalogseite bleibt bei fehlenden Adoptionsmetadaten nicht HTTP 200.');
+    }
+
     target_adoption_assert($catalog->module($moduleId)['adoption_candidate'] === true, 'Katalog erkennt v1 nicht als Adoptionkandidat.');
     target_adoption_assert($adoption->preflight($moduleId)['eligible'] === true, 'Exact-Code-Adoption-Preflight ist nicht grün.');
     $firstFile = (string) array_key_first($inventory);
@@ -183,7 +202,7 @@ try {
     file_put_contents($temporary . '/' . $firstFile, $original);
 
     if (in_array($moduleId, ['modulnest.dashboard', 'modulnest.sneak-preview', 'modulnest.tools', 'modulnest.banking'], true)) {
-        $packages = glob($catalogTarget . '/packages/*-' . $currentVersion . '.zip') ?: [];
+        $packages = glob($catalogTarget . '/packages/*/' . $currentVersion . '/*-' . $currentVersion . '.zip') ?: [];
         target_adoption_assert(count($packages) === 1, 'Temporäres aktuelles Modulpaket fehlt für den Rollback-Test.');
         $disabledPackage = $packages[0] . '.disabled';
         rename($packages[0], $disabledPackage);

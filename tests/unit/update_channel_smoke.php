@@ -94,12 +94,14 @@ $html = View::render('updates/admin', [
 update_channel_assert(str_contains($html, '2.0.0-rc.1 (Release Candidate)'), 'Installiertes Release wird nicht eindeutig angezeigt.');
 update_channel_assert(str_contains($html, 'Updatekanal:</span> <strong>Stable + Vorabversionen'), 'Updatekanal fehlt im Kopf.');
 update_channel_assert(str_contains($html, '<details class="updates-channel-details">'), 'Updatekanal-Konfiguration ist nicht standardmäßig eingeklappt.');
-update_channel_assert(str_contains($html, 'Vorabversionen aktiviert') && str_contains($html, '>Ändern<'), 'Kompakter Kanalstatus fehlt.');
+update_channel_assert(str_contains($html, 'Vorabversionen aktiviert') && str_contains($html, 'Ändern'), 'Kompakter Kanalstatus fehlt.');
+update_channel_assert(str_contains($html, 'aria-expanded="false"') && str_contains($html, '▾') && str_contains($html, '▴'), 'Zugänglicher Disclosure-Zustand oder Chevron fehlt.');
 update_channel_assert(str_contains($html, 'name="_csrf"'), 'CSRF-Feld fehlt.');
 update_channel_assert(!str_contains($html, 'Channel:</span>'), 'Veraltete Channel-Anzeige ist noch sichtbar.');
 
 $css = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/css/app.css');
 update_channel_assert(str_contains($css, '.updates-channel-details[open] .updates-channel-open-label'), 'Der Öffnen-/Schließen-Zustand ist nicht gestaltet.');
+update_channel_assert(str_contains($css, 'justify-content: flex-start'), 'Updatekanal-Aktion bleibt am rechten Bildschirmrand stehen.');
 update_channel_assert(str_contains($css, '@media (max-width: 575.98px)') && str_contains($css, 'flex-direction: column'), 'Mobile Darstellung fehlt.');
 update_channel_assert(str_contains($css, 'var(--app-primary)') && str_contains($html, 'text-bg-warning'), 'Theme-fähige Fokus-/Warnungsdarstellung fehlt.');
 

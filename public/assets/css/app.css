@@ -600,7 +600,7 @@ body.app-body {
 .banking-recurring-status-summary {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 1rem;
     padding: 1rem;
     border: 1px solid var(--app-border);
@@ -1201,6 +1201,10 @@ button.app-sort-handle {
     gap: 0.5rem 0.75rem;
 }
 
+.updates-channel-action {
+    flex: 0 0 auto;
+}
+
 .updates-channel-close-label,
 .updates-channel-details[open] .updates-channel-open-label {
     display: none;
@@ -1217,7 +1221,10 @@ button.app-sort-handle {
 
     .updates-channel-summary {
         align-items: flex-start;
-        flex-direction: column;
+    }
+
+    .updates-channel-current {
+        align-items: flex-start;
     }
 }
 

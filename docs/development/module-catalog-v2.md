@@ -1,6 +1,6 @@
 # Signierter Modulkatalog v2
 
-Status: **ModulNest 2.0.0-rc.1**. Der Production-Katalog enthält die elf
+Status: **ModulNest 2.0.0-rc.2**. Der Production-Katalog enthält die elf
 öffentlichen Produktmodule; der Development-Katalog bleibt separat.
 
 ## Statisches Format
@@ -11,7 +11,7 @@ Eine Quelle stellt unveränderliche Dateien unter `catalog/v1/` bereit:
 catalog/v1/root.json
 catalog/v1/root.json.sig
 catalog/v1/modules/<module-id>.json
-packages/<module-id>-<version>.zip
+packages/<module-id>/<version>/<module-id>-<version>.zip
 ```
 
 `root.json` enthält Schema-Version, Katalog-ID, monoton steigende Sequence,
@@ -22,6 +22,13 @@ Migrationsanzahl, Paketpfad/-größe/-Hash, Veröffentlichungszeit sowie eine
 detached Ed25519-Paketsignatur. Schema v1 weist unbekannte und fehlende Felder
 zurück. IDs, SemVer, Constraints, URLs, Zeitstempel und ausschließlich relative
 Pfade werden strikt validiert.
+
+Der Modulindex enthält außerdem die signierten Adoption-Metadaten des jeweiligen
+Moduls: bekannte v1-Dateihashes und Checksummen der bereits veröffentlichten
+Migrationen. Der Public-Core liest diese Daten ausschließlich aus dem
+verifizierten Katalog; private `modules-src`-Workspaces sind zur Laufzeit weder
+vorhanden noch erforderlich. Fehlende oder ungültige Metadaten blockieren nur
+die Adoption des betroffenen Moduls und lassen die Katalogseite verfügbar.
 
 Der Core liest lokale Quellen über `LocalCatalogSource` und entfernte Quellen
 über `HttpCatalogSource`. HTTP ist verboten; HTTPS nutzt TLS-Prüfung, keine
@@ -76,10 +83,12 @@ reguläres Produktmodul. Der Runtime-Katalog liegt unter dem bereits ignorierten
 `storage/` und wird nicht committed.
 
 `tools/build-module-catalog.php` ist zugleich der gemeinsame Publisherpfad für
-einen späteren GitHub-gehosteten offiziellen Katalog. Dafür werden Ziel,
+den im separaten Repository `ChobitsChii/ModulNest-Modules` veröffentlichten
+offiziellen Katalog. Dafür werden Ziel,
 Katalog-ID, Key-ID, externer Keypfad, Sequence-State und Ablaufdatum explizit
 übergeben. Der Builder verweigert TEST-ONLY-Keys außerhalb des Development-
-Modus; Production-Private-Keys dürfen niemals im Repository liegen.
+Modus; Production-Private-Keys dürfen niemals im Repository liegen. Modul-Tags
+folgen `<module-id>-v<version>` und können unabhängig von Core-Releases erscheinen.
 
 ## Betrieb und Veröffentlichung
 

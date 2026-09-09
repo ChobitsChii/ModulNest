@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modulon\Core\Modules;
 
 use Modulon\Core\Modules\Catalog\CatalogPackageInstaller;
+use Modulon\Core\RotatingFileLogger;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -47,7 +48,16 @@ final readonly class WikiAdoptionService
             return $this->blocked('unavailable', 'Es wurde kein eindeutiges Modul-v1-Wiki gefunden.', null);
         }
 
-        $difference = $this->firstCodeDifference();
+        try {
+            $difference = $this->firstCodeDifference();
+        } catch (Throwable $error) {
+            $this->logMetadataFailure($error);
+            return $this->blocked(
+                'metadata-unavailable',
+                'Die signierten Wiki-Adoptionsmetadaten sind nicht verfügbar. Die automatische Umstellung bleibt sicher blockiert.',
+                'Adoptionsmetadaten fehlen oder sind ungültig.',
+            );
+        }
         if ($difference !== null) {
             $kind = is_file($this->basePath . '/' . $difference) ? 'abweichende' : 'fehlende';
             return $this->blocked(
@@ -129,6 +139,17 @@ final readonly class WikiAdoptionService
     /** @return array<string,mixed> */
     private function performAdoption(bool $withBackup): array
     {
+        $metadata = $this->installer->adoptionMetadata(self::ID);
+        $baseline = null;
+        foreach ($metadata->baselineMigrations as $migration) {
+            if ($migration['key'] === 'modulnest.wiki_001_baseline') {
+                $baseline = $migration;
+                break;
+            }
+        }
+        if (!is_array($baseline)) {
+            throw new RuntimeException('Die signierten Wiki-Baseline-Migrationsmetadaten fehlen.');
+        }
 
         $module = $this->pdo->query(
             "SELECT * FROM modules WHERE route_prefix='wiki' AND module_key IS NULL AND handler='native' LIMIT 1"
@@ -164,15 +185,13 @@ final readonly class WikiAdoptionService
             if (!rename($stage, $newStorage)) throw new RuntimeException('Wiki-Storage konnte nicht atomar bereitgestellt werden.');
             $createdStorage = true;
 
-            $baseline = $this->basePath . '/modules-src/wiki/1.0.0/migrations/001_baseline.php';
-            $checksum = hash_file('sha256', $baseline);
             $this->pdo->beginTransaction();
             $this->pdo->prepare('UPDATE schema_migrations SET module_key=? WHERE migration_key IN (?,?,?,?,?)')
                 ->execute([self::ID, ...self::HISTORIC_MIGRATIONS]);
             $this->pdo->prepare(
                 "INSERT INTO schema_migrations(migration_key,scope,module_key,description,checksum)
                  VALUES('modulnest.wiki_001_baseline','module',?,'Adoptierter Wiki-v2-Baselinezustand',?)"
-            )->execute([self::ID, $checksum]);
+            )->execute([self::ID, $baseline['checksum']]);
             $this->pdo->prepare('UPDATE modules SET module_key=? WHERE id=?')->execute([self::ID, $module['id']]);
             $this->pdo->prepare(
                 "INSERT INTO module_installations(module_id,module_row_id,origin,catalog_source_id,catalog_sequence,
@@ -221,20 +240,25 @@ final readonly class WikiAdoptionService
         }
     }
 
-    /** @return array<string,string> */
+    /** @return array<string,list<string>> */
     private function inventory(): array
     {
-        $path = $this->basePath . '/modules-src/wiki/adoption/v1-file-hashes.json';
-        $expected = json_decode((string) file_get_contents($path), true, 32, JSON_THROW_ON_ERROR);
-        if (!is_array($expected) || $expected === []) throw new RuntimeException('Wiki-Adoptionsinventar fehlt.');
-        return $expected;
+        return $this->installer->adoptionMetadata(self::ID)->fileHashes;
     }
 
     private function firstCodeDifference(): ?string
     {
-        foreach ($this->inventory() as $relative => $hash) {
+        foreach ($this->inventory() as $relative => $hashes) {
             $file = $this->basePath . '/' . $relative;
-            if (!is_file($file) || !hash_equals((string) $hash, hash_file('sha256', $file) ?: '')) return (string) $relative;
+            $currentHash = is_file($file) ? (hash_file('sha256', $file) ?: '') : '';
+            $matches = false;
+            foreach ($hashes as $hash) {
+                if (hash_equals($hash, $currentHash)) {
+                    $matches = true;
+                    break;
+                }
+            }
+            if (!$matches) return (string) $relative;
         }
         return null;
     }
@@ -290,6 +314,17 @@ final readonly class WikiAdoptionService
     private function blocked(string $status, string $message, ?string $technical, ?string $file = null): array
     {
         return ['eligible' => false, 'status' => $status, 'message' => $message, 'technical_detail' => $technical, 'first_difference' => $file];
+    }
+
+    private function logMetadataFailure(Throwable $error): void
+    {
+        (new RotatingFileLogger($this->basePath))->write('module-lifecycle', [
+            'event' => 'adoption_preflight_blocked',
+            'module_id' => self::ID,
+            'phase' => 'metadata',
+            'error_code' => 'adoption_metadata_unavailable',
+            'error_type' => $error::class,
+        ]);
     }
 
     private function copyTree(string $source, string $target): void

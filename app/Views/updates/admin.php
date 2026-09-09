@@ -74,17 +74,17 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
     <div class="col-12">
         <div class="card shadow-sm border-0 app-card">
             <details class="updates-channel-details">
-                <summary class="updates-channel-summary p-4">
+                <summary class="updates-channel-summary p-4" aria-expanded="false">
                     <span class="updates-channel-current">
                         <span class="h6 mb-0">Updatekanal</span>
                         <strong><?= $e($updateChannelLabel) ?></strong>
                         <?php if ($updateChannel === 'preview'): ?>
                             <span class="badge text-bg-warning">Vorabversionen aktiviert</span>
                         <?php endif; ?>
-                    </span>
-                    <span class="btn btn-outline-primary btn-sm updates-channel-action" aria-hidden="true">
-                        <span class="updates-channel-open-label">Ändern</span>
-                        <span class="updates-channel-close-label">Schließen</span>
+                        <span class="btn btn-outline-primary btn-sm updates-channel-action" aria-hidden="true">
+                            <span class="updates-channel-open-label">Ändern <span aria-hidden="true">▾</span></span>
+                            <span class="updates-channel-close-label">Schließen <span aria-hidden="true">▴</span></span>
+                        </span>
                     </span>
                 </summary>
                 <div class="card-body px-4 pt-0 pb-4">
@@ -265,3 +265,12 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
         </div>
     <?php endif; ?>
 </div>
+<script>
+document.querySelectorAll('.updates-channel-details').forEach(details => {
+    const summary = details.querySelector('.updates-channel-summary');
+    if (!summary) return;
+    const syncExpanded = () => summary.setAttribute('aria-expanded', details.open ? 'true' : 'false');
+    details.addEventListener('toggle', syncExpanded);
+    syncExpanded();
+});
+</script>

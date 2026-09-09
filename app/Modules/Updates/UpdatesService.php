@@ -454,7 +454,8 @@ final class UpdatesService
 
     private function httpGet(string $url): string
     {
-        if (!str_starts_with($url, 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/')) {
+        if (!str_starts_with($url, 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/')
+            && !str_starts_with($url, 'https://updates.modulnest.de/core/')) {
             throw new RuntimeException('Nicht erlaubte Update-Quelle.');
         }
 
@@ -475,7 +476,8 @@ final class UpdatesService
 
     private function downloadFile(string $url, string $target): void
     {
-        if (!str_starts_with($url, 'https://github.com/ChobitsChii/ModulNest/releases/download/')) {
+        if (!str_starts_with($url, 'https://github.com/ChobitsChii/ModulNest/releases/download/')
+            && !str_starts_with($url, 'https://updates.modulnest.de/core/releases/')) {
             throw new RuntimeException('Nicht erlaubte Paket-URL.');
         }
 

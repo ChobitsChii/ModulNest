@@ -168,11 +168,37 @@ final readonly class ModuleCatalogController
     {
         foreach ($modules as &$module) {
             if (empty($module['adoption_candidate'])) continue;
-            $preflight = $this->preflight((string) $module['id']);
+            try {
+                $preflight = $this->preflight((string) $module['id']);
+            } catch (Throwable $error) {
+                error_log(json_encode([
+                    'event' => 'module_adoption_preflight_failed',
+                    'module_id' => (string) $module['id'],
+                    'error_code' => 'adoption_preflight_unavailable',
+                    'error_type' => $error::class,
+                ], JSON_UNESCAPED_SLASHES));
+                $preflight = [
+                    'eligible' => false,
+                    'status' => 'metadata-unavailable',
+                    'message' => 'Die sichere Adoptionsprüfung ist für dieses Modul derzeit nicht verfügbar.',
+                    'technical_detail' => 'Adoptionsmetadaten fehlen oder sind ungültig.',
+                    'first_difference' => null,
+                ];
+            }
             $module['adoption_preflight'] = $preflight;
             $module['adoptable'] = $preflight['eligible'];
             if (!$preflight['eligible']) {
-                $replacement = $this->reinstallPreflight((string) $module['id']);
+                try {
+                    $replacement = $this->reinstallPreflight((string) $module['id']);
+                } catch (Throwable) {
+                    $replacement = [
+                        'eligible' => false,
+                        'status' => 'unavailable',
+                        'message' => 'Die sichere Neuinstallation ist derzeit nicht verfügbar.',
+                        'technical_detail' => null,
+                        'first_difference' => null,
+                    ];
+                }
                 $module['reinstall_preflight'] = $replacement;
                 $module['reinstallable'] = $replacement['eligible'];
             }

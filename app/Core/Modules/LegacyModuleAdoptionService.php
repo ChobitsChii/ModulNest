@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modulon\Core\Modules;
 
+use Modulon\Core\Modules\Catalog\CatalogAdoptionMetadata;
 use Modulon\Core\Modules\Catalog\CatalogPackageInstaller;
+use Modulon\Core\RotatingFileLogger;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -42,7 +44,16 @@ final readonly class LegacyModuleAdoptionService
         if (!is_array($profile)) return $this->blocked('unavailable', 'Für dieses Modul existiert kein sicherer Adoptionspfad.', null);
         if (!$this->canAdopt($moduleId)) return $this->blocked('unavailable', 'Es wurde kein eindeutiges Modul-v1 zur Übernahme gefunden.', null);
 
-        $difference = $this->firstCodeDifference((string) $profile['directory']);
+        try {
+            $difference = $this->firstCodeDifference($moduleId);
+        } catch (Throwable $error) {
+            $this->logMetadataFailure($moduleId, $error);
+            return $this->blocked(
+                'metadata-unavailable',
+                'Die signierten Adoptionsmetadaten sind nicht verfügbar. Die automatische Umstellung bleibt sicher blockiert.',
+                'Adoptionsmetadaten fehlen oder sind ungültig.',
+            );
+        }
         if ($difference !== null) {
             $kind = is_file($this->basePath . '/' . $difference) ? 'Abweichende' : 'Fehlende';
             return $this->blocked(
@@ -126,6 +137,7 @@ final readonly class LegacyModuleAdoptionService
     /** @param array<string,mixed> $profile @return array<string,mixed> */
     private function performAdoption(string $moduleId, array $profile, bool $withBackup, ?callable $progress = null): array
     {
+        $adoptionMetadata = $this->installer->adoptionMetadata($moduleId);
         $statement = $this->pdo->prepare('SELECT * FROM modules WHERE route_prefix=? AND module_key IS NULL LIMIT 1');
         $statement->execute([$profile['route']]);
         $module = $statement->fetch(PDO::FETCH_ASSOC);
@@ -203,7 +215,7 @@ final readonly class LegacyModuleAdoptionService
                 $prepared = $this->installer->prepareAdoptionRelease($moduleId);
                 $this->report($progress, 'registry_switch', 'Das geprüfte Release wird atomar auf den bisherigen Moduldatensatz umgeschaltet.');
                 $this->pdo->beginTransaction();
-                $this->adoptMigrationHistory($moduleId, $profile);
+                $this->adoptMigrationHistory($moduleId, $profile, $adoptionMetadata);
                 $this->pdo->prepare('UPDATE modules SET module_key=?,name=?,description=?,route_prefix=?,access_level=?,is_active=? WHERE id=?')->execute([
                     $moduleId, $prepared['module_name'], $prepared['description'], $prepared['route_prefix'],
                     $prepared['access_level'], $active ? 1 : 0, $module['id'],
@@ -221,7 +233,7 @@ final readonly class LegacyModuleAdoptionService
             } else {
                 $this->report($progress, 'registry_switch', 'Registry-Umschaltung wird vorbereitet.');
                 $this->pdo->beginTransaction();
-                $this->adoptMigrationHistory($moduleId, $profile);
+                $this->adoptMigrationHistory($moduleId, $profile, $adoptionMetadata);
                 $this->pdo->prepare('UPDATE modules SET module_key=? WHERE id=?')->execute([$moduleId, $module['id']]);
                 $this->pdo->prepare("INSERT INTO module_installations(module_id,module_row_id,origin,catalog_source_id,catalog_sequence,installed_version,active_release_id,data_schema_version,retained_data,health_status) VALUES(?,?,'catalog-managed',?,?,NULL,NULL,?,1,'adopting')")->execute([
                     $moduleId, $module['id'], $this->installer->sourceId(), $this->installer->sequence(), $profile['schema'],
@@ -262,9 +274,8 @@ final readonly class LegacyModuleAdoptionService
                 } else {
                     $this->pdo->prepare('UPDATE modules SET module_key=NULL WHERE id=?')->execute([$module['id']]);
                 }
-                foreach ($profile['package_migrations'] as $migrationFile) {
-                    $migration = require $this->basePath . '/modules-src/' . $profile['directory'] . '/1.0.0/migrations/' . $migrationFile;
-                    $this->pdo->prepare('DELETE FROM schema_migrations WHERE migration_key=?')->execute([$migration->key()]);
+                foreach ($adoptionMetadata->baselineMigrations as $migration) {
+                    $this->pdo->prepare('DELETE FROM schema_migrations WHERE migration_key=?')->execute([$migration['key']]);
                 }
                 foreach ($profile['historic'] as $migration) {
                     $this->pdo->prepare('UPDATE schema_migrations SET module_key=? WHERE migration_key=?')->execute([$profile['legacy_key'], $migration]);
@@ -292,32 +303,27 @@ final readonly class LegacyModuleAdoptionService
     }
 
     /** @param array<string,mixed> $profile */
-    private function adoptMigrationHistory(string $moduleId, array $profile): void
+    private function adoptMigrationHistory(string $moduleId, array $profile, CatalogAdoptionMetadata $metadata): void
     {
         foreach ($profile['historic'] as $migration) {
             $this->pdo->prepare('UPDATE schema_migrations SET module_key=? WHERE migration_key=?')->execute([$moduleId, $migration]);
         }
-        foreach ($profile['package_migrations'] as $migrationFile) {
-            $path = $this->basePath . '/modules-src/' . $profile['directory'] . '/1.0.0/migrations/' . $migrationFile;
-            $migration = require $path;
+        foreach ($metadata->baselineMigrations as $migration) {
             $this->pdo->prepare('INSERT INTO schema_migrations(migration_key,scope,module_key,description,checksum) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE module_key=VALUES(module_key)')->execute([
-                $migration->key(), 'module', $moduleId, 'Adoptierter ' . $moduleId . '-v2-Baselinezustand', hash_file('sha256', $path),
+                $migration['key'], 'module', $moduleId, 'Adoptierter ' . $moduleId . '-v2-Baselinezustand', $migration['checksum'],
             ]);
         }
     }
 
-    /** @return array<string,string|list<string>> */
-    private function inventory(string $directory): array
+    /** @return array<string,list<string>> */
+    private function inventory(string $moduleId): array
     {
-        $path = $this->basePath . '/modules-src/' . $directory . '/adoption/v1-file-hashes.json';
-        $expected = json_decode((string) file_get_contents($path), true, 32, JSON_THROW_ON_ERROR);
-        if (!is_array($expected) || $expected === []) throw new RuntimeException('Adoptionsinventar fehlt.');
-        return $expected;
+        return $this->installer->adoptionMetadata($moduleId)->fileHashes;
     }
 
-    private function firstCodeDifference(string $directory): ?string
+    private function firstCodeDifference(string $moduleId): ?string
     {
-        foreach ($this->inventory($directory) as $relative => $expectedHashes) {
+        foreach ($this->inventory($moduleId) as $relative => $expectedHashes) {
             $file = $this->basePath . '/' . $relative;
             $hashes = is_string($expectedHashes) ? [$expectedHashes] : $expectedHashes;
             $currentHash = is_file($file) ? (hash_file('sha256', $file) ?: '') : '';
@@ -388,6 +394,17 @@ final readonly class LegacyModuleAdoptionService
     private function blocked(string $status, string $message, ?string $technical, ?string $file = null): array
     {
         return ['eligible' => false, 'status' => $status, 'message' => $message, 'technical_detail' => $technical, 'first_difference' => $file];
+    }
+
+    private function logMetadataFailure(string $moduleId, Throwable $error): void
+    {
+        (new RotatingFileLogger($this->basePath))->write('module-lifecycle', [
+            'event' => 'adoption_preflight_blocked',
+            'module_id' => $moduleId,
+            'phase' => 'metadata',
+            'error_code' => 'adoption_metadata_unavailable',
+            'error_type' => $error::class,
+        ]);
     }
 
     private function copyTree(string $source, string $target, ?callable $progress = null, string $phase = 'storage_copy', int $totalFiles = 0, int $totalBytes = 0): void

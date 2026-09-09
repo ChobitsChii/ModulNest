@@ -52,6 +52,10 @@ try {
     foreach ($snapshot->modules as $module) {
         production_signing_assert(count($module['releases']) === 1, 'Production-Katalog veröffentlicht nicht exakt den aktuellen Modulrelease.');
         production_signing_assert($module['releases'][0]['signing_key_id'] === 'release-test', 'Modulpaket nutzt nicht den separaten Release-Key.');
+        production_signing_assert(isset($module['adoption']), 'Signierte modulbezogene Adoptionsmetadaten fehlen.');
+        $metadata = \Modulon\Core\Modules\Catalog\CatalogAdoptionMetadata::fromModuleIndex($module);
+        production_signing_assert($metadata->legacyVersion === '1.2.0' && $metadata->fileHashes !== [], 'Adoptionsmetadaten sind nicht vollständig validierbar.');
+        production_signing_assert(str_starts_with($module['releases'][0]['package']['location'], 'packages/' . $module['id'] . '/'), 'Modulpaket liegt nicht im unabhängig versionierbaren Repositorypfad.');
         $loader->verifyPackage($source, $module['releases'][0]);
     }
     $rootSignature = json_decode((string) file_get_contents($temporary . '/source/catalog/v1/root.json.sig'), true, 8, JSON_THROW_ON_ERROR);

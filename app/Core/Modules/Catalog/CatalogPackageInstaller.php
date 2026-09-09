@@ -61,6 +61,16 @@ final readonly class CatalogPackageInstaller
         return (int) $this->snapshot->root['sequence'];
     }
 
+    public function adoptionMetadata(string $moduleId): CatalogAdoptionMetadata
+    {
+        $module = $this->snapshot->modules[$moduleId] ?? null;
+        if (!is_array($module)) {
+            throw new RuntimeException('Modulindex für die Adoption fehlt.');
+        }
+
+        return CatalogAdoptionMetadata::fromModuleIndex($module);
+    }
+
     public function manifest(string $moduleId): ModuleManifest
     {
         $release = $this->release($moduleId);

@@ -23,6 +23,8 @@ sich von **Legacy-Anwendungen**: Legacy-Code wird dateibasiert unter
   Retain/Purge und Wiki-Adoption.
 - [Signierter Modulkatalog v2](module-catalog-v2.md) – statisches Format,
   Trust Store, LKG, Betrieb und Testfixtures.
+- [Statische Release-Mirrors](static-release-mirrors.md) – GitHub-Sync,
+  atomare Veröffentlichung und Last Known Good.
 
 Bestehende Systemdokumentation ergänzt diese Referenz:
 

@@ -30,7 +30,7 @@ Für die Installer-Version gilt:
 
 Vor einem Release werden App-Version und Bootstrap-Installer-Version bewusst geprüft und bei öffentlichen ModulNest-Releases synchron auf die Zielversion gesetzt.
 
-ModulNest 1.3.0 verwendet den Channel `stable`. ModulNest 2.0.0-rc.1 wird als
+ModulNest 1.3.0 verwendet den Channel `stable`. ModulNest 2.0.0-rc.2 wird als
 `rc`/Prerelease veröffentlicht und ausschließlich über `prerelease.json`
 angeboten; `stable.json` bleibt bis zum finalen 2.0-Release auf 1.3.0.
 
