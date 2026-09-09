@@ -25,10 +25,15 @@ if (!is_array($trusted)) {
     $trusted = [];
 }
 $sourcePath = (string) Env::get('MODULE_CATALOG_SOURCE_PATH', '');
-$sourceUrl = (string) Env::get(
-    'MODULE_CATALOG_SOURCE_URL',
-    $isDevelopment ? '' : 'https://raw.githubusercontent.com/ChobitsChii/ModulNest-Modules/main'
-);
+$officialSourceUrl = 'https://repo.modulnest.de';
+$legacyOfficialSourceUrl = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest-Modules/main';
+$configuredSourceUrl = trim((string) Env::get('MODULE_CATALOG_SOURCE_URL', ''));
+$sourceUrl = $configuredSourceUrl !== ''
+    ? $configuredSourceUrl
+    : ($isDevelopment ? '' : $officialSourceUrl);
+if (!$isDevelopment && rtrim($sourceUrl, '/') === $legacyOfficialSourceUrl) {
+    $sourceUrl = $officialSourceUrl;
+}
 if ($isDevelopment && $trusted === []) {
     $lines = file(dirname(__DIR__, 2) . '/tests/Fixtures/catalog-v1/keys/TEST_ONLY_ed25519_public.key', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     if (isset($lines[1])) {

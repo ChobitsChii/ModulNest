@@ -7,6 +7,8 @@ verfügbar.
 
 ## Stable
 
+- [2.0.1](2.0.1.md) — 09.09.2026 — offizielle Distribution-Endpunkte und kleinere Update-UX-Verbesserungen.
+- [2.0.0](2.0.0.md) — 09.09.2026 — stabiler ModulNest-2-Release.
 - [1.3.0](1.3.0.md) — 09.09.2026 — Updatekanäle für Stable- und Vorabversionen.
 - [1.2.0](1.2.0.md) — 04.09.2026 — Theme-System und indizierte Wiki-Suche.
 - [1.1.1](1.1.1.md) — 03.09.2026 — sichere lokale Wiki-Quellen und Dokumentationsdarstellung.
@@ -19,7 +21,6 @@ verfügbar.
 - [2.0.0-rc.1](2.0.0-rc.1.md) — 09.09.2026 — öffentlicher Release Candidate des Modul-v2-Systems.
 - [2.0.0-rc.2](2.0.0-rc.2.md) — 09.09.2026 — Public-Adoption ohne private Sources und unabhängiges Modulrepository.
 - [2.0.0-rc.3](2.0.0-rc.3.md) — 09.09.2026 — korrigiertes Core-Paket mit vollständiger Modul-Katalog-View.
-- [2.0.0](2.0.0.md) — 09.09.2026 — stabiler ModulNest-2-Release.
 
 ## Vor 1.0
 

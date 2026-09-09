@@ -30,7 +30,7 @@ Für die Installer-Version gilt:
 
 Vor einem Release werden App-Version und Bootstrap-Installer-Version bewusst geprüft und bei öffentlichen ModulNest-Releases synchron auf die Zielversion gesetzt.
 
-ModulNest 2.0.0 verwendet den Channel `stable`. `stable.json` und
+ModulNest 2.0.1 verwendet den Channel `stable`. `stable.json` und
 `prerelease.json` zeigen auf die finale Version, damit auch Installationen mit
 aktivierten Vorabversionen den Stable-Release erhalten.
 

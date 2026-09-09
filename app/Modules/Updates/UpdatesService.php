@@ -18,8 +18,8 @@ use ZipArchive;
 
 final class UpdatesService
 {
-    public const UPDATE_FEED_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/stable.json';
-    public const PRERELEASE_FEED_URL = 'https://raw.githubusercontent.com/ChobitsChii/ModulNest/main/build/update/prerelease.json';
+    public const UPDATE_FEED_URL = 'https://updates.modulnest.de/core/stable.json';
+    public const PRERELEASE_FEED_URL = 'https://updates.modulnest.de/core/prerelease.json';
 
     private string $storagePath;
     private string $downloadsPath;

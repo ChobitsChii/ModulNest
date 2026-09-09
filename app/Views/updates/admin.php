@@ -81,7 +81,7 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                         <?php if ($updateChannel === 'preview'): ?>
                             <span class="badge text-bg-warning">Vorabversionen aktiviert</span>
                         <?php endif; ?>
-                        <span class="btn btn-outline-primary btn-sm updates-channel-action" aria-hidden="true">
+                        <span class="btn btn-outline-secondary btn-sm updates-channel-action" aria-hidden="true">
                             <span class="updates-channel-open-label">Ändern <span aria-hidden="true">▾</span></span>
                             <span class="updates-channel-close-label">Schließen <span aria-hidden="true">▴</span></span>
                         </span>
@@ -115,10 +115,10 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                 <h2 class="h6 mb-3">1. Prüfen</h2>
                 <dl class="mb-3 small">
                     <dt class="text-body-secondary">Updatequelle</dt>
-                    <dd class="text-break"><?= $externalLink($feedUrl) ?></dd>
+                    <dd class="text-break"><?= $externalLink($feedUrl, 'updates.modulnest.de – offizielle Quelle') ?></dd>
                     <?php if ($updateChannel === 'preview'): ?>
                         <dt class="text-body-secondary">Vorab-Feed</dt>
-                        <dd class="text-break"><?= $externalLink($prereleaseFeedUrl) ?></dd>
+                        <dd class="text-break"><?= $externalLink($prereleaseFeedUrl, 'updates.modulnest.de – offizielle Vorabquelle') ?></dd>
                     <?php endif; ?>
                 </dl>
                 <form method="post" action="/admin/updates/check">

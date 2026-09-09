@@ -28,8 +28,8 @@ function blackboxAssert(bool $condition, string $message): void
 
 $root = realpath(dirname(__DIR__, 2));
 blackboxAssert(is_string($root), 'Artefaktwurzel fehlt.');
-$expected = (string) (getenv('BLACKBOX_EXPECTED_VERSION') ?: '2.0.0-rc.3');
-$catalogUrl = (string) (getenv('BLACKBOX_CATALOG_URL') ?: 'https://raw.githubusercontent.com/ChobitsChii/ModulNest-Modules/main');
+$expected = (string) (getenv('BLACKBOX_EXPECTED_VERSION') ?: '2.0.1');
+$catalogUrl = (string) (getenv('BLACKBOX_CATALOG_URL') ?: 'https://repo.modulnest.de');
 $openBasedir = (string) ini_get('open_basedir');
 blackboxAssert($openBasedir !== '' && str_contains($openBasedir, $root), 'Blackbox-Test läuft nicht in einer Dateisystem-Sandbox.');
 blackboxAssert(!str_contains($openBasedir, '/srv/http/modulon'), 'Privater Source-Checkout ist im Blackbox-Test erreichbar.');
@@ -84,9 +84,13 @@ try {
     if (getenv('BLACKBOX_PREINSTALLED') !== '1') {
         $updates = new UpdatesService($root, $server);
         $stable = $updates->check('1.3.0', UpdateChannel::STABLE);
-        blackboxAssert(($stable['available'] ?? true) === false, 'Stable-Kanal bietet einen RC an.');
+        if (str_contains($expected, '-')) {
+            blackboxAssert(($stable['available'] ?? true) === false, 'Stable-Kanal bietet einen RC an.');
+        } else {
+            blackboxAssert(($stable['latest'] ?? '') === $expected && ($stable['available'] ?? false), 'Stable-Kanal erkennt den erwarteten Stable-Release nicht.');
+        }
         $preview = $updates->check('1.3.0', UpdateChannel::PREVIEW);
-        blackboxAssert(($preview['latest'] ?? '') === $expected && ($preview['available'] ?? false), 'Preview-Kanal erkennt den erwarteten RC nicht.');
+        blackboxAssert(($preview['latest'] ?? '') === $expected && ($preview['available'] ?? false), 'Preview-Kanal erkennt das erwartete Release nicht.');
         $updates->prepare('1.3.0', UpdateChannel::PREVIEW);
         $coreResult = $updates->install();
         blackboxAssert(($coreResult['version'] ?? '') === $expected, 'Public Core Upgrade wurde nicht installiert.');

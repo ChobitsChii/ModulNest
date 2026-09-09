@@ -96,6 +96,8 @@ update_channel_assert(str_contains($html, 'Updatekanal:</span> <strong>Stable + 
 update_channel_assert(str_contains($html, '<details class="updates-channel-details">'), 'Updatekanal-Konfiguration ist nicht standardmäßig eingeklappt.');
 update_channel_assert(str_contains($html, 'Vorabversionen aktiviert') && str_contains($html, 'Ändern'), 'Kompakter Kanalstatus fehlt.');
 update_channel_assert(str_contains($html, 'aria-expanded="false"') && str_contains($html, '▾') && str_contains($html, '▴'), 'Zugänglicher Disclosure-Zustand oder Chevron fehlt.');
+update_channel_assert(str_contains($html, 'btn-outline-secondary') && !str_contains($html, 'updates-channel-action btn-outline-primary'), 'Disclosure-Aktion ist weiterhin zu dominant.');
+update_channel_assert(str_contains($html, 'updates.modulnest.de – offizielle Quelle'), 'Offizielle Updatequelle ist nicht verständlich gekennzeichnet.');
 update_channel_assert(str_contains($html, 'name="_csrf"'), 'CSRF-Feld fehlt.');
 update_channel_assert(!str_contains($html, 'Channel:</span>'), 'Veraltete Channel-Anzeige ist noch sichtbar.');
 

@@ -1,6 +1,6 @@
 # Signierter Modulkatalog v2
 
-Status: **ModulNest 2.0.0**. Der Production-Katalog enthält die elf
+Status: **ModulNest 2.0.1**. Der Production-Katalog enthält die elf
 öffentlichen Produktmodule; der Development-Katalog bleibt separat.
 
 ## Statisches Format
