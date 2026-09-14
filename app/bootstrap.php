@@ -314,6 +314,7 @@ if ($pdo !== null) {
         $moduleAdoptionOperations,
         $catalogInstaller !== null ? new CleanInstallModuleService($catalogService, $catalogInstaller, $moduleLifecycle) : null,
         $moduleBatchUpdates,
+        $catalogSourceRegistry,
     );
 }
 $adminController = new AdminController(
@@ -600,6 +601,12 @@ if ($moduleCatalogController !== null) {
     $router->get('/admin/module-catalog/*', [$moduleCatalogController, 'detail'], 'admin');
     $router->post('/admin/module-catalog/action', [$moduleCatalogController, 'action'], 'admin');
     $router->post('/admin/module-catalog/dismiss-update', [$moduleCatalogController, 'dismissBatchUpdate'], 'admin');
+    $router->post('/admin/module-catalog/sources/add', [$moduleCatalogController, 'addSource'], 'admin');
+    $router->post('/admin/module-catalog/sources/update', [$moduleCatalogController, 'updateSource'], 'admin');
+    $router->post('/admin/module-catalog/sources/enable', [$moduleCatalogController, 'enableSource'], 'admin');
+    $router->post('/admin/module-catalog/sources/disable', [$moduleCatalogController, 'disableSource'], 'admin');
+    $router->post('/admin/module-catalog/sources/delete', [$moduleCatalogController, 'deleteSource'], 'admin');
+    $router->post('/admin/module-catalog/sources/test', [$moduleCatalogController, 'testSource'], 'admin');
 }
 $router->post('/admin/users/create', [$adminController, 'createUser'], 'admin');
 $router->post('/admin/users/update', [$adminController, 'updateUser'], 'admin');

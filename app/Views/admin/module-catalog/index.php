@@ -69,10 +69,14 @@ $badgeClass = static fn (string $classification): string => \Modulon\Core\Module
     <a class="nav-link<?= $tab === 'installiert' ? ' active' : '' ?>" href="/admin/module-catalog?bereich=installiert">
         <i class="bi bi-check2-circle me-1"></i> Installiert <span class="badge text-bg-light ms-1"><?= (int) ($counts['installiert'] ?? 0) ?></span>
     </a>
-    <a class="nav-link<?= $tab === 'quellen' ? ' active' : '' ?>" href="/admin/repository-manager">
-        <i class="bi bi-hdd-network me-1"></i> Katalogquellen
+    <a class="nav-link<?= $tab === 'quellen' ? ' active' : '' ?>" href="/admin/module-catalog?bereich=quellen">
+        <i class="bi bi-hdd-network me-1"></i> Katalogquellen <span class="badge text-bg-light ms-1"><?= (int) ($counts['quellen'] ?? 0) ?></span>
     </a>
 </nav>
+
+<?php if ($tab === 'quellen'): ?>
+    <?php require __DIR__ . '/sources.php'; ?>
+<?php else: ?>
 
 <?php if ($tab === 'updates' && ($batch_update_plan ?? []) !== []): ?>
     <section class="card app-card border-primary shadow-sm mb-4" data-batch-update-plan>
@@ -211,6 +215,8 @@ $badgeClass = static fn (string $classification): string => \Modulon\Core\Module
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
+<?php endif; /* !quellen */ ?>
+
 <script>document.querySelectorAll('.catalog-action-form').forEach(form=>form.addEventListener('submit',()=>form.querySelectorAll('button').forEach(button=>{button.disabled=true;button.setAttribute('aria-busy','true');})));</script>
 <script>(()=>{
     const panel=document.querySelector('[data-batch-update-status]');

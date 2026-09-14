@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace Modulon\Modules\Admin;
 
+use InvalidArgumentException;
+use Modulon\Core\DateTimeFormatter;
+use Modulon\Core\Modules\Catalog\CatalogCache;
+use Modulon\Core\Modules\Catalog\CatalogLoader;
 use Modulon\Core\Modules\Catalog\CatalogPackageInstaller;
 use Modulon\Core\Modules\Catalog\CatalogService;
+use Modulon\Core\Modules\Catalog\CatalogSourceFactory;
+use Modulon\Core\Modules\Catalog\CatalogSourceRegistry;
+use Modulon\Core\Modules\Catalog\CatalogTrustStore;
 use Modulon\Core\Modules\Catalog\CleanInstallModuleService;
 use Modulon\Core\Modules\LegacyModuleAdoptionService;
 use Modulon\Core\Modules\ModuleAdoptionOperationService;
 use Modulon\Core\Modules\ModuleBatchUpdateService;
 use Modulon\Core\Modules\ModuleLifecycleService;
+use Modulon\Core\Modules\ModulePackageInspector;
 use Modulon\Core\Modules\WikiAdoptionService;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
@@ -32,16 +40,14 @@ final readonly class ModuleCatalogController
         private ?ModuleAdoptionOperationService $adoptionOperations = null,
         private ?CleanInstallModuleService $cleanInstall = null,
         private ?ModuleBatchUpdateService $batchUpdates = null,
+        private ?CatalogSourceRegistry $catalogSources = null,
     ) {
     }
 
     public function index(Request $request): Response
     {
         $tab = (string) $request->query('bereich', 'updates');
-        if ($tab === 'quellen' || $tab === 'repository-manager') {
-            return Response::redirect('/admin/repository-manager');
-        }
-        if (!in_array($tab, ['updates', 'entdecken', 'installiert'], true)) {
+        if (!in_array($tab, ['updates', 'entdecken', 'installiert', 'quellen'], true)) {
             $tab = 'updates';
         }
         $discover = $this->withAdoptionPreflight($this->catalog->discover());
@@ -52,6 +58,25 @@ final readonly class ModuleCatalogController
             'updates' => $updates,
             default => $discover,
         };
+
+        $sources = $this->catalogSources !== null
+            ? $this->enrichSources($this->catalogSources->list())
+            : [];
+        $editRaw = trim((string) $request->query('edit', ''));
+        $editSource = null;
+        if ($editRaw !== '' && $this->catalogSources !== null) {
+            try {
+                $found = $this->catalogSources->get($editRaw);
+                if ($found === null) {
+                    $this->session->flash('catalog_error', "Katalogquelle '{$editRaw}' wurde nicht gefunden.");
+                } else {
+                    $enriched = $this->enrichSources([$found]);
+                    $editSource = $enriched[0] ?? $found;
+                }
+            } catch (Throwable $error) {
+                $this->session->flash('catalog_error', 'Fehler beim Laden der Katalogquelle: ' . $error->getMessage());
+            }
+        }
 
         $latestBatch = $this->batchUpdates?->latest();
         $dismissedBatchId = (string) $this->session->get('dismissed_batch_update_id', '');
@@ -71,7 +96,14 @@ final readonly class ModuleCatalogController
             'current_path' => $request->path(),
             'tab' => $tab,
             'modules' => $items,
-            'counts' => ['entdecken' => count($discover), 'installiert' => count($installed), 'updates' => count($updates)],
+            'sources' => $sources,
+            'edit_source' => $editSource,
+            'counts' => [
+                'entdecken' => count($discover),
+                'installiert' => count($installed),
+                'updates' => count($updates),
+                'quellen' => count($sources),
+            ],
             'message' => $this->session->pullFlash('catalog_info'),
             'error' => $this->session->pullFlash('catalog_error'),
             'catalog_warning' => $this->catalogWarning,
@@ -89,29 +121,34 @@ final readonly class ModuleCatalogController
         if (preg_match('#^admin/module-catalog/([a-z][a-z0-9-]*\.[a-z][a-z0-9-]*)$#D', $path, $matches) !== 1) {
             return new Response(View::render('errors/404', ['title' => 'Nicht gefunden', 'current_path' => $request->path()]), 404);
         }
-        $module = $this->catalog->module($matches[1]);
+
+        $id = $matches[1];
+        $module = $this->catalog->find($id);
         if ($module === null) {
-            return new Response(View::render('errors/404', ['title' => 'Nicht gefunden', 'current_path' => $request->path()]), 404);
+            return new Response(View::render('errors/404', ['title' => 'Modul nicht gefunden', 'current_path' => $request->path()]), 404);
         }
-        $module = $this->withAdoptionPreflight([$module])[0];
-        $adoptionOperation = $this->adoptionOperations?->latest((string) $module['id']);
+
+        $modules = $this->withAdoptionPreflight([$module]);
+        $module = $modules[0] ?? $module;
+
         return new Response(View::render('admin/module-catalog/detail', [
-            'title' => $module['name'] . ' – Modul-Katalog',
+            'title' => (string) ($module['name'] ?? $id) . ' – Modul-Katalog',
             'admin_section' => 'module-catalog',
             'current_path' => $request->path(),
             'module' => $module,
             'message' => $this->session->pullFlash('catalog_info'),
             'error' => $this->session->pullFlash('catalog_error'),
             'catalog_warning' => $this->catalogWarning,
-            'adoption_operation' => $adoptionOperation,
+            'test_key_active' => $this->testKeyActive,
+            'operation' => $this->adoptionOperations?->latest($id),
         ]));
     }
 
     public function operationStatus(Request $request): Response
     {
-        $id = (string) $request->query('module_id', '');
-        if ($id !== 'modulnest.tools' || $this->adoptionOperations === null) {
-            return new Response('{"error":"not_found"}', 404, ['Content-Type' => 'application/json; charset=UTF-8', 'Cache-Control' => 'no-store']);
+        $id = trim((string) $request->query('module_id', ''));
+        if ($id === '' || $this->adoptionOperations === null) {
+            return new Response('{"operation":null}', 200, ['Content-Type' => 'application/json; charset=UTF-8', 'Cache-Control' => 'no-store']);
         }
         $operation = $this->adoptionOperations->latest($id);
         if (!is_array($operation)) {
@@ -165,37 +202,322 @@ final readonly class ModuleCatalogController
                 if ($this->cleanInstall === null) throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
                 $raw = $request->inputRaw('module_ids', []);
                 $ids = is_array($raw) ? array_values(array_filter(array_map('strval', $raw))) : [];
-                $installed = $this->cleanInstall->installSelected($ids);
-                $this->session->flash('catalog_info', count($installed) . ' ausgewählte Modul-v2-Pakete wurden installiert und aktiviert.');
-            } catch (Throwable $error) {
-                $this->session->flash('catalog_error', $error->getMessage());
-            }
-            return Response::redirect('/admin/module-catalog?bereich=installiert');
+                $result = $this->cleanInstall->installSelected($ids);
+                $msg = count($result['installed']) . ' Modul(e) erfolgreich installiert.';
+                if ($result['skipped'] !== []) $msg .= ' Übersprungen: ' . implode(', ', $result['skipped']) . '.';
+                $this->session->flash('catalog_info', $msg);
+            } catch (Throwable $error) {$this->session->flash('catalog_error', $error->getMessage());}
+            return Response::redirect('/admin/module-catalog?bereich=entdecken');
         }
-        $redirect = '/admin/module-catalog/' . rawurlencode($id);
+
         try {
-            $backgroundStarted = false;
             match ($action) {
                 'install' => $this->install($id),
-                'adopt' => $backgroundStarted = $this->adopt($id),
-                'reinstall' => $this->reinstall($request, $id),
                 'update' => $this->update($id),
+                'adopt' => $this->adopt($id),
+                'reinstall' => $this->reinstall($request, $id),
                 'activate' => $this->lifecycle->activate($id),
                 'deactivate' => $this->lifecycle->deactivate($id),
-                'uninstall' => $this->lifecycle->uninstall($id, false),
+                'uninstall' => $this->lifecycle->uninstall($id),
                 'purge' => $this->purge($request, $id),
-                default => throw new \RuntimeException('Unbekannte Modulaktion.'),
+                default => throw new \RuntimeException('Unbekannte Aktion.'),
             };
-            $this->session->flash('catalog_info', $backgroundStarted
-                ? 'Die Adoption wurde sicher im Hintergrund gestartet. Der Fortschritt wird auf dieser Seite angezeigt.'
-                : $this->success($action));
+            $this->session->flash('catalog_info', $this->success($action));
         } catch (Throwable $error) {
             $this->session->flash('catalog_error', $error->getMessage());
         }
-        return Response::redirect($redirect);
+
+        $redirect = (string) $request->input('redirect_to', '');
+        if ($redirect !== '' && str_starts_with($redirect, '/admin/module-catalog')) {
+            return Response::redirect($redirect);
+        }
+        return Response::redirect('/admin/module-catalog/' . rawurlencode($id));
     }
 
-    /** @param list<array<string,mixed>> $modules @return list<array<string,mixed>> */
+    public function addSource(Request $request): Response
+    {
+        if ($this->catalogSources === null) {
+            $this->session->flash('catalog_error', 'Katalogquellen-Verwaltung ist nicht verfügbar.');
+            return Response::redirect('/admin/module-catalog?bereich=quellen');
+        }
+        try {
+            $trust = $this->extractTrust($request);
+            $this->catalogSources->add(
+                (string) $request->input('id', ''),
+                (string) $request->input('name', ''),
+                (string) $request->input('source_type', 'https'),
+                (string) $request->input('location', ''),
+                (string) $request->input('enabled', '') === '1',
+                (int) $request->input('priority', '0'),
+                $trust['trusted_keys'],
+                $trust['root_key_ids'],
+                'module-catalog-ui',
+            );
+            $this->session->flash('catalog_info', 'Katalogquelle hinzugefügt.');
+        } catch (Throwable $error) {
+            $this->session->flash('catalog_error', $error->getMessage());
+        }
+        return Response::redirect('/admin/module-catalog?bereich=quellen');
+    }
+
+    public function updateSource(Request $request): Response
+    {
+        if ($this->catalogSources === null) {
+            $this->session->flash('catalog_error', 'Katalogquellen-Verwaltung ist nicht verfügbar.');
+            return Response::redirect('/admin/module-catalog?bereich=quellen');
+        }
+        try {
+            $id = (string) $request->input('id', '');
+            $source = $this->catalogSources->get($id);
+            if ($source === null) {
+                throw new InvalidArgumentException('Katalogquelle wurde nicht gefunden.');
+            }
+            $changes = $this->collectSourceChanges($source, $request);
+            if ($changes === []) {
+                $this->session->flash('catalog_info', 'Keine Änderungen an der Katalogquelle vorgenommen.');
+            } else {
+                $this->catalogSources->update($id, $changes, 'module-catalog-ui');
+                $this->session->flash('catalog_info', 'Katalogquelle aktualisiert.');
+            }
+        } catch (Throwable $error) {
+            $this->session->flash('catalog_error', $error->getMessage());
+        }
+        return Response::redirect('/admin/module-catalog?bereich=quellen');
+    }
+
+    public function enableSource(Request $request): Response
+    {
+        if ($this->catalogSources === null) {
+            $this->session->flash('catalog_error', 'Katalogquellen-Verwaltung ist nicht verfügbar.');
+            return Response::redirect('/admin/module-catalog?bereich=quellen');
+        }
+        try {
+            $this->catalogSources->enable((string) $request->input('id', ''), 'module-catalog-ui');
+            $this->session->flash('catalog_info', 'Katalogquelle aktiviert.');
+        } catch (Throwable $error) {
+            $this->session->flash('catalog_error', $error->getMessage());
+        }
+        return Response::redirect('/admin/module-catalog?bereich=quellen');
+    }
+
+    public function disableSource(Request $request): Response
+    {
+        if ($this->catalogSources === null) {
+            $this->session->flash('catalog_error', 'Katalogquellen-Verwaltung ist nicht verfügbar.');
+            return Response::redirect('/admin/module-catalog?bereich=quellen');
+        }
+        try {
+            $this->catalogSources->disable((string) $request->input('id', ''), 'module-catalog-ui');
+            $this->session->flash('catalog_info', 'Katalogquelle deaktiviert.');
+        } catch (Throwable $error) {
+            $this->session->flash('catalog_error', $error->getMessage());
+        }
+        return Response::redirect('/admin/module-catalog?bereich=quellen');
+    }
+
+    public function deleteSource(Request $request): Response
+    {
+        if ($this->catalogSources === null) {
+            $this->session->flash('catalog_error', 'Katalogquellen-Verwaltung ist nicht verfügbar.');
+            return Response::redirect('/admin/module-catalog?bereich=quellen');
+        }
+        try {
+            $id = (string) $request->input('id', '');
+            $this->catalogSources->delete($id);
+            $this->session->flash('catalog_info', "Katalogquelle '{$id}' gelöscht.");
+        } catch (Throwable $error) {
+            $this->session->flash('catalog_error', $error->getMessage());
+        }
+        return Response::redirect('/admin/module-catalog?bereich=quellen');
+    }
+
+    public function testSource(Request $request): Response
+    {
+        $id = trim((string) $request->input('id', ''));
+        $isAjax = $request->expectsJson() || strtolower((string) $request->server('HTTP_X_REQUESTED_WITH', '')) === 'xmlhttprequest';
+        try {
+            if ($this->catalogSources === null) {
+                throw new InvalidArgumentException('Katalogquellen-Verwaltung ist nicht verfügbar.');
+            }
+            if ($id === '') {
+                throw new InvalidArgumentException('Keine Quellen-ID angegeben.');
+            }
+            $sourceRecord = $this->catalogSources->get($id);
+            if ($sourceRecord === null) {
+                throw new InvalidArgumentException("Katalogquelle '{$id}' wurde nicht gefunden.");
+            }
+
+            $tempCacheDir = sys_get_temp_dir() . '/modulnest-test-catalog-' . bin2hex(random_bytes(6));
+            $tempCache = new CatalogCache($tempCacheDir);
+            try {
+                $factory = new CatalogSourceFactory();
+                $source = $factory->source($sourceRecord);
+                $trust = $factory->trust($sourceRecord);
+                $loader = new CatalogLoader($trust, $tempCache);
+                $snapshot = $loader->refresh($source);
+
+                $moduleCount = count($snapshot->modules);
+                $sequence = (int) ($snapshot->root['sequence'] ?? 0);
+                $expiresAt = (string) ($snapshot->root['expires_at'] ?? '');
+                $expiresLocal = $expiresAt !== '' ? DateTimeFormatter::formatUserDateTime($expiresAt) : $expiresAt;
+
+                $message = "Verbindung und Signaturprüfung erfolgreich! (Katalog-Sequenz: {$sequence}, {$moduleCount} Modul(e), gültig bis: {$expiresLocal})";
+                if ($isAjax) {
+                    return new Response(json_encode([
+                        'success' => true,
+                        'message' => $message,
+                        'sequence' => $sequence,
+                        'modules_count' => $moduleCount,
+                        'expires_at' => $expiresAt,
+                    ], JSON_THROW_ON_ERROR), 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+                }
+                $this->session->flash('catalog_info', $message);
+            } finally {
+                if (is_dir($tempCacheDir)) {
+                    ModulePackageInspector::removeTree($tempCacheDir);
+                }
+            }
+        } catch (Throwable $error) {
+            $errorMessage = $error->getMessage();
+            if ($isAjax) {
+                return new Response(json_encode([
+                    'success' => false,
+                    'error' => $errorMessage,
+                ], JSON_THROW_ON_ERROR), 400, ['Content-Type' => 'application/json; charset=UTF-8']);
+            }
+            $this->session->flash('catalog_error', "Prüfung fehlgeschlagen: {$errorMessage}");
+        }
+        return Response::redirect('/admin/module-catalog?bereich=quellen');
+    }
+
+    /**
+     * @param list<array<string,mixed>> $sources
+     * @return list<array<string,mixed>>
+     */
+    private function enrichSources(array $sources): array
+    {
+        foreach ($sources as &$source) {
+            $source['is_official'] = ($source['id'] ?? '') === 'modulnest.official';
+            $source['last_success_local'] = DateTimeFormatter::formatUserDateTime($source['last_success_at'] ?? '');
+            $source['last_error_local'] = DateTimeFormatter::formatUserDateTime($source['last_error_at'] ?? '');
+            $source['created_at_local'] = DateTimeFormatter::formatUserDateTime($source['created_at'] ?? '');
+            $source['updated_at_local'] = DateTimeFormatter::formatUserDateTime($source['updated_at'] ?? '');
+
+            $keys = is_array($source['trusted_keys'] ?? null) ? $source['trusted_keys'] : [];
+            $roots = is_array($source['root_key_ids'] ?? null) ? array_values(array_map('strval', $source['root_key_ids'])) : [];
+            $keyDetails = [];
+
+            if ($keys !== []) {
+                try {
+                    $trustStore = new CatalogTrustStore($keys, $roots);
+                    foreach ($keys as $keyId => $pubKey) {
+                        $keyIdStr = (string) $keyId;
+                        $fp = '';
+                        try {
+                            $fp = $trustStore->fingerprint($keyIdStr);
+                        } catch (Throwable) {
+                            $fp = 'Ungültig';
+                        }
+                        $keyDetails[] = [
+                            'key_id' => $keyIdStr,
+                            'public_key' => (string) $pubKey,
+                            'is_root' => in_array($keyIdStr, $roots, true),
+                            'fingerprint' => $fp,
+                        ];
+                    }
+                } catch (Throwable) {
+                    foreach ($keys as $keyId => $pubKey) {
+                        $keyDetails[] = [
+                            'key_id' => (string) $keyId,
+                            'public_key' => (string) $pubKey,
+                            'is_root' => in_array((string) $keyId, $roots, true),
+                            'fingerprint' => '',
+                        ];
+                    }
+                }
+            }
+            $source['key_details'] = $keyDetails;
+        }
+        unset($source);
+        return $sources;
+    }
+
+    /**
+     * @return array{trusted_keys: array<string,string>, root_key_ids: list<string>}
+     */
+    private function extractTrust(Request $request): array
+    {
+        $keyIds = $request->inputRaw('trust_key_id', []);
+        $pubKeys = $request->inputRaw('trust_public_key', []);
+        $isRoots = $request->inputRaw('trust_is_root', []);
+
+        if (is_array($keyIds) && is_array($pubKeys) && count($keyIds) > 0) {
+            $trustedKeys = [];
+            $rootKeyIds = [];
+            $rootIndices = is_array($isRoots) ? array_map('intval', $isRoots) : [];
+
+            foreach ($keyIds as $idx => $rawKeyId) {
+                $keyId = trim((string) $rawKeyId);
+                $pubKey = trim((string) ($pubKeys[$idx] ?? ''));
+                if ($keyId === '' || $pubKey === '') continue;
+                $trustedKeys[$keyId] = $pubKey;
+                if (in_array($idx, $rootIndices, true) || (isset($isRoots[$idx]) && $isRoots[$idx] === '1')) {
+                    $rootKeyIds[] = $keyId;
+                }
+            }
+            if ($trustedKeys !== []) {
+                return [
+                    'trusted_keys' => $trustedKeys,
+                    'root_key_ids' => array_values(array_unique($rootKeyIds)),
+                ];
+            }
+        }
+        return ['trusted_keys' => [], 'root_key_ids' => []];
+    }
+
+    /**
+     * @param array<string,mixed> $current
+     * @return array<string,mixed>
+     */
+    private function collectSourceChanges(array $current, Request $request): array
+    {
+        $changes = [];
+        $name = trim((string) $request->input('name', ''));
+        if ($name !== '' && $name !== ($current['name'] ?? '')) {
+            $changes['name'] = $name;
+        }
+        $sourceType = (string) $request->input('source_type', '');
+        if ($sourceType !== '' && $sourceType !== ($current['source_type'] ?? '')) {
+            $changes['source_type'] = $sourceType;
+        }
+        $location = trim((string) $request->input('location', ''));
+        if ($location !== '' && $location !== ($current['location'] ?? '')) {
+            $changes['location'] = $location;
+        }
+        if ($request->has('enabled_submitted') || $request->has('enabled')) {
+            $enabled = (string) $request->input('enabled', '') === '1';
+            if ($enabled !== (bool) ($current['enabled'] ?? false)) {
+                $changes['enabled'] = $enabled;
+            }
+        }
+        if ($request->has('priority')) {
+            $priority = (int) $request->input('priority', '0');
+            if ($priority !== (int) ($current['priority'] ?? 0)) {
+                $changes['priority'] = $priority;
+            }
+        }
+        $trust = $this->extractTrust($request);
+        if ($trust['trusted_keys'] !== []) {
+            $changes['trusted_keys'] = $trust['trusted_keys'];
+            $changes['root_key_ids'] = $trust['root_key_ids'];
+        }
+        return $changes;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $modules
+     * @return list<array<string,mixed>>
+     */
     private function withAdoptionPreflight(array $modules): array
     {
         foreach ($modules as &$module) {
