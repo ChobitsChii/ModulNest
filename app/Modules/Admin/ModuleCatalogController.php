@@ -36,7 +36,7 @@ final readonly class ModuleCatalogController
         private ?string $catalogWarning = null,
         private bool $testKeyActive = false,
         private ?WikiAdoptionService $wikiAdoption = null,
-        private ?LegacyModuleAdoptionService $legacyAdoption = null,
+        private ?LegacyModuleAdoptionService $adoption = null,
         private ?ModuleAdoptionOperationService $adoptionOperations = null,
         private ?CleanInstallModuleService $cleanInstall = null,
         private ?ModuleBatchUpdateService $batchUpdates = null,
@@ -52,8 +52,9 @@ final readonly class ModuleCatalogController
         }
         $discover = $this->withAdoptionPreflight($this->catalog->discover());
         $installed = $this->withAdoptionPreflight($this->catalog->installed());
-        $updates = $this->withAdoptionPreflight($this->catalog->updateCandidates());
+        $updates = $this->withAdoptionPreflight($this->catalog->updates());
         $items = match ($tab) {
+            'entdecken' => $discover,
             'installiert' => $installed,
             'updates' => $updates,
             default => $discover,
@@ -81,13 +82,8 @@ final readonly class ModuleCatalogController
         $latestBatch = $this->batchUpdates?->latest();
         $dismissedBatchId = (string) $this->session->get('dismissed_batch_update_id', '');
         $batchOperation = null;
-        if (is_array($latestBatch)) {
-            $status = (string) ($latestBatch['status'] ?? '');
-            $opId = (string) ($latestBatch['operation_id'] ?? '');
-            $isDismissed = !empty($latestBatch['dismissed']) || ($opId !== '' && $opId === $dismissedBatchId);
-            if ($status === 'running' || ($opId !== '' && !$isDismissed)) {
-                $batchOperation = $latestBatch;
-            }
+        if (is_array($latestBatch) && ($latestBatch['operation_id'] ?? '') !== $dismissedBatchId) {
+            $batchOperation = $latestBatch;
         }
 
         return new Response(View::render('admin/module-catalog/index', [
@@ -123,13 +119,14 @@ final readonly class ModuleCatalogController
         }
 
         $id = $matches[1];
-        $module = $this->catalog->find($id);
+        $module = $this->catalog->module($id);
         if ($module === null) {
-            return new Response(View::render('errors/404', ['title' => 'Modul nicht gefunden', 'current_path' => $request->path()]), 404);
+            return new Response(View::render('errors/404', ['title' => 'Nicht gefunden', 'current_path' => $request->path()]), 404);
         }
 
         $modules = $this->withAdoptionPreflight([$module]);
         $module = $modules[0] ?? $module;
+        $adoptionOperation = $this->adoptionOperations?->latest($id);
 
         return new Response(View::render('admin/module-catalog/detail', [
             'title' => (string) ($module['name'] ?? $id) . ' – Modul-Katalog',
@@ -140,7 +137,7 @@ final readonly class ModuleCatalogController
             'error' => $this->session->pullFlash('catalog_error'),
             'catalog_warning' => $this->catalogWarning,
             'test_key_active' => $this->testKeyActive,
-            'operation' => $this->adoptionOperations?->latest($id),
+            'adoption_operation' => $adoptionOperation,
         ]));
     }
 
@@ -211,10 +208,11 @@ final readonly class ModuleCatalogController
         }
 
         try {
+            $backgroundStarted = false;
             match ($action) {
                 'install' => $this->install($id),
                 'update' => $this->update($id),
-                'adopt' => $this->adopt($id),
+                'adopt' => $backgroundStarted = $this->adopt($id),
                 'reinstall' => $this->reinstall($request, $id),
                 'activate' => $this->lifecycle->activate($id),
                 'deactivate' => $this->lifecycle->deactivate($id),
@@ -222,7 +220,9 @@ final readonly class ModuleCatalogController
                 'purge' => $this->purge($request, $id),
                 default => throw new \RuntimeException('Unbekannte Aktion.'),
             };
-            $this->session->flash('catalog_info', $this->success($action));
+            $this->session->flash('catalog_info', $backgroundStarted
+                ? 'Die Adoption wurde sicher im Hintergrund gestartet. Der Fortschritt wird auf dieser Seite angezeigt.'
+                : $this->success($action));
         } catch (Throwable $error) {
             $this->session->flash('catalog_error', $error->getMessage());
         }
@@ -521,22 +521,25 @@ final readonly class ModuleCatalogController
     private function withAdoptionPreflight(array $modules): array
     {
         foreach ($modules as &$module) {
-            if (empty($module['adoption_candidate'])) continue;
-            if ($module['id'] === 'modulnest.wiki' && $this->wikiAdoption !== null) {
+            $id = (string) ($module['id'] ?? '');
+            if ($id === 'modulnest.wiki' && $this->wikiAdoption !== null) {
                 $preflight = $this->wikiAdoption->preflight();
+                $reinstall = $this->wikiAdoption->reinstallPreflight();
                 $module['adoptable'] = $preflight['status'] === 'adoptable';
                 $module['adoption_preflight'] = $preflight;
-                $module['reinstallable'] = $preflight['status'] === 'changed' && !empty($module['compatible']);
-                $module['reinstall_preflight'] = $preflight;
+                $module['reinstallable'] = $reinstall['status'] === 'reinstallable';
+                $module['reinstall_preflight'] = $reinstall;
                 continue;
             }
-            if ($this->legacyAdoption !== null) {
-                $preflight = $this->legacyAdoption->preflight((string) $module['id']);
-                $module['adoptable'] = $preflight['status'] === 'adoptable';
-                $module['adoption_preflight'] = $preflight;
-                $module['reinstallable'] = $preflight['status'] === 'changed' && !empty($module['compatible']);
-                $module['reinstall_preflight'] = $preflight;
+            if (empty($module['adoption_candidate']) || $this->adoption === null) {
+                continue;
             }
+            $preflight = $this->adoption->preflight($id);
+            $reinstall = $this->adoption->reinstallPreflight($id);
+            $module['adoptable'] = $preflight['status'] === 'adoptable';
+            $module['adoption_preflight'] = $preflight;
+            $module['reinstallable'] = $reinstall['status'] === 'reinstallable';
+            $module['reinstall_preflight'] = $reinstall;
         }
         unset($module);
         return $modules;
@@ -544,61 +547,87 @@ final readonly class ModuleCatalogController
 
     private function install(string $id): void
     {
-        if ($this->installer === null) throw new \RuntimeException('Kataloginstallation ist nicht verfügbar.');
+        if ($this->installer === null) {
+            throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
+        }
         $this->installer->install($id);
-    }
-
-    private function update(string $id): void
-    {
-        if ($this->installer === null) throw new \RuntimeException('Katalogupdates sind nicht verfügbar.');
-        $this->installer->update($id);
     }
 
     private function adopt(string $id): bool
     {
-        if ($id === 'modulnest.wiki') {
-            if ($this->wikiAdoption === null) throw new \RuntimeException('Adoption ist nicht verfügbar.');
-            $this->wikiAdoption->adopt();
-            return false;
-        }
         if ($id === 'modulnest.tools') {
-            if ($this->adoptionOperations === null) throw new \RuntimeException('Adoption ist nicht verfügbar.');
+            if ($this->adoptionOperations === null) {
+                throw new \RuntimeException('Die Hintergrundadoption ist nicht verfügbar.');
+            }
             $this->adoptionOperations->start($id);
             return true;
         }
-        if ($this->legacyAdoption === null) throw new \RuntimeException('Adoption ist nicht verfügbar.');
-        $this->legacyAdoption->adopt($id);
+        if ($this->installer === null) {
+            throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
+        }
+        if ($id === 'modulnest.wiki') {
+            if ($this->wikiAdoption === null) throw new \RuntimeException('Wiki-Adoption ist in dieser Installation nicht verfügbar.');
+            $this->installer->prepareAdoptionRelease($id);
+            $this->wikiAdoption->adopt();
+            return false;
+        }
+        if ($this->adoption === null) {
+            throw new \RuntimeException('Adoptionsdienst ist nicht verfügbar.');
+        }
+        $this->installer->prepareAdoptionRelease($id);
+        $this->adoption->adopt($id);
         return false;
     }
 
     private function reinstall(Request $request, string $id): void
     {
-        if ($this->installer === null) throw new \RuntimeException('Kataloginstallation ist nicht verfügbar.');
-        $confirm = (string) $request->input('confirm_module_id', '');
-        if ($confirm !== $id) {
-            throw new \RuntimeException('Bitte bestätige die Neuinstallation durch Eingabe der exakten technischen Modul-ID.');
+        if ($this->installer === null) {
+            throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
         }
-        $this->installer->reinstall($id);
+        $confirm = trim((string) $request->input('confirm_module_id', ''));
+        if ($confirm !== $id) {
+            throw new \RuntimeException('Die Bestätigung stimmt nicht mit der technischen Modul-ID überein.');
+        }
+        if ($id === 'modulnest.wiki' && $this->wikiAdoption !== null) {
+            $this->installer->prepareAdoptionRelease($id);
+            $this->wikiAdoption->reinstallFresh();
+            return;
+        }
+        if ($this->adoption === null) {
+            throw new \RuntimeException('Adoptionsdienst ist nicht verfügbar.');
+        }
+        $this->installer->prepareAdoptionRelease($id);
+        $this->adoption->reinstallFresh($id);
+    }
+
+    private function update(string $id): void
+    {
+        if ($this->installer === null) {
+            throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
+        }
+        $this->installer->update($id);
     }
 
     private function purge(Request $request, string $id): void
     {
-        $confirm = (string) $request->input('confirm_module_id', '');
-        if ($confirm !== $id) throw new \RuntimeException('Bitte bestätige das endgültige Löschen durch Eingabe der exakten technischen Modul-ID.');
-        $this->lifecycle->purgeRetainedData($id);
+        $confirm = trim((string) $request->input('confirm_module_id', ''));
+        if ($confirm !== $id) {
+            throw new \RuntimeException('Die Bestätigung stimmt nicht mit der Modul-ID überein.');
+        }
+        $this->lifecycle->uninstall($id, true);
     }
 
     private function success(string $action): string
     {
         return match ($action) {
             'install' => 'Modul wurde erfolgreich installiert.',
-            'adopt' => 'Modul wurde erfolgreich auf Modul v2 umgestellt.',
-            'reinstall' => 'Modul v2 wurde erfolgreich neu installiert. Vorhandene Daten wurden beibehalten.',
+            'adopt' => 'Modul wurde erfolgreich auf Version 2 umgestellt.',
+            'reinstall' => 'Modul v2 wurde erfolgreich frisch installiert.',
             'update' => 'Modul wurde erfolgreich aktualisiert.',
             'activate' => 'Modul wurde aktiviert.',
             'deactivate' => 'Modul wurde deaktiviert.',
-            'uninstall' => 'Modul wurde deinstalliert. Vorhandene Moduldaten bleiben sicher erhalten.',
-            'purge' => 'Moduldaten wurden endgültig gelöscht.',
+            'uninstall' => 'Modul wurde deinstalliert. Vorhandene Daten wurden beibehalten.',
+            'purge' => 'Modul und alle zugehörigen Daten wurden endgültig gelöscht.',
             default => 'Aktion erfolgreich ausgeführt.',
         };
     }
