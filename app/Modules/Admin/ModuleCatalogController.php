@@ -547,6 +547,10 @@ final readonly class ModuleCatalogController
 
     private function install(string $id): void
     {
+        $module = $this->catalog->module($id);
+        if ($module !== null && !empty($module['is_deprecated']) && empty($module['retained'])) {
+            throw new \RuntimeException('Dieses Modul ist veraltet und kann nicht mehr neu installiert werden.');
+        }
         if ($this->installer === null) {
             throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
         }

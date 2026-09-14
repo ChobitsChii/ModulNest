@@ -167,7 +167,7 @@ final readonly class CatalogService
     {
         return array_values(array_filter(
             $this->modules(),
-            static fn (array $module): bool => !$module['installed'] && !$module['retained'] && $module['catalog'] !== null,
+            static fn (array $module): bool => !$module['installed'] && !$module['retained'] && $module['catalog'] !== null && empty($module['is_deprecated']),
         ));
     }
 
@@ -227,6 +227,8 @@ final readonly class CatalogService
         $origin = $isAdoption ? 'v1' : (string) ($current['origin'] ?? 'catalog-managed');
         $classification = $isAdoption ? 'v1' : 'v2';
 
+        $isDeprecated = !empty($module['deprecated']) || !empty($release['deprecated']);
+        $deprecationReason = (string) ($module['deprecation_reason'] ?? $release['deprecation_reason'] ?? '');
         $checkVer = (string) ($installedVersion ?? $available ?? $latestVersion ?? '');
         $channel = (string) ($release['channel'] ?? $latest['channel'] ?? '');
         $isBeta = ($channel === 'beta')
@@ -234,6 +236,8 @@ final readonly class CatalogService
             || (bool) preg_match('/-(?:beta|alpha|rc|dev)\b/i', $checkVer);
 
         return [
+            'is_deprecated' => $isDeprecated,
+            'deprecation_reason' => $deprecationReason !== '' ? $deprecationReason : null,
             'is_beta' => $isBeta,
             'channel' => $channel !== '' ? $channel : ($isBeta ? 'beta' : 'stable'),
             'id' => $module['id'],
@@ -302,6 +306,8 @@ final readonly class CatalogService
             'incompatibility_reason' => null,
             'release' => null,
             'catalog' => null,
+            'is_deprecated' => false,
+            'deprecation_reason' => null,
             'data_schema_version' => 0,
             'adoption_candidate' => false,
             'adoptable' => false,

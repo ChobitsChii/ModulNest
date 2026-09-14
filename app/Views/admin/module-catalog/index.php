@@ -146,6 +146,9 @@ $badgeClass = static fn (string $classification): string => \Modulon\Core\Module
                             <?php elseif (!empty($module['retained'])): ?>
                                 <span class="badge rounded-pill text-bg-secondary">Keine Moduldaten</span>
                             <?php endif; ?>
+                            <?php if (!empty($module['is_deprecated'])): ?>
+                                <span class="badge rounded-pill text-bg-warning text-dark"><i class="bi bi-archive me-1"></i>Veraltet</span>
+                            <?php endif; ?>
                             <?php if (!empty($module['is_beta'])): ?>
                                 <span class="badge rounded-pill text-bg-warning text-dark"><i class="bi bi-tools me-1"></i>Beta (In Entwicklung)</span>
                             <?php endif; ?>

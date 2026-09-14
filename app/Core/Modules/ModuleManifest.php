@@ -30,6 +30,8 @@ final readonly class ModuleManifest
         public ?string $viewsPath,
         public ?string $assetsPath,
         public array $raw,
+        public bool $deprecated = false,
+        public ?string $deprecationReason = null,
     ) {}
 
     /** @param array<string,mixed> $raw */
@@ -79,10 +81,17 @@ final readonly class ModuleManifest
         foreach ($extensions as $extension) if (!preg_match('/^[a-z0-9_]+$/D', $extension)) throw new InvalidArgumentException('Ungültige PHP-Extension.');
         foreach (['homepage','repository','support','funding'] as $urlField) if(isset($raw[$urlField])&&filter_var($raw[$urlField],FILTER_VALIDATE_URL)===false) throw new InvalidArgumentException("{$urlField} ist keine gültige URL.");
 
+        $deprecated = !empty($raw['deprecated']);
+        $deprecationReason = isset($raw['deprecation_reason']) ? trim((string)$raw['deprecation_reason']) : null;
+        if ($deprecationReason === '') {
+            $deprecationReason = null;
+        }
+
         return new self($id, self::string($raw,'name'), self::string($raw,'description'), $version, $license, $route, $access,
             $entryClass, $entryFile, $psr4, $data['schema_version'], $normalizedOwnership,
             self::constraints($raw['dependencies'] ?? []), self::constraints($raw['optional_dependencies'] ?? []), self::constraints($raw['conflicts'] ?? []),
-            $extensions, self::optionalPath($raw, 'migrations'), self::optionalPath($raw, 'views'), self::optionalPath($raw, 'assets'), $raw);
+            $extensions, self::optionalPath($raw, 'migrations'), self::optionalPath($raw, 'views'), self::optionalPath($raw, 'assets'), $raw,
+            $deprecated, $deprecationReason);
     }
 
     public function requireEnvironment(string $coreVersion, string $phpVersion = PHP_VERSION): void

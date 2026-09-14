@@ -38,7 +38,7 @@ final readonly class CleanInstallModuleService
         $available = [];
         foreach ($this->catalog->modules() as $module) {
             $id = (string) ($module['id'] ?? '');
-            if ($id === '' || !is_array($module['release'] ?? null) || empty($module['compatible'])) {
+            if ($id === '' || !is_array($module['release'] ?? null) || empty($module['compatible']) || !empty($module['is_deprecated'])) {
                 continue;
             }
             $available[] = [
