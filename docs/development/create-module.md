@@ -1,4 +1,8 @@
-# Ein typisches natives Modul erstellen
+# Historisches natives Modul-v1 erstellen
+
+> `tools/create-module.php` erzeugt ein v1-/Core-Scaffold. Für ein neues
+> katalogverwaltetes Modul v2 ist stattdessen die
+> [kanonische Authoring-Anleitung](module-v2-authoring.md) verbindlich.
 
 Diese Anleitung zeigt einen üblichen Aufbau. Nur die Modulklasse und ihre
 gültigen Metadaten sind für die Auto-Discovery zwingend; Controller, Views,

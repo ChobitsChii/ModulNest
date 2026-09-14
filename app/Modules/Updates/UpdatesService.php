@@ -57,11 +57,15 @@ final class UpdatesService
 
         $displayVersion = $this->displayInstalledVersion($installedVersion, $state);
 
+        $activeSource = $this->getActiveUpdateSource();
+        $activeBaseUrl = rtrim($activeSource['base_url'], '/');
+
         return [
             'installed_version' => $displayVersion,
             'installed_release_label' => UpdateChannel::releaseLabel($displayVersion, $channel),
-            'feed_url' => self::UPDATE_FEED_URL,
-            'prerelease_feed_url' => self::PRERELEASE_FEED_URL,
+            'feed_url' => $activeBaseUrl . '/stable.json',
+            'prerelease_feed_url' => $activeBaseUrl . '/prerelease.json',
+            'active_source' => $activeSource,
             'update_channel' => $updateChannel,
             'update_channel_label' => UpdateChannel::label($updateChannel),
             'state' => $state,
@@ -277,18 +281,23 @@ final class UpdatesService
      */
     public function fetchMetadata(string $updateChannel = UpdateChannel::STABLE): array
     {
-        $stable = $this->readFeed(self::UPDATE_FEED_URL);
+        $activeSource = $this->getActiveUpdateSource();
+        $activeBaseUrl = rtrim($activeSource['base_url'], '/');
+        $feedUrl = $activeBaseUrl . '/stable.json';
+        $prereleaseFeedUrl = $activeBaseUrl . '/prerelease.json';
+
+        $stable = $this->readFeed($feedUrl);
         if ($this->isPrerelease((string) $stable['latest'])) {
             throw new RuntimeException('Der Stable-Feed enthÃ¤lt keine stabile Version.');
         }
-        $stable['_feed_url'] = self::UPDATE_FEED_URL;
+        $stable['_feed_url'] = $feedUrl;
         if (UpdateChannel::normalize($updateChannel) === UpdateChannel::STABLE) {
             return $stable;
         }
 
         try {
-            $preview = $this->readFeed(self::PRERELEASE_FEED_URL);
-            $preview['_feed_url'] = self::PRERELEASE_FEED_URL;
+            $preview = $this->readFeed($prereleaseFeedUrl);
+            $preview['_feed_url'] = $prereleaseFeedUrl;
             if (version_compare((string) $preview['latest'], (string) $stable['latest'], '>')) {
                 return $preview;
             }
@@ -803,4 +812,273 @@ final class UpdatesService
             'context' => $safeContext,
         ]);
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function mirrorStatus(?string $configPath = null): array
+    {
+        $configFile = $configPath ?? '/srv/http/modulnest-distribution/config.env';
+        $distBase = dirname($configFile);
+        $scriptPath = $distBase . '/bin/sync-updates.sh';
+        $updatesRoot = $distBase . '/updates';
+        $lockFile = $updatesRoot . '/state/sync.lock';
+        $shaFile = $updatesRoot . '/state/source.sha256';
+        $currentLink = $updatesRoot . '/current';
+        $logFile = $this->basePath . '/storage/logs/updates-sync.log';
+
+        $isConfigured = is_file($configFile) && is_dir($updatesRoot);
+        $isExecutable = is_file($scriptPath) && is_executable($scriptPath);
+
+        $isRunning = false;
+        if (is_file($lockFile)) {
+            $fp = @fopen($lockFile, 'r+');
+            if ($fp !== false) {
+                if (!@flock($fp, LOCK_EX | LOCK_NB)) {
+                    $isRunning = true;
+                } else {
+                    @flock($fp, LOCK_UN);
+                }
+                @fclose($fp);
+            }
+        }
+
+        $activeSnapshot = null;
+        $snapshotTimestamp = null;
+        $stableVersion = null;
+        $prereleaseVersion = null;
+        if (is_link($currentLink)) {
+            $target = readlink($currentLink);
+            if (is_string($target)) {
+                $activeSnapshot = basename($target);
+                if (preg_match('/^(\d[8]tTt[6]zZ)-/', $activeSnapshot, $m)) {
+                    $snapshotTimestamp = $m[1];
+                }
+                $currentCore = $updatesRoot . '/current/core';
+                if (is_file($currentCore . '/stable.json')) {
+                    $stableData = json_decode((string) file_get_contents($currentCore . '/stable.json'), true);
+                    if (is_array($stableData)) {
+                        $stableVersion = (string) ($stableData['latest'] ?? '');
+                    }
+                }
+                if (is_file($currentCore . '/prerelease.json')) {
+                    $prereleaseData = json_decode((string) file_get_contents($currentCore . '/prerelease.json'), true);
+                    if (is_array($prereleaseData)) {
+                        $prereleaseVersion = (string) ($prereleaseData['latest'] ?? '');
+                    }
+                }
+            }
+        }
+
+        $fingerprint = null;
+        if (is_file($shaFile)) {
+            $fingerprint = trim((string) file_get_contents($shaFile));
+        }
+
+        $lastLog = null;
+        if (is_file($logFile)) {
+            $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if (is_array($lines) && $lines !== []) {
+                $lastLog = implode("\n", array_slice($lines, -15));
+            }
+        }
+
+        return [
+            'configured' => $isConfigured,
+            'distribution_base' => $distBase,
+            'script_path' => $scriptPath,
+            'script_executable' => $isExecutable,
+            'is_running' => $isRunning,
+            'updates_root' => $updatesRoot,
+            'active_snapshot' => $activeSnapshot,
+            'snapshot_timestamp' => $snapshotTimestamp,
+            'stable_version' => $stableVersion,
+            'prerelease_version' => $prereleaseVersion,
+            'fingerprint' => $fingerprint,
+            'last_log' => $lastLog,
+            'cron_example' => '*/15 * * * * ' . $scriptPath . ' --cron 2>&1 | /usr/bin/logger -t modulnest-sync-updates',
+        ];
+    }
+
+    /**
+     * @return array{status:string,pid?:int,message:string}
+     */
+    public function syncMirror(?string $configPath = null): array
+    {
+        $status = $this->mirrorStatus($configPath);
+        if (!$status['configured']) {
+            throw new RuntimeException('Die ModulNest-Distributionsinfrastruktur ist nicht eingerichtet.');
+        }
+        if (!$status['script_executable']) {
+            throw new RuntimeException('Das Skript ' . $status['script_path'] . ' ist nicht ausführbar.');
+        }
+        if ($status['is_running']) {
+            return ['status' => 'already_running', 'message' => 'Die Synchronisation des Core-Update-Mirrors läuft bereits.'];
+        }
+
+        $runner = new \Modulon\Core\BackgroundProcessRunner();
+        $logFile = $this->basePath . '/storage/logs/updates-sync.log';
+        $res = $runner->launchExecutable(
+            $status['script_path'],
+            ['--manual'],
+            $logFile,
+            $status['distribution_base']
+        );
+
+        return [
+            'status' => $res['status'] ?? 'started',
+            'pid' => $res['pid'] ?? 0,
+            'message' => 'Die Synchronisation des Core-Update-Mirrors wurde erfolgreich im Hintergrund gestartet.',
+        ];
+    }
+
+
+    /**
+     * @return list<array{id:string,name:string,base_url:string,is_official:bool,is_active:bool,enabled:bool}>
+     */
+    public function getUpdateSources(): array
+    {
+        $sourcesFile = $this->storagePath . '/sources.json';
+        if (is_file($sourcesFile)) {
+            $data = json_decode((string) file_get_contents($sourcesFile), true);
+            if (is_array($data) && !empty($data)) {
+                return array_values($data);
+            }
+        }
+
+        return [
+            [
+                'id' => 'official',
+                'name' => 'Offizielle ModulNest Updates',
+                'base_url' => 'https://updates.modulnest.de/core',
+                'is_official' => true,
+                'is_active' => true,
+                'enabled' => true,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{id:string,name:string,base_url:string,is_official:bool,is_active:bool,enabled:bool}
+     */
+    public function getActiveUpdateSource(): array
+    {
+        $sources = $this->getUpdateSources();
+        foreach ($sources as $source) {
+            if (!empty($source['is_active']) && !empty($source['enabled'])) {
+                return $source;
+            }
+        }
+
+        return $sources[0] ?? [
+            'id' => 'official',
+            'name' => 'Offizielle ModulNest Updates',
+            'base_url' => 'https://updates.modulnest.de/core',
+            'is_official' => true,
+            'is_active' => true,
+            'enabled' => true,
+        ];
+    }
+
+    /**
+     * @param list<array<string,mixed>> $sources
+     */
+    public function saveUpdateSources(array $sources): void
+    {
+        if (!is_dir($this->storagePath)) {
+            mkdir($this->storagePath, 0775, true);
+        }
+        file_put_contents(
+            $this->storagePath . '/sources.json',
+            json_encode($sources, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    /**
+     * @return array{id:string,name:string,base_url:string,is_official:bool,is_active:bool,enabled:bool}
+     */
+    public function addUpdateSource(string $name, string $baseUrl): array
+    {
+        $name = trim($name);
+        $baseUrl = rtrim(trim($baseUrl), '/');
+        if ($name === '' || !str_starts_with($baseUrl, 'https://')) {
+            throw new RuntimeException('Name und eine gÃ¼ltige HTTPS-Basis-URL sind erforderlich.');
+        }
+
+        $sources = $this->getUpdateSources();
+        $id = 'source_' . substr(md5($baseUrl), 0, 8);
+
+        foreach ($sources as $s) {
+            if ($s['id'] === $id || $s['base_url'] === $baseUrl) {
+                throw new RuntimeException('Eine Update-Quelle mit dieser URL existiert bereits.');
+            }
+        }
+
+        $newSource = [
+            'id' => $id,
+            'name' => $name,
+            'base_url' => $baseUrl,
+            'is_official' => false,
+            'is_active' => false,
+            'enabled' => true,
+        ];
+
+        $sources[] = $newSource;
+        $this->saveUpdateSources($sources);
+
+        return $newSource;
+    }
+
+    public function setActiveUpdateSource(string $id): bool
+    {
+        $sources = $this->getUpdateSources();
+        $found = false;
+        foreach ($sources as &$s) {
+            if ($s['id'] === $id) {
+                $s['is_active'] = true;
+                $s['enabled'] = true;
+                $found = true;
+            } else {
+                $s['is_active'] = false;
+            }
+        }
+        unset($s);
+
+        if ($found) {
+            $this->saveUpdateSources($sources);
+            $this->resetChannelSelection();
+        }
+
+        return $found;
+    }
+
+    public function deleteUpdateSource(string $id): bool
+    {
+        $sources = $this->getUpdateSources();
+        $filtered = [];
+        $wasActive = false;
+
+        foreach ($sources as $s) {
+            if ($s['id'] === $id) {
+                if (!empty($s['is_official'])) {
+                    throw new RuntimeException('Die offizielle Update-Quelle kann nicht gelÃ¶scht werden.');
+                }
+                if (!empty($s['is_active'])) {
+                    $wasActive = true;
+                }
+                continue;
+            }
+            $filtered[] = $s;
+        }
+
+        if ($wasActive && !empty($filtered)) {
+            $filtered[0]['is_active'] = true;
+        }
+
+        $this->saveUpdateSources($filtered);
+        $this->resetChannelSelection();
+
+        return true;
+    }
+
 }

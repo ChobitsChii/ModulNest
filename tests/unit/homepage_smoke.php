@@ -15,6 +15,8 @@ use Modulon\Modules\Homepage\HomepageRepository;
 use Modulon\Modules\Modules\ModuleRepository;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require_once __DIR__ . '/module_package_test_bootstrap.php';
+module_package_test_autoload('Modulon\Modules\Homepage', '/srv/http/modulon-v1/app/Modules/Homepage');
 
 function homepage_smoke_assert(bool $condition, string $message): void
 {
@@ -74,7 +76,8 @@ try {
     homepage_smoke_assert($server->query("SHOW TABLES LIKE 'homepage_blocks'")->fetchColumn() === false, 'Homepage-Tabelle darf vor Modulaktivierung noch nicht existieren.');
 
     $moduleRepository = new ModuleRepository($server);
-    $moduleRepository->discoverNativeModules($basePath);
+    $discoveryPath = is_dir($basePath . '/app/Modules/Homepage') ? $basePath : '/srv/http/modulon-v1';
+    $moduleRepository->discoverNativeModules($discoveryPath);
     $homepageModule = null;
     foreach ($moduleRepository->listAll() as $module) {
         if ((string) ($module['route_prefix'] ?? '') === 'homepage') {
@@ -96,7 +99,7 @@ try {
         $basePath,
         null,
         [],
-        new NativeModuleMigrationService($server, $basePath),
+        new NativeModuleMigrationService($server, $discoveryPath),
     );
     $activationController->toggleModuleFlags(new Request('POST', '/admin/modules/toggle-flags', [
         'module_id' => (string) ($homepageModule['id'] ?? 0),
@@ -112,7 +115,7 @@ try {
     homepage_smoke_assert((int) $server->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'homepage_blocks' AND COLUMN_NAME = 'show_title'")->fetchColumn() === 1, 'show_title wurde nicht angelegt.');
     $homepageAfterActivation = $moduleRepository->findById((int) ($homepageModule['id'] ?? 0));
     homepage_smoke_assert(is_array($homepageAfterActivation) && (int) ($homepageAfterActivation['is_active'] ?? 0) === 1, 'Homepage-Modul wurde nicht aktiviert.');
-    $rerun = (new NativeModuleMigrationService($server, $basePath))->runForRoutePrefix('homepage');
+    $rerun = (new NativeModuleMigrationService($server, $discoveryPath))->runForRoutePrefix('homepage');
     homepage_smoke_assert(count($rerun['executed']) === 0, 'Bereits ausgeführte Homepage-Migration darf nicht erneut laufen.');
     $moduleRepository->updateFlags((int) ($homepageModule['id'] ?? 0), false, false);
     $tableAfterDeactivation = $server->query("SHOW TABLES LIKE 'homepage_blocks'")->fetchColumn();

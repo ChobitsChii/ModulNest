@@ -27,17 +27,16 @@ use Modulon\Core\Modules\PdoLogicalBackupProvider;
 use Modulon\Core\Modules\RootPageProviderInterface;
 use Modulon\Core\Modules\WikiAdoptionService;
 use Modulon\Core\Modules\Catalog\CatalogCache;
-use Modulon\Core\Modules\Catalog\CatalogLoader;
+use Modulon\Core\Modules\Catalog\CatalogAggregateLoader;
 use Modulon\Core\Modules\Catalog\CatalogPackageInstaller;
 use Modulon\Core\Modules\Catalog\CatalogService;
+use Modulon\Core\Modules\Catalog\CatalogSourceRegistry;
+use Modulon\Core\Modules\Catalog\CatalogSourceResolver;
 use Modulon\Core\Modules\Catalog\CleanInstallModuleService;
-use Modulon\Core\Modules\Catalog\CatalogSnapshot;
-use Modulon\Core\Modules\Catalog\CatalogTrustStore;
-use Modulon\Core\Modules\Catalog\HttpCatalogSource;
-use Modulon\Core\Modules\Catalog\LocalCatalogSource;
 use Modulon\Core\Request;
 use Modulon\Core\RecoveryManager;
 use Modulon\Core\Response;
+use Modulon\Core\RotatingFileLogger;
 use Modulon\Core\Router;
 use Modulon\Core\Session;
 use Modulon\Core\SystemHealthCheck;
@@ -148,6 +147,7 @@ $authService = null;
 $moduleRepository = null;
 $userRepository = null;
 $appSettingRepository = null;
+$catalogSourceRegistry = null;
 if ($pdo !== null) {
     $userRepository = new UserRepository($pdo);
     $appSettingRepository = new AppSettingRepository($pdo);
@@ -163,6 +163,32 @@ if ($pdo !== null) {
         $csrfTokenManager,
     );
     $moduleRepository = new ModuleRepository($pdo);
+    $catalogSourceRegistry = new CatalogSourceRegistry($pdo);
+    $configuredCatalogId = (string) ($moduleCatalogConfig['source_id'] ?? 'modulnest.official');
+    if (!empty($moduleCatalogConfig['enabled']) && $configuredCatalogId !== 'modulnest.official') {
+        try {
+            if ($catalogSourceRegistry->get($configuredCatalogId) === null) {
+                $configuredCatalogType = (string) ($moduleCatalogConfig['source_url'] ?? '') !== '' ? 'https' : 'local';
+                $configuredCatalogLocation = $configuredCatalogType === 'https'
+                    ? (string) $moduleCatalogConfig['source_url']
+                    : (string) $moduleCatalogConfig['source_path'];
+                $catalogSourceRegistry->add(
+                    $configuredCatalogId,
+                    'Konfigurierte Katalogquelle ' . $configuredCatalogId,
+                    $configuredCatalogType,
+                    $configuredCatalogLocation,
+                    true,
+                    1000,
+                    is_array($moduleCatalogConfig['trusted_keys'] ?? null) ? $moduleCatalogConfig['trusted_keys'] : [],
+                    is_array($moduleCatalogConfig['root_key_ids'] ?? null) ? $moduleCatalogConfig['root_key_ids'] : [],
+                    'bootstrap-legacy-config',
+                );
+                $catalogSourceRegistry->disable('modulnest.official', 'bootstrap-legacy-config');
+            }
+        } catch (\Throwable $error) {
+            error_log('Legacy catalog source could not be imported into the persistent registry: ' . $error->getMessage());
+        }
+    }
     try {
         $moduleRepository->ensureBuiltinNativeModules();
         $activatedPackageModules = $moduleRepository->syncPackageDefaultModules($basePath);
@@ -193,6 +219,7 @@ $moduleContext = new ModuleContext(
         'healthCheck' => $healthCheck,
         'healthCheckRegistry' => $healthCheckRegistry,
         'capabilityRegistry' => $capabilityRegistry,
+        'catalogSourceRegistry' => $catalogSourceRegistry,
     ],
     [
         'authConfig' => $authConfig,
@@ -255,33 +282,22 @@ if ($pdo !== null) {
         new PdoLogicalBackupProvider($pdo, $basePath . '/storage/backups/modules'),
         new ModuleOperationLock($basePath . '/storage/locks/modules'),
     );
-    $catalogWarning = null;
-    $catalogSource = null;
-    $catalogLoader = new CatalogLoader(
-        new CatalogTrustStore(
-            is_array($moduleCatalogConfig['trusted_keys'] ?? null) ? $moduleCatalogConfig['trusted_keys'] : [],
-            is_array($moduleCatalogConfig['root_key_ids'] ?? null) ? $moduleCatalogConfig['root_key_ids'] : [],
-        ),
+    $catalogAggregate = (new CatalogAggregateLoader(
+        $catalogSourceRegistry,
         new CatalogCache($basePath . '/storage/catalog'),
-    );
-    if (!empty($moduleCatalogConfig['enabled'])) {
-        try {
-            $catalogSource = (string) ($moduleCatalogConfig['source_url'] ?? '') !== ''
-                ? new HttpCatalogSource((string) $moduleCatalogConfig['source_id'], (string) $moduleCatalogConfig['source_url'])
-                : new LocalCatalogSource((string) $moduleCatalogConfig['source_id'], (string) $moduleCatalogConfig['source_path']);
-            $catalogSnapshot = $catalogLoader->refreshOrLastKnownGood($catalogSource);
-            $catalogWarning = $catalogSnapshot->warning;
-        } catch (\Throwable $throwable) {
-            $catalogWarning = 'Der Modul-Katalog ist derzeit nicht verfügbar: ' . $throwable->getMessage();
-            $catalogSnapshot = new CatalogSnapshot((string) ($moduleCatalogConfig['source_id'] ?? 'disabled'), ['sequence' => 0], []);
-        }
-    } else {
-        $catalogWarning = 'Es ist noch keine vertrauenswürdige Modul-Katalogquelle konfiguriert.';
-        $catalogSnapshot = new CatalogSnapshot((string) ($moduleCatalogConfig['source_id'] ?? 'disabled'), ['sequence' => 0], []);
+    ))->refreshAll();
+    $catalogResolver = new CatalogSourceResolver($pdo, $catalogAggregate);
+    $catalogSnapshot = $catalogResolver->snapshot();
+    $catalogWarnings = array_values($catalogAggregate->warnings);
+    foreach ($catalogResolver->conflicts() as $moduleId => $sourceIds) {
+        $catalogWarnings[] = 'Katalogkonflikt für ' . $moduleId . ': ' . implode(', ', $sourceIds) . '.';
     }
+    if ($catalogAggregate->records === []) $catalogWarnings[] = 'Es ist noch keine vertrauenswürdige Modul-Katalogquelle aktiviert.';
+    $catalogWarning = $catalogWarnings !== [] ? implode(' ', $catalogWarnings) : null;
     $catalogService = new CatalogService($pdo, (string) ($versionConfig['version'] ?? '0.0.0'), $catalogSnapshot);
-    $catalogInstaller = $catalogSource !== null && $catalogSnapshot->modules !== []
-        ? new CatalogPackageInstaller($catalogLoader, $catalogSource, $catalogSnapshot, $catalogService, $moduleLifecycle)
+    $moduleContext->registerService('catalogService', $catalogService);
+    $catalogInstaller = $catalogAggregate->snapshots !== [] && $catalogSnapshot->modules !== []
+        ? CatalogPackageInstaller::fromAggregate($catalogAggregate, $catalogResolver, $catalogService, $moduleLifecycle)
         : null;
     $legacyAdoption = $catalogInstaller !== null ? new LegacyModuleAdoptionService($pdo, $basePath, $catalogInstaller) : null;
     $moduleAdoptionOperations = new ModuleAdoptionOperationService($pdo, $basePath, $legacyAdoption);
@@ -345,7 +361,7 @@ $accessibleModulesForUser = static function (?array $user, bool $isAdmin, string
             'prefix' => $prefix,
             'access' => $access,
             'url' => '/' . $prefix . '/',
-            'children' => $placement === 'header' ? $moduleSubnavigationRegistry->itemsFor($prefix, $currentPath) : [],
+            'children' => $moduleSubnavigationRegistry->itemsFor($prefix, $currentPath),
             'show_in_header' => (int) ($module['show_in_header'] ?? 1) === 1,
             'show_on_home' => (int) ($module['show_on_home'] ?? 1) === 1,
         ];
@@ -361,7 +377,7 @@ $accessibleModulesForUser = static function (?array $user, bool $isAdmin, string
     return $modules;
 };
 
-View::setComposer(static function (array $data) use ($authService, $accessibleModulesForUser, $publicRegistrationEnabled, $adminNavigationRegistry, $userNavigationRegistry, $moduleFeatures, $versionConfig, $pagesModuleActive, $pagesHeaderLinks, $pagesFooterLinks, $csrfTokenManager): array {
+View::setComposer(static function (array $data) use ($authService, $userRepository, $accessibleModulesForUser, $publicRegistrationEnabled, $adminNavigationRegistry, $userNavigationRegistry, $moduleFeatures, $versionConfig, $pagesModuleActive, $pagesHeaderLinks, $pagesFooterLinks, $csrfTokenManager): array {
     $currentPath = (string) ($data['current_path'] ?? '/');
     $user = $authService?->currentUser();
     $isAdmin = $authService?->isAdmin() ?? false;
@@ -392,20 +408,48 @@ View::setComposer(static function (array $data) use ($authService, $accessibleMo
         }
     }
 
+$rawHeaderCandidates = $accessibleModulesForUser($user, $isAdmin, 'header', $currentPath);
+    $allLauncherModules = $accessibleModulesForUser($user, $isAdmin, 'all', $currentPath);
+    $userHeaderModules = $user !== null && $userRepository !== null ? $userRepository->headerModules((int) ($user['id'] ?? 0)) : null;
+
+    $navModules = $rawHeaderCandidates;
+    if ($userHeaderModules !== null) {
+        $indexedCandidates = [];
+        foreach ($allLauncherModules as $m) {
+            $indexedCandidates[$m['prefix']] = $m;
+        }
+        $pinnedList = [];
+        foreach ($userHeaderModules as $pinnedKey) {
+            if (isset($indexedCandidates[$pinnedKey])) {
+                $pinnedList[] = $indexedCandidates[$pinnedKey];
+            }
+        }
+        $navModules = $pinnedList;
+    }
+
     return [
         'current_path' => $currentPath,
         'auth' => [
             'is_authenticated' => $user !== null,
             'is_admin' => $isAdmin,
             'user_name' => (string) ($user['name'] ?? ''),
+            'user' => $user,
+            'user_email' => (string) ($user['email'] ?? ''),
+            'user_avatar_path' => (string) ($user['avatar_path'] ?? ''),
         ],
-        'nav_modules' => $accessibleModulesForUser($user, $isAdmin, 'header', $currentPath),
+        'nav_modules' => $navModules,
+        'launcher_modules' => $allLauncherModules,
+        'user_header_modules' => $userHeaderModules,
         'admin_nav_items' => $isAdmin ? $adminNavigationRegistry->items($currentPath) : [],
+        'admin_nav_grouped' => $isAdmin ? $adminNavigationRegistry->groupedItems($currentPath) : [],
+        'admin_nav_layout' => ($user['admin_nav_layout'] ?? 'tabs') === 'sidebar' ? 'sidebar' : 'tabs',
         'user_nav_items' => $user !== null ? $userNavigationRegistry->items($currentPath) : [],
         'module_features' => $moduleFeatures,
         'theme_mode' => $themeMode,
         'theme_switcher_visible' => $themeSwitcherVisible,
         'public_registration_enabled' => $publicRegistrationEnabled,
+        'current_user' => $user,
+        'favorite_modules' => $user !== null && $userRepository !== null ? $userRepository->favoriteModules((int) ($user['id'] ?? 0)) : [],
         'app_version' => (string) ($versionConfig['version'] ?? '0.0.0'),
         'product_meta' => $versionConfig,
         'pages_module_active' => $pagesModuleActive,
@@ -451,7 +495,7 @@ $router->setAccessGuard(function (Request $request, string $access) use ($authSe
 
 $router->setCsrfGuard((new CsrfGuard($csrfTokenManager))->handle(...));
 
-$router->get('/', function (Request $request) use ($pdo, $authService, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck, $rootPageProviders): Response {
+$router->get('/', function (Request $request) use ($pdo, $authService, $userRepository, $session, $accessibleModulesForUser, $publicRegistrationEnabled, $healthCheck, $showPublicHealthCheck, $rootPageProviders): Response {
     $message = 'Modulon Grundsystem läuft';
     if ($pdo !== null) {
         $message .= ' (DB verbunden)';
@@ -475,6 +519,8 @@ $router->get('/', function (Request $request) use ($pdo, $authService, $session,
         'user' => $user,
         'available_modules' => $availableModules,
         'public_registration_enabled' => $publicRegistrationEnabled,
+        'current_user' => $user,
+        'favorite_modules' => $user !== null && $userRepository !== null ? $userRepository->favoriteModules((int) ($user['id'] ?? 0)) : [],
         'health_summary' => $healthSummary,
     ];
 
@@ -494,6 +540,27 @@ $router->get('/', function (Request $request) use ($pdo, $authService, $session,
 
     return new Response(View::render('home', $homeData));
 });
+$router->get('/avatar', function (Request $request) use ($pdo): Response {
+    $userId = (int) $request->query('u', '0');
+    if ($userId <= 0 || $pdo === null) {
+        return new Response('', 404);
+    }
+    $stmt = $pdo->prepare('SELECT avatar_path FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $userId]);
+    $path = $stmt->fetchColumn();
+    if (!is_string($path) || $path === '') {
+        return new Response('', 404);
+    }
+    $fullPath = dirname(__DIR__) . '/' . ltrim($path, '/');
+    if (!is_file($fullPath)) {
+        return new Response('', 404);
+    }
+    $mime = str_ends_with($fullPath, '.webp') ? 'image/webp' : 'image/png';
+    return new Response((string) file_get_contents($fullPath), 200, [
+        'Content-Type' => $mime,
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+}, 'public');
 $router->get('/login', [$authController, 'showLoginForm']);
 $router->post('/login', [$authController, 'login'], 'public');
 $router->get('/login/2fa', [$authController, 'showTwoFactorForm']);
@@ -532,6 +599,7 @@ if ($moduleCatalogController !== null) {
     $router->get('/admin/module-catalog-update/status', [$moduleCatalogController, 'batchUpdateStatus'], 'admin');
     $router->get('/admin/module-catalog/*', [$moduleCatalogController, 'detail'], 'admin');
     $router->post('/admin/module-catalog/action', [$moduleCatalogController, 'action'], 'admin');
+    $router->post('/admin/module-catalog/dismiss-update', [$moduleCatalogController, 'dismissBatchUpdate'], 'admin');
 }
 $router->post('/admin/users/create', [$adminController, 'createUser'], 'admin');
 $router->post('/admin/users/update', [$adminController, 'updateUser'], 'admin');
@@ -652,11 +720,27 @@ if ($moduleRepository !== null) {
         $basePathPrefix = '/' . $prefix;
 
         if ($handler === 'legacy' && $legacyEntry !== '') {
-            $legacyDispatcher = function (Request $request) use ($name, $legacyEntry, $basePath, $basePathPrefix, $moduleRepository, $moduleId, $injectLegacyOverlay): Response {
+            $legacyDispatcher = function (Request $request) use ($name, $prefix, $legacyEntry, $basePath, $basePathPrefix, $moduleRepository, $moduleId, $injectLegacyOverlay): Response {
                 $legacyRoot = realpath($basePath . '/app/Legacy');
                 $legacyFile = $legacyRoot !== false ? realpath($legacyRoot . '/' . $legacyEntry) : false;
 
                 if (!is_string($legacyRoot) || !is_string($legacyFile) || !is_file($legacyFile)) {
+                    (new RotatingFileLogger($basePath))->write('modulon', [
+                        'timestamp' => date('c'),
+                        'env' => (string) Env::get('APP_ENV', 'production'),
+                        'debug' => Env::getBool('APP_DEBUG', false),
+                        'type' => 'legacy_module_missing_entry',
+                        'message' => "Legacy-Modul '{$name}' ({$prefix}) ist nicht verfuegbar: Einstiegspunkt '{$legacyEntry}' wurde nicht gefunden.",
+                        'file' => $legacyFile !== false ? $legacyFile : ($basePath . '/app/Legacy/' . $legacyEntry),
+                        'line' => 0,
+                        'method' => $request->method(),
+                        'uri' => $request->path(),
+                        'module_id' => $moduleId,
+                        'module_name' => $name,
+                        'route_prefix' => $prefix,
+                        'legacy_entry' => $legacyEntry,
+                    ]);
+
                     return new Response(View::render('errors/500', [
                         'title' => 'Legacy Modul Fehler',
                         'current_path' => $request->path(),

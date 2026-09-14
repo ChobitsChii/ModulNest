@@ -1,6 +1,10 @@
 # ModulNest-Module
 
-ModulNest besteht aus Core- und optionalen nativen Modulen. Native Module werden unter `app/Modules/` auto-discovered, in der Modulverwaltung registriert und können je nach Modul aktiviert werden. Zugriff wird zentral als `public`, `user` oder `admin` im Router durchgesetzt.
+ModulNest 2 besteht aus Core und optionalen, unabhängig versionierten Modul-v2-
+Paketen. Diese werden über den signierten Modul-Katalog und denselben zentralen
+Lifecycle installiert, aktualisiert und aktiviert. `app/Modules`-Discovery bleibt
+nur für Core-/v1-Kompatibilität erhalten. Zugriff wird zentral als `public`, `user`
+oder `admin` im Router durchgesetzt.
 
 ## Produktmodule
 
@@ -10,6 +14,10 @@ ModulNest besteht aus Core- und optionalen nativen Modulen. Native Module werden
 - [Systeminfo](systeminfo.md), [Tools](tools.md), [Updates](updates.md), [Logs](logs.md)
 - [Wiki](wiki.md)
 
-Für die Entwicklung eigener nativer Module gelten die verbindlichen Regeln unter [Entwicklung](../development/README.md). Legacy-Anwendungen bleiben bewusst getrennt und verwenden die [Legacy-CSRF-Bridge](../development/README.md#wichtigster-einstieg).
+Für neue Module gilt die kanonische
+[Modul-v2-Authoring-Anleitung](../development/module-v2-authoring.md).
+Legacy-Anwendungen bleiben bewusst getrennt und verwenden die zentrale
+Legacy-CSRF-Bridge.
 
-Mitgelieferte Produktmodule werden heute mit dem ModulNest-Gesamtpaket versioniert. Eigene Marketplace-Pakete und unabhängige Modulversionen sind noch nicht implementiert.
+Die elf öffentlichen Produktmodule werden im separaten Repository
+`ChobitsChii/ModulNest-Modules` unabhängig vom Core veröffentlicht.

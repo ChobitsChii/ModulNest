@@ -21,10 +21,26 @@ final class RotatingFileLogger
         if ($type === null) { return false; }
         $this->rotateIfDue();
         $dir = $this->directory();
-        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) { return false; }
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+            error_log('[RotatingFileLogger] Konnte Log-Verzeichnis nicht anlegen: ' . $dir);
+            return false;
+        }
         $record = $this->redact($record);
         $line = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        return is_string($line) && @file_put_contents($this->path($type), $line . PHP_EOL, FILE_APPEND | LOCK_EX) !== false;
+        if (!is_string($line)) {
+            return false;
+        }
+        $path = $this->path($type);
+        $isNew = !is_file($path);
+        $written = @file_put_contents($path, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+        if ($written === false) {
+            error_log('[RotatingFileLogger] Schreiben in Logdatei fehlgeschlagen (Rechte prüfen): ' . $path);
+            return false;
+        }
+        if ($isNew || (fileperms($path) & 0777) !== 0666) {
+            @chmod($path, 0666);
+        }
+        return true;
     }
 
     public function path(string $type, ?\DateTimeImmutable $date = null): string
@@ -37,17 +53,28 @@ final class RotatingFileLogger
     public function rotateIfDue(): void
     {
         $runtime = $this->basePath . '/storage/runtime';
-        if (!is_dir($runtime) && !@mkdir($runtime, 0775, true) && !is_dir($runtime)) { return; }
-        $handle = @fopen($runtime . '/log-rotation.lock', 'c+');
-        if (!is_resource($handle)) { return; }
+        if (!is_dir($runtime) && !@mkdir($runtime, 0777, true) && !is_dir($runtime)) {
+            error_log('[RotatingFileLogger] Konnte Runtime-Verzeichnis nicht anlegen: ' . $runtime);
+            return;
+        }
+        $lockPath = $runtime . '/log-rotation.lock';
+        $isNewLock = !is_file($lockPath);
+        $handle = @fopen($lockPath, 'c+');
+        if (!is_resource($handle)) {
+            error_log('[RotatingFileLogger] Konnte Lockdatei nicht öffnen: ' . $lockPath);
+            return;
+        }
+        if ($isNewLock || (fileperms($lockPath) & 0777) !== 0666) {
+            @chmod($lockPath, 0666);
+        }
         try {
             if (!@flock($handle, LOCK_EX | LOCK_NB)) { return; }
             $today = ($this->clock)()->format('Y-m-d'); rewind($handle); $done = trim((string) stream_get_contents($handle));
             if ($done !== $today) {
                 $this->rotate($today); ftruncate($handle, 0); rewind($handle); fwrite($handle, $today); fflush($handle);
             }
-        } catch (\Throwable) {
-            // Logging must never make application requests fail.
+        } catch (\Throwable $e) {
+            error_log('[RotatingFileLogger] Rotation fehlgeschlagen: ' . $e->getMessage());
         } finally { @flock($handle, LOCK_UN); fclose($handle); }
     }
 
@@ -71,10 +98,14 @@ final class RotatingFileLogger
 
     private function gzip(string $path): void
     {
-        $target = $path . '.gz'; if (is_file($target)) { return; }
+        $target = $path . '.gz'; if (is_file($target)) { @chmod($target, 0666); return; }
         $in = @fopen($path, 'rb'); $out = @gzopen($target . '.tmp', 'wb9'); if (!is_resource($in) || $out === false) { if (is_resource($in)) fclose($in); return; }
         while (!feof($in)) { $chunk = fread($in, 8192); if ($chunk === false || gzwrite($out, $chunk) === false) { fclose($in); gzclose($out); @unlink($target . '.tmp'); return; } }
-        fclose($in); gzclose($out); if (@rename($target . '.tmp', $target)) { @unlink($path); }
+        fclose($in); gzclose($out);
+        if (@rename($target . '.tmp', $target)) {
+            @chmod($target, 0666);
+            @unlink($path);
+        }
     }
 
     private function directory(): string { return $this->basePath . '/storage/logs'; }

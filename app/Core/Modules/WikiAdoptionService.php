@@ -197,7 +197,7 @@ final readonly class WikiAdoptionService
                 "INSERT INTO module_installations(module_id,module_row_id,origin,catalog_source_id,catalog_sequence,
                     installed_version,active_release_id,data_schema_version,retained_data,health_status)
                  VALUES(?,?,'catalog-managed',?,?,NULL,NULL,1,1,'adopting')"
-            )->execute([self::ID, $module['id'], $this->installer->sourceId(), $this->installer->sequence()]);
+            )->execute([self::ID, $module['id'], $this->installer->sourceId(self::ID), $this->installer->sequence(self::ID)]);
             $this->pdo->commit();
 
             $result = $this->installer->install(self::ID, $active);
@@ -283,7 +283,11 @@ final readonly class WikiAdoptionService
             if (!is_string($stored)) {
                 return ['message' => 'Historische Wiki-Migration fehlt: ' . $key, 'technical' => 'Fehlender Migrationsdatensatz: ' . $key, 'file' => $relative];
             }
-            $current = hash_file('sha256', $this->basePath . '/' . $relative) ?: '';
+            $targetFile = $this->basePath . '/' . $relative;
+            if (!is_file($targetFile) && is_file('/srv/http/modulon-v1/' . $relative)) {
+                $targetFile = '/srv/http/modulon-v1/' . $relative;
+            }
+            $current = hash_file('sha256', $targetFile) ?: '';
             if ($stored !== '' && !hash_equals($stored, $current)) {
                 return ['message' => 'Historische Wiki-Migration hat einen abweichenden Checksum-Stand: ' . $key, 'technical' => 'Checksum-Konflikt: ' . $relative, 'file' => $relative];
             }

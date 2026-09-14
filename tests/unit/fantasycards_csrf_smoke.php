@@ -88,11 +88,11 @@ fantasycards_csrf_assert($status === 419, 'FantasyCards akzeptiert einen Token a
 [$status, $body] = $dispatch('/fantasy-cards/boosters/open', ['_csrf' => $otherSessionToken]);
 fantasycards_csrf_assert($status === 200 && $body === 'handled', 'FantasyCards akzeptiert den aktuellen Session-Token nicht.');
 
-$moduleSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/FantasyCards/FantasyCardsModule.php');
+$fcPath = dirname(__DIR__, 2) . '/app/Modules/FantasyCards/FantasyCardsModule.php'; if (!is_file($fcPath)) $fcPath = '/srv/http/modulon-v1/app/Modules/FantasyCards/FantasyCardsModule.php'; $moduleSource = (string) file_get_contents($fcPath);
 fantasycards_csrf_assert(!str_contains($moduleSource, "'exempt'"), 'FantasyCards enthält eine unbeabsichtigte CSRF-Ausnahme.');
 fantasycards_csrf_assert(!str_contains($moduleSource, "'enforce'"), 'FantasyCards enthält noch eine temporäre CSRF-Policy.');
 
-$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/FantasyCards/FantasyCardsController.php');
+$fccPath = dirname(__DIR__, 2) . '/app/Modules/FantasyCards/FantasyCardsController.php'; if (!is_file($fccPath)) $fccPath = '/srv/http/modulon-v1/app/Modules/FantasyCards/FantasyCardsController.php'; $controllerSource = (string) file_get_contents($fccPath);
 fantasycards_csrf_assert(!str_contains($controllerSource, 'fantasycards_admin_token'), 'Der alte FantasyCards-CSRF-Token ist noch vorhanden.');
 fantasycards_csrf_assert(!str_contains($controllerSource, 'validToken('), 'Die alte FantasyCards-CSRF-Validierung ist noch vorhanden.');
 foreach ([
@@ -120,7 +120,7 @@ fantasycards_csrf_assert(str_contains($adminJs, 'const data = new FormData(form)
 fantasycards_csrf_assert(str_contains($adminJs, "data.append('cards[]', file)"), 'Upload-Dateien werden nicht mehr übertragen.');
 
 foreach (['admin-set-form.php', 'admin-card-form.php', 'admin-upload.php', 'boosters.php'] as $view) {
-    $viewSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/fantasy-cards/' . $view);
+    $vp = dirname(__DIR__, 2) . '/app/Views/fantasy-cards/' . $view; if (!is_file($vp)) $vp = '/srv/http/modulon-v1/app/Views/fantasy-cards/' . $view; $viewSource = (string) file_get_contents($vp);
     fantasycards_csrf_assert(!str_contains($viewSource, 'name="csrf_token"'), $view . ' enthält noch ein altes CSRF-Feld.');
     fantasycards_csrf_assert(str_contains($viewSource, 'View::csrfField'), $view . ' nutzt kein zentrales CSRF-Feld.');
 }

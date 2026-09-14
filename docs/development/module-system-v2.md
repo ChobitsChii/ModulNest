@@ -1,9 +1,23 @@
-# ModulNest 2.0 module architecture
+# ModulNest 2.0 – historischer Architekturentwurf
 
-- Status: **ModulNest 2.0.1** – stabiler Release des vollständigen Modul-v2-Systems
-- Entwicklungsbranch: `develop/2.0`
-- Basis: privater Stand `659cde8b5ed59a530e4a5952d5a7ef48fc8f06d9` (`develop/1.0`, ModulNest 1.2.0)
-- Ziel: ModulNest 2.0 – unabhängiges Modulsystem und **Modul-Katalog**
+> **Archivhinweis:** Dieses Dokument hält die Planung und Migration vom
+> ModulNest-1.x-System zum später implementierten Modul-v2 fest. Es ist **keine
+> kanonische Authoring-API**. Verbindlich für neue Module ist
+> [Modul-v2-Module entwickeln](module-v2-authoring.md), geprüft gegen den
+> ModulNest-2.0.1-Code. Alle MUST-/SHOULD-Formulierungen und Ist-Zustände unterhalb
+> der Trennlinie sind historische Designaussagen ihres damaligen Zeitpunkts.
+
+Heute umgesetzt sind namespaced IDs wie `modulnest.wiki`, die Ownership-Keys
+`tables`, `settings`, `storage`, `uploads` und `jobs` sowie die Manifest-
+Capabilities `root_page`, `page_links` und `data_portability`. Frühe Beispiele wie
+die ID `wiki`, `settings_prefixes`, `PublicNavigationContentProvider` oder
+`ProfileExtensionProvider` sind historische Vorschläge und keine aktuelle API.
+
+---
+
+- Historischer Basisstand: `659cde8b5ed59a530e4a5952d5a7ef48fc8f06d9`
+  (`develop/1.0`, ModulNest 1.2.0)
+- Historisches Ziel: unabhängiges Modulsystem und Modul-Katalog für 2.0
 
 ## 1. Ziele
 

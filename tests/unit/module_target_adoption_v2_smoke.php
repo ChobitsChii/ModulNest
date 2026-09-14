@@ -43,6 +43,17 @@ function target_adoption_env(string $path): array
 
 function target_adoption_copy(string $source, string $target): void
 {
+    if (!is_file($source)) {
+        $root = dirname(__DIR__, 2);
+        if (str_starts_with($source, $root . '/')) {
+            $relative = substr($source, strlen($root) + 1);
+            $v1 = '/srv/http/modulon-v1/' . $relative;
+            if (is_file($v1)) {
+                $source = $v1;
+            }
+        }
+    }
+    if (!is_file($source)) return;
     if (!is_dir(dirname($target))) mkdir(dirname($target), 0775, true);
     copy($source, $target);
 }
@@ -56,6 +67,8 @@ $profiles = [
     'modulnest.sneak-preview' => ['directory' => 'sneak-preview', 'migration_directory' => 'SneakPreview', 'route' => 'sneak-preview'],
     'modulnest.tools' => ['directory' => 'tools', 'migration_directory' => null, 'route' => 'tools'],
     'modulnest.banking' => ['directory' => 'banking', 'migration_directory' => 'Banking', 'route' => 'banking'],
+    'modulnest.fantasy-cards' => ['directory' => 'fantasy-cards', 'migration_directory' => null, 'route' => 'fantasy-cards'],
+    'modulnest.mail' => ['directory' => 'mail', 'migration_directory' => null, 'route' => 'mail'],
 ];
 $profile = $profiles[$moduleId] ?? null;
 if (!is_array($profile)) {
@@ -142,7 +155,28 @@ try {
                 'results' => ['txt' => $temporary . '/storage/tools/speech/results/' . $jobId . '.txt'],
                 'log_file' => $temporary . '/storage/tools/speech/logs/' . $jobId . '.log',
             ], JSON_THROW_ON_ERROR));
-        } elseif ($moduleId === 'modulnest.banking') {
+        } elseif ($moduleId === 'modulnest.fantasy-cards') {
+            $server->exec((string) file_get_contents($temporary . '/app/Modules/FantasyCards/Database/schema.sql'));
+            $server->exec((string) file_get_contents($temporary . '/app/Modules/FantasyCards/Database/seeds.sql'));
+            $server->exec("INSERT INTO users(id,name,email,password_hash) VALUES(7301,'Fantasy Adoption','fantasy-adoption@example.test','x')");
+            $server->exec("INSERT INTO booster_types(id, uuid, name, description, cards_per_pack, is_active) VALUES(1, '20000000-0000-4000-8000-000000000001', 'Standard Daily', 'Tägliches Booster', 3, 1)");
+            $server->exec("INSERT INTO user_booster_inventory(user_id,booster_type_id,quantity) VALUES(7301,1,5)");
+            $server->exec("INSERT INTO user_cards(user_id,card_id,quantity) VALUES(7301,1,3)");
+            $server->exec("INSERT INTO fantasy_card_user_state(user_id,free_claims,last_free_claim_at) VALUES(7301,2,'2026-09-08 12:00:00')");
+            $server->exec("INSERT INTO fantasy_card_booster_openings(id,uuid,user_id,booster_type_id,opened_at) VALUES(7310,'30000000-0000-4000-8000-000000000001',7301,1,'2026-09-08 12:05:00')");
+            $server->exec("INSERT INTO fantasy_card_booster_opening_cards(opening_id,card_id,reveal_order) VALUES(7310,1,1)");
+            $server->exec("INSERT INTO fantasy_card_profile_settings(user_id,favorite_card_id,showcase_mode,is_collection_public) VALUES(7301,1,'manual',1)");
+            $server->exec("INSERT INTO fantasy_card_profile_showcase_cards(user_id,card_id,slot) VALUES(7301,1,1)");
+        } elseif ($moduleId === 'modulnest.mail') {
+            $server->exec((string) file_get_contents($temporary . '/app/Modules/Mail/Database/schema.sql'));
+            $server->exec("INSERT INTO users(id,name,email,password_hash) VALUES(7401,'Mail Adoption','mail-adoption@example.test','x')");
+            $server->exec("INSERT INTO mail_accounts(id,user_id,display_name,email_address,imap_host,imap_username,smtp_host,smtp_username,encrypted_password,is_active) VALUES(1,7401,'Test Account','user@example.test','imap.example.test','user','smtp.example.test','user','enc_secret',1)");
+            $server->exec("INSERT INTO mail_favorite_folders(user_id,mail_account_id,folder_name,sort_order) VALUES(7401,1,'INBOX',0)");
+            $server->exec("INSERT INTO mail_sender_whitelist(user_id,scope_type,scope_value) VALUES(7401,'sender','trusted@example.test')");
+            $server->exec("INSERT INTO mail_sender_exclusions(user_id,mail_account_id,folder_name,sender_key) VALUES(7401,1,'INBOX','spam@example.test')");
+            $server->exec("INSERT INTO mail_list_preferences(user_id,mail_account_id,folder_name,sort_field) VALUES(7401,1,'INBOX','date')");
+            $server->exec("INSERT INTO mail_message_index(user_id,mail_account_id,folder_name,uid,sender_key,sender_label,subject,message_timestamp) VALUES(7401,1,'INBOX',101,'sender@example.test','Sender','Test Betreff',1700000000)");
+        } elseif (in_array($moduleId, ['modulnest.banking', 'modulnest.fantasy-cards', 'modulnest.mail'], true)) {
             $server->exec("INSERT INTO users(id,name,email,password_hash) VALUES(7201,'Banking Adoption','banking-adoption@example.test','x')");
             $server->exec("INSERT INTO banking_migration_runs(id,target_user_id,source_snapshot_label,status) VALUES(7210,7201,'Bleibt','completed')");
             $server->exec("INSERT INTO banking_accounts(id,user_id,migration_run_id,account_identifier,display_name,currency) VALUES(7220,7201,7210,'konto-bleibt','Konto bleibt','EUR')");
@@ -160,7 +194,8 @@ try {
 
     $catalogTarget = $temporary . '/catalog-source';
     $command = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($root . '/tools/build-module-catalog.php')
-        . ' --development --module=' . escapeshellarg($moduleId)
+        . ' --development --workspace-root=' . escapeshellarg($root . '/modules-src') . ' --publisher=modulnest'
+        . ' --module=' . escapeshellarg($moduleId)
         . ' --target=' . escapeshellarg($catalogTarget)
         . ' --sequence-state=' . escapeshellarg($temporary . '/catalog-sequence')
         . ' --cache-root=' . escapeshellarg($temporary . '/catalog-cache');
@@ -171,8 +206,8 @@ try {
     $loader = new CatalogLoader(new CatalogTrustStore(['modulnest-test-2026' => $keyLines[1]]), new CatalogCache($temporary . '/runtime-catalog'));
     $source = new LocalCatalogSource('modulnest.dev', $catalogTarget);
     $snapshot = $loader->refresh($source);
-    $catalog = new CatalogService($server, '2.0.0-alpha.1', $snapshot);
-    $lifecycle = new ModuleLifecycleService($server, $temporary, '2.0.0-alpha.1', new PdoLogicalBackupProvider($server, $temporary . '/storage/backups/modules'), new ModuleOperationLock($temporary . '/storage/locks/modules'));
+    $catalog = new CatalogService($server, '2.1.0', $snapshot);
+    $lifecycle = new ModuleLifecycleService($server, $temporary, '2.1.0', new PdoLogicalBackupProvider($server, $temporary . '/storage/backups/modules'), new ModuleOperationLock($temporary . '/storage/locks/modules'));
     $installer = new CatalogPackageInstaller($loader, $source, $snapshot, $catalog, $lifecycle);
     $adoption = new LegacyModuleAdoptionService($server, $temporary, $installer);
 
@@ -180,7 +215,7 @@ try {
         $missingMetadataModules = $snapshot->modules;
         unset($missingMetadataModules[$moduleId]['adoption']);
         $missingSnapshot = new \Modulon\Core\Modules\Catalog\CatalogSnapshot($snapshot->sourceId, $snapshot->root, $missingMetadataModules);
-        $missingCatalog = new CatalogService($server, '2.0.0-alpha.1', $missingSnapshot);
+        $missingCatalog = new CatalogService($server, '2.1.0', $missingSnapshot);
         $missingInstaller = new CatalogPackageInstaller($loader, $source, $missingSnapshot, $missingCatalog, $lifecycle);
         $missingAdoption = new LegacyModuleAdoptionService($server, $temporary, $missingInstaller);
         $metadataBlocked = $missingAdoption->preflight($moduleId);
@@ -201,7 +236,7 @@ try {
     target_adoption_assert(!$blocked['eligible'] && $blocked['status'] === 'changed' && $blocked['first_difference'] === $firstFile, 'Lokale Änderung wird nicht exakt blockiert.');
     file_put_contents($temporary . '/' . $firstFile, $original);
 
-    if (in_array($moduleId, ['modulnest.dashboard', 'modulnest.sneak-preview', 'modulnest.tools', 'modulnest.banking'], true)) {
+    if (in_array($moduleId, ['modulnest.dashboard', 'modulnest.sneak-preview', 'modulnest.tools', 'modulnest.banking', 'modulnest.fantasy-cards'], true)) {
         $packages = glob($catalogTarget . '/packages/*/' . $currentVersion . '/*-' . $currentVersion . '.zip') ?: [];
         target_adoption_assert(count($packages) === 1, 'Temporäres aktuelles Modulpaket fehlt für den Rollback-Test.');
         $disabledPackage = $packages[0] . '.disabled';
@@ -226,6 +261,9 @@ try {
         } elseif ($moduleId === 'modulnest.tools') {
             target_adoption_assert(is_file($temporary . '/storage/tools/speech/models/fixture.bin'), 'Tools-Modell ging beim Rollback verloren.');
             target_adoption_assert(is_file($temporary . '/storage/tools/speech/jobs/20260908_120000_abcdef123456.json'), 'Tools-Job ging beim Rollback verloren.');
+        } elseif ($moduleId === 'modulnest.fantasy-cards') {
+            target_adoption_assert((int) $server->query("SELECT COUNT(*) FROM user_cards WHERE user_id=7301 AND card_id=1 AND quantity=3")->fetchColumn() === 1, 'FantasyCards-Daten gingen beim Rollback verloren.');
+            target_adoption_assert((string) $server->query("SELECT access_level FROM modules WHERE route_prefix='fantasy-cards' AND module_key IS NULL")->fetchColumn() === 'admin', 'FantasyCards-Zugriffslevel wurde beim Rollback nicht wiederhergestellt.');
         } else {
             target_adoption_assert((int) $server->query("SELECT COUNT(*) FROM banking_transactions WHERE id=7250 AND booking_text='Buchung bleibt'")->fetchColumn() === 1, 'Banking-Daten gingen beim Rollback verloren.');
         }
@@ -291,6 +329,34 @@ try {
         target_adoption_assert((string) $server->query("SELECT access_level FROM modules WHERE module_key='modulnest.banking'")->fetchColumn() === 'admin', 'Bestehender Banking-Zugriffslevel wurde bei Adoption erweitert.');
         target_adoption_assert((string) $server->query("SELECT module_key FROM schema_migrations WHERE migration_key='20260510_000103_banking_070_schema'")->fetchColumn() === 'modulnest.banking', 'Historische Banking-Migration wurde nicht dem v2-Modul zugeordnet.');
         target_adoption_assert((int) $server->query("SELECT COUNT(*) FROM schema_migrations WHERE migration_key='modulnest.banking_001_baseline' AND module_key='modulnest.banking'")->fetchColumn() === 1, 'Adoptierte Banking-Baseline wurde nicht markiert.');
+    } elseif ($moduleId === 'modulnest.fantasy-cards') {
+        $tables = [
+            'card_sets', 'cards', 'booster_types', 'user_booster_inventory', 'user_cards',
+            'fantasy_card_user_state', 'fantasy_card_booster_openings', 'fantasy_card_booster_opening_cards',
+            'fantasy_card_profile_settings', 'fantasy_card_profile_showcase_cards',
+        ];
+        foreach ($tables as $table) {
+            target_adoption_assert((int) $server->query('SELECT COUNT(*) FROM `' . $table . '`')->fetchColumn() > 0, 'FantasyCards-Tabelle leer nach Adoption: ' . $table);
+        }
+        target_adoption_assert((int) $server->query("SELECT quantity FROM user_cards WHERE user_id=7301 AND card_id=1")->fetchColumn() === 3, 'FantasyCards-User-Card-Daten gingen verloren.');
+        target_adoption_assert((int) $server->query("SELECT quantity FROM user_booster_inventory WHERE user_id=7301 AND booster_type_id=1")->fetchColumn() === 5, 'FantasyCards-Booster-Inventory ging verloren.');
+        target_adoption_assert((string) $server->query("SELECT showcase_mode FROM fantasy_card_profile_settings WHERE user_id=7301")->fetchColumn() === 'manual', 'FantasyCards-Profil-Settings gingen verloren.');
+        target_adoption_assert((string) $server->query("SELECT access_level FROM modules WHERE module_key='modulnest.fantasy-cards'")->fetchColumn() === 'admin', 'FantasyCards-Zugriffslevel wurde bei Adoption modifiziert.');
+        target_adoption_assert((int) $server->query("SELECT COUNT(*) FROM schema_migrations WHERE migration_key='modulnest.fantasy-cards_001_schema' AND module_key='modulnest.fantasy-cards'")->fetchColumn() === 1, 'Adoptierte FantasyCards-Schema-Baseline nicht markiert.');
+        target_adoption_assert((int) $server->query("SELECT COUNT(*) FROM schema_migrations WHERE migration_key='modulnest.fantasy-cards_002_seeds' AND module_key='modulnest.fantasy-cards'")->fetchColumn() === 1, 'Adoptierte FantasyCards-Seeds-Baseline nicht markiert.');
+    } elseif ($moduleId === 'modulnest.mail') {
+        $tables = [
+            'mail_accounts', 'mail_favorite_folders', 'mail_sender_whitelist',
+            'mail_sender_exclusions', 'mail_list_preferences', 'mail_message_index',
+        ];
+        foreach ($tables as $table) {
+            target_adoption_assert((int) $server->query('SELECT COUNT(*) FROM `' . $table . '`')->fetchColumn() > 0, 'Mail-Tabelle leer nach Adoption: ' . $table);
+        }
+        target_adoption_assert((string) $server->query("SELECT email_address FROM mail_accounts WHERE user_id=7401 AND id=1")->fetchColumn() === 'user@example.test', 'Mail-Account-Daten gingen verloren.');
+        target_adoption_assert((string) $server->query("SELECT folder_name FROM mail_favorite_folders WHERE user_id=7401 AND mail_account_id=1")->fetchColumn() === 'INBOX', 'Mail-Favoriten gingen verloren.');
+        target_adoption_assert((string) $server->query("SELECT scope_value FROM mail_sender_whitelist WHERE user_id=7401")->fetchColumn() === 'trusted@example.test', 'Mail-Whitelist ging verloren.');
+        target_adoption_assert((string) $server->query("SELECT access_level FROM modules WHERE module_key='modulnest.mail'")->fetchColumn() === 'admin', 'Mail-Zugriffslevel wurde bei Adoption modifiziert.');
+        target_adoption_assert((int) $server->query("SELECT COUNT(*) FROM schema_migrations WHERE migration_key='modulnest.mail_001_schema' AND module_key='modulnest.mail'")->fetchColumn() === 1, 'Adoptierte Mail-Schema-Baseline nicht markiert.');
     } else {
         target_adoption_assert(is_file($temporary . '/storage/modules/modulnest.data-portability/exports/adoption-marker.txt'), 'DataPortability-Storage ging verloren.');
     }

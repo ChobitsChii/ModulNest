@@ -24,6 +24,8 @@ final readonly class LegacyModuleAdoptionService
         'modulnest.sneak-preview' => ['route' => 'sneak-preview', 'legacy_key' => 'sneak-preview', 'directory' => 'sneak-preview', 'migration_directory' => 'SneakPreview', 'schema' => 1, 'tables' => ['sneak_preview_entries', 'sneak_preview_settings'], 'historic' => ['20260510_000104_sneak_preview_070_schema'], 'package_migrations' => ['001_baseline.php'], 'storage_sources' => [['path' => 'public/assets/sneak-preview/posters', 'target' => 'posters']]],
         'modulnest.tools' => ['route' => 'tools', 'legacy_key' => 'tools', 'directory' => 'tools', 'schema' => 0, 'tables' => [], 'historic' => [], 'package_migrations' => [], 'storage_sources' => [['path' => 'storage/tools/speech', 'target' => 'speech', 'transient' => ['worker.lock']]]],
         'modulnest.banking' => ['route' => 'banking', 'legacy_key' => 'banking', 'directory' => 'banking', 'schema' => 1, 'tables' => ['banking_migration_runs', 'banking_accounts', 'banking_categories', 'banking_import_batches', 'banking_transactions', 'banking_recurring_rules', 'banking_recurring_rule_conditions', 'banking_dashboard_cache'], 'historic' => ['20260510_000103_banking_070_schema'], 'package_migrations' => ['001_baseline.php'], 'preserve_access_level' => true],
+        'modulnest.fantasy-cards' => ['route' => 'fantasy-cards', 'legacy_key' => 'fantasy-cards', 'directory' => 'fantasy-cards', 'migration_directory' => 'FantasyCards', 'schema' => 1, 'tables' => ['card_sets', 'cards', 'booster_types', 'user_booster_inventory', 'user_cards', 'fantasy_card_user_state', 'fantasy_card_booster_openings', 'fantasy_card_booster_opening_cards', 'fantasy_card_profile_settings', 'fantasy_card_profile_showcase_cards'], 'historic' => [], 'package_migrations' => ['001_schema.php', '002_seeds.php'], 'preserve_access_level' => true],
+        'modulnest.mail' => ['route' => 'mail', 'legacy_key' => 'mail', 'directory' => 'mail', 'migration_directory' => 'Mail', 'schema' => 1, 'tables' => ['mail_accounts', 'mail_favorite_folders', 'mail_sender_whitelist', 'mail_sender_exclusions', 'mail_list_preferences', 'mail_message_index'], 'historic' => [], 'package_migrations' => ['001_schema.php'], 'preserve_access_level' => true],
     ];
 
     public function __construct(private PDO $pdo, private string $basePath, private CatalogPackageInstaller $installer) {}
@@ -221,7 +223,7 @@ final readonly class LegacyModuleAdoptionService
                     $prepared['access_level'], $active ? 1 : 0, $module['id'],
                 ]);
                 $this->pdo->prepare("INSERT INTO module_installations(module_id,module_row_id,origin,catalog_source_id,catalog_sequence,installed_version,active_release_id,data_schema_version,retained_data,health_status,package_sha256) VALUES(?,?,'catalog-managed',?,?,?,?,?,0,'healthy',?)")->execute([
-                    $moduleId, $module['id'], $this->installer->sourceId(), $this->installer->sequence(),
+                    $moduleId, $module['id'], $this->installer->sourceId($moduleId), $this->installer->sequence($moduleId),
                     $prepared['version'], $prepared['release_id'], $profile['schema'], $prepared['sha256'],
                 ]);
                 $this->pdo->commit();
@@ -236,7 +238,7 @@ final readonly class LegacyModuleAdoptionService
                 $this->adoptMigrationHistory($moduleId, $profile, $adoptionMetadata);
                 $this->pdo->prepare('UPDATE modules SET module_key=? WHERE id=?')->execute([$moduleId, $module['id']]);
                 $this->pdo->prepare("INSERT INTO module_installations(module_id,module_row_id,origin,catalog_source_id,catalog_sequence,installed_version,active_release_id,data_schema_version,retained_data,health_status) VALUES(?,?,'catalog-managed',?,?,NULL,NULL,?,1,'adopting')")->execute([
-                    $moduleId, $module['id'], $this->installer->sourceId(), $this->installer->sequence(), $profile['schema'],
+                    $moduleId, $module['id'], $this->installer->sourceId($moduleId), $this->installer->sequence($moduleId), $profile['schema'],
                 ]);
                 $this->pdo->commit();
                 $this->report($progress, 'package_install', 'Das verifizierte Modul-v2-Paket wird installiert.');
@@ -358,7 +360,11 @@ final readonly class LegacyModuleAdoptionService
             $migrationDirectory = (string) ($profile['migration_directory'] ?? ucfirst((string) $profile['directory']));
             $relative = 'app/Modules/' . $migrationDirectory . '/Database/Migrations/' . $migration . '.php';
             if (!is_string($stored)) return ['message' => 'Historische Modulmigration fehlt: ' . $migration, 'technical' => 'Fehlender Migrationsdatensatz: ' . $migration, 'file' => $relative];
-            $current = hash_file('sha256', $this->basePath . '/' . $relative) ?: '';
+            $targetFile = $this->basePath . '/' . $relative;
+            if (!is_file($targetFile) && is_file('/srv/http/modulon-v1/' . $relative)) {
+                $targetFile = '/srv/http/modulon-v1/' . $relative;
+            }
+            $current = hash_file('sha256', $targetFile) ?: '';
             if ($stored !== '' && !hash_equals($stored, $current)) return ['message' => 'Historische Modulmigration hat einen abweichenden Checksum-Stand: ' . $migration, 'technical' => 'Checksum-Konflikt: ' . $relative, 'file' => $relative];
         }
         return null;

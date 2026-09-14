@@ -22,7 +22,7 @@ final class UserRepository
     public function findByEmail(string $email): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
+            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, admin_nav_layout, favorite_modules, header_modules, avatar_path, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
              FROM users WHERE email = :email LIMIT 1'
         );
         $statement->execute(['email' => $email]);
@@ -39,7 +39,7 @@ final class UserRepository
     public function findByUsername(string $username): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
+            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, admin_nav_layout, favorite_modules, header_modules, avatar_path, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, password_hash, is_blocked, totp_secret, totp_enabled, webauthn_enabled
              FROM users WHERE username = :username LIMIT 1'
         );
         $statement->execute(['username' => $username]);
@@ -56,7 +56,7 @@ final class UserRepository
     public function findById(int $id): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, is_blocked, totp_secret, totp_enabled, webauthn_enabled
+            'SELECT id, name, username, email, timezone, theme_mode, theme_switcher_visible, admin_nav_layout, favorite_modules, header_modules, avatar_path, dashboard_auto_refresh_enabled, dashboard_auto_refresh_interval_minutes, is_blocked, totp_secret, totp_enabled, webauthn_enabled
              FROM users WHERE id = :id LIMIT 1'
         );
         $statement->execute(['id' => $id]);
@@ -284,7 +284,9 @@ final class UserRepository
         int $dashboardAutoRefreshIntervalMinutes,
         string $themeMode,
         bool $themeSwitcherVisible,
+        string $adminNavLayout = 'tabs',
     ): void {
+        $adminNavLayout = in_array($adminNavLayout, ['tabs', 'sidebar'], true) ? $adminNavLayout : 'tabs';
         $statement = $this->pdo->prepare(
             'UPDATE users
              SET timezone = :timezone,
@@ -292,6 +294,7 @@ final class UserRepository
                  dashboard_auto_refresh_interval_minutes = :dashboard_auto_refresh_interval_minutes,
                  theme_mode = :theme_mode,
                  theme_switcher_visible = :theme_switcher_visible,
+                 admin_nav_layout = :admin_nav_layout,
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = :id'
         );
@@ -302,7 +305,20 @@ final class UserRepository
             'dashboard_auto_refresh_interval_minutes' => $dashboardAutoRefreshIntervalMinutes,
             'theme_mode' => $themeMode,
             'theme_switcher_visible' => $themeSwitcherVisible ? 1 : 0,
+            'admin_nav_layout' => $adminNavLayout,
         ]);
+    }
+
+    public function updateAdminNavLayout(int $userId, string $layout): void
+    {
+        $layout = in_array($layout, ['tabs', 'sidebar'], true) ? $layout : 'tabs';
+        $statement = $this->pdo->prepare(
+            'UPDATE users
+             SET admin_nav_layout = :admin_nav_layout,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        );
+        $statement->execute(['id' => $userId, 'admin_nav_layout' => $layout]);
     }
 
     public function updateThemeMode(int $userId, string $themeMode): void
@@ -341,6 +357,88 @@ final class UserRepository
         $statement->execute([
             'id' => $userId,
             'columns' => $columns === null ? null : json_encode(ModuleManagementColumns::normalize($columns), JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    /** @return list<string> */
+    public function favoriteModules(int $userId): array
+    {
+        try {
+            $statement = $this->pdo->prepare('SELECT favorite_modules FROM users WHERE id = :id LIMIT 1');
+            $statement->execute(['id' => $userId]);
+            $value = $statement->fetchColumn();
+            if (!is_string($value) || trim($value) === '') {
+                return [];
+            }
+            $decoded = json_decode($value, true, 16, JSON_THROW_ON_ERROR);
+            if (!is_array($decoded)) {
+                return [];
+            }
+            return array_values(array_filter(array_map('strval', $decoded), fn ($k) => trim($k) !== ''));
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /** @param list<string> $favorites */
+    public function updateFavorites(int $userId, array $favorites): void
+    {
+        $normalized = array_values(array_unique(array_filter(array_map('strval', $favorites), fn ($k) => trim($k) !== '')));
+        $statement = $this->pdo->prepare(
+            'UPDATE users SET favorite_modules = :favorites, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $userId,
+            'favorites' => json_encode($normalized, JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    /** @return list<string>|null */
+    public function headerModules(int $userId): ?array
+    {
+        try {
+            $statement = $this->pdo->prepare('SELECT header_modules FROM users WHERE id = :id LIMIT 1');
+            $statement->execute(['id' => $userId]);
+            $value = $statement->fetchColumn();
+            if (!is_string($value) || trim($value) === '') {
+                return null;
+            }
+            $decoded = json_decode($value, true, 16, JSON_THROW_ON_ERROR);
+            if (!is_array($decoded)) {
+                return null;
+            }
+            return array_values(array_filter(array_map('strval', $decoded), fn ($k) => trim($k) !== ''));
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /** @param list<string>|null $modules */
+    public function updateHeaderModules(int $userId, ?array $modules): void
+    {
+        $value = null;
+        if ($modules !== null) {
+            $normalized = array_values(array_unique(array_filter(array_map('strval', $modules), fn ($k) => trim($k) !== '')));
+            $value = json_encode($normalized, JSON_THROW_ON_ERROR);
+        }
+
+        $statement = $this->pdo->prepare(
+            'UPDATE users SET header_modules = :modules, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $userId,
+            'modules' => $value,
+        ]);
+    }
+
+    public function updateAvatar(int $userId, ?string $avatarPath): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE users SET avatar_path = :avatar_path, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => $userId,
+            'avatar_path' => $avatarPath !== null && trim($avatarPath) !== '' ? trim($avatarPath) : null,
         ]);
     }
 

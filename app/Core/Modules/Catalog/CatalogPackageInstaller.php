@@ -7,110 +7,153 @@ namespace Modulon\Core\Modules\Catalog;
 use Modulon\Core\Modules\ModuleLifecycleService;
 use Modulon\Core\Modules\ModuleManifest;
 use Modulon\Core\Modules\ModulePackageInspector;
+use Modulon\Core\Modules\SemVer;
 use RuntimeException;
 
-final readonly class CatalogPackageInstaller
+final class CatalogPackageInstaller
 {
+    private ?CatalogSourceResolver $resolver = null;
+
     public function __construct(
-        private CatalogLoader $loader,
-        private CatalogSourceInterface $source,
-        private CatalogSnapshot $snapshot,
-        private CatalogService $catalog,
-        private ModuleLifecycleService $lifecycle,
-    ) {
+        private readonly CatalogLoader $loader,
+        private readonly CatalogSourceInterface $source,
+        private readonly CatalogSnapshot $snapshot,
+        private readonly CatalogService $catalog,
+        private readonly ModuleLifecycleService $lifecycle,
+    ) {}
+
+    public static function fromAggregate(
+        CatalogAggregateResult $aggregate,
+        CatalogSourceResolver $resolver,
+        CatalogService $catalog,
+        ModuleLifecycleService $lifecycle,
+    ): self {
+        $loader = array_values($aggregate->loaders)[0] ?? null;
+        $source = array_values($aggregate->sources)[0] ?? null;
+        $snapshot = array_values($aggregate->snapshots)[0] ?? null;
+        if (!$loader instanceof CatalogLoader || !$source instanceof CatalogSourceInterface || !$snapshot instanceof CatalogSnapshot) {
+            throw new RuntimeException('Kein installierbarer Katalog-Snapshot verfügbar.');
+        }
+        $installer = new self($loader, $source, $snapshot, $catalog, $lifecycle);
+        $installer->resolver = $resolver;
+        return $installer;
     }
 
     /** @return array<string,mixed> */
     public function install(string $moduleId, bool $activate = false): array
     {
-        $release = $this->release($moduleId);
-        $path = $this->verifiedTemp($moduleId, $release);
+        [$release, $context] = $this->releaseContext($moduleId);
+        $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
         try {
             return $this->lifecycle->install(
-                $path,
-                $release['package']['sha256'],
-                $activate,
-                'catalog-managed',
-                $this->source->id(),
-                (int) $this->snapshot->root['sequence'],
+                $path, $release['package']['sha256'], $activate, 'catalog-managed',
+                $context['source']->id(), (int) $context['snapshot']->root['sequence'],
             );
-        } finally {
-            @unlink($path);
-        }
+        } finally { @unlink($path); }
     }
 
     /** @return array<string,mixed> */
     public function prepareAdoptionRelease(string $moduleId): array
     {
-        $release = $this->release($moduleId);
-        $path = $this->verifiedTemp($moduleId, $release);
-        try {
-            return $this->lifecycle->prepareAdoptionRelease($path, $release['package']['sha256']);
-        } finally {
-            @unlink($path);
-        }
+        [$release, $context] = $this->releaseContext($moduleId);
+        $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
+        try { return $this->lifecycle->prepareAdoptionRelease($path, $release['package']['sha256']); }
+        finally { @unlink($path); }
     }
 
-    public function sourceId(): string
+    public function sourceId(?string $moduleId = null): string
     {
-        return $this->source->id();
+        return $moduleId !== null ? $this->context($moduleId)['source']->id() : $this->source->id();
     }
 
-    public function sequence(): int
+    public function sequence(?string $moduleId = null): int
     {
-        return (int) $this->snapshot->root['sequence'];
+        return (int) ($moduleId !== null ? $this->context($moduleId)['snapshot']->root['sequence'] : $this->snapshot->root['sequence']);
     }
 
     public function adoptionMetadata(string $moduleId): CatalogAdoptionMetadata
     {
-        $module = $this->snapshot->modules[$moduleId] ?? null;
-        if (!is_array($module)) {
-            throw new RuntimeException('Modulindex für die Adoption fehlt.');
-        }
-
-        return CatalogAdoptionMetadata::fromModuleIndex($module);
+        return CatalogAdoptionMetadata::fromModuleIndex($this->context($moduleId)['module']);
     }
 
     public function manifest(string $moduleId): ModuleManifest
     {
-        $release = $this->release($moduleId);
-        $path = $this->verifiedTemp($moduleId, $release);
-        try {
-            return (new ModulePackageInspector())->inspect($path, $release['package']['sha256'])['manifest'];
-        } finally {
-            @unlink($path);
-        }
+        [$release, $context] = $this->releaseContext($moduleId);
+        $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
+        try { return (new ModulePackageInspector())->inspect($path, $release['package']['sha256'])['manifest']; }
+        finally { @unlink($path); }
     }
 
     /** @return array<string,mixed> */
     public function update(string $moduleId): array
     {
-        $release = $this->release($moduleId);
-        $path = $this->verifiedTemp($moduleId, $release);
+        [$release, $context] = $this->releaseContext($moduleId);
+        $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
         try {
-            return $this->lifecycle->update($path, $release['package']['sha256'], (int) $this->snapshot->root['sequence']);
-        } finally {
-            @unlink($path);
-        }
+            return $this->lifecycle->update(
+                $path, $release['package']['sha256'], (int) $context['snapshot']->root['sequence'], $context['source']->id(), false,
+            );
+        } finally { @unlink($path); }
     }
 
-    /** @return array<string,mixed> */
-    private function release(string $id): array
+    /** Explicit, verified source transition for an already catalog-managed module. @return array<string,mixed> */
+    public function switchSource(string $moduleId, string $targetSourceId): array
     {
-        $item = $this->catalog->module($id);
-        if ($item === null || $item['catalog'] === null) {
+        if ($this->resolver === null) throw new RuntimeException('Quellenwechsel benötigt den Multi-Katalog-Resolver.');
+        [$release, $context] = $this->releaseContext($moduleId, $targetSourceId);
+        $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
+        try {
+            $current = $this->lifecycle->inspect($moduleId);
+            $comparison = SemVer::parse((string) $release['version'])->compare(SemVer::parse((string) $current['installed_version']));
+            if ($comparison === 0) {
+                return $this->lifecycle->rebindCatalogSource(
+                    $moduleId, $context['source']->id(), (int) $context['snapshot']->root['sequence'],
+                    (string) $release['version'], (string) $release['package']['sha256'],
+                );
+            }
+            if ($comparison < 0) throw new RuntimeException('Quellenwechsel auf eine ältere Modulversion ist nicht erlaubt.');
+            return $this->lifecycle->update(
+                $path, $release['package']['sha256'], (int) $context['snapshot']->root['sequence'], $context['source']->id(), true,
+            );
+        } finally { @unlink($path); }
+    }
+
+    /** @return array{0:array<string,mixed>,1:array{record:array<string,mixed>,source:CatalogSourceInterface,loader:CatalogLoader,snapshot:CatalogSnapshot,module:array<string,mixed>}} */
+    private function releaseContext(string $id, ?string $sourceId = null): array
+    {
+        $context = $this->context($id, $sourceId);
+        if ($sourceId === null) {
+            $item = $this->catalog->module($id);
+            $release = is_array($item) ? ($item['release'] ?? null) : null;
+            $compatible = is_array($item) && !empty($item['compatible']);
+            $reason = is_array($item) ? ($item['incompatibility_reason'] ?? null) : null;
+        } else {
+            $release = $this->catalog->compatibleRelease($context['module']);
+            $compatible = is_array($release);
+            $reason = 'Modul ist in der Zielquelle nicht kompatibel.';
+        }
+        if (!$compatible || !is_array($release)) throw new RuntimeException((string) ($reason ?? 'Modul ist nicht kompatibel.'));
+        return [$release, $context];
+    }
+
+    /** @return array{record:array<string,mixed>,source:CatalogSourceInterface,loader:CatalogLoader,snapshot:CatalogSnapshot,module:array<string,mixed>} */
+    private function context(string $moduleId, ?string $sourceId = null): array
+    {
+        if ($this->resolver !== null) return $this->resolver->context($moduleId, $sourceId);
+        $module = $this->snapshot->modules[$moduleId] ?? null;
+        if (!is_array($module) || ($sourceId !== null && $sourceId !== $this->source->id())) {
             throw new RuntimeException('Modul ist nicht im verifizierten Katalog.');
         }
-        if (!$item['compatible'] || !is_array($item['release'])) {
-            throw new RuntimeException((string) ($item['incompatibility_reason'] ?? 'Modul ist nicht kompatibel.'));
-        }
-        return $item['release'];
+        return [
+            'record'=>['id'=>$this->source->id(), 'enabled'=>true, 'priority'=>0, 'is_official'=>false],
+            'source'=>$this->source, 'loader'=>$this->loader, 'snapshot'=>$this->snapshot, 'module'=>$module,
+        ];
     }
 
     /** @param array<string,mixed> $release */
-    private function verifiedTemp(string $moduleId, array $release): string
+    private function verifiedTemp(string $moduleId, array $release, CatalogLoader $loader, CatalogSourceInterface $source): string
     {
-        $bytes = $this->loader->verifyPackage($this->source, $release);
+        $bytes = $loader->verifyPackage($source, $release);
         $path = tempnam(sys_get_temp_dir(), 'modulnest-catalog-');
         if ($path === false || file_put_contents($path, $bytes, LOCK_EX) === false) {
             throw new RuntimeException('Verifiziertes Katalogpaket kann nicht bereitgestellt werden.');

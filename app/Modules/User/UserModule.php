@@ -10,8 +10,8 @@ use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleInterface;
 use Modulon\Core\Router;
 use Modulon\Core\UserNavigationRegistry;
-use Modulon\Modules\FantasyCards\FantasyCardsProfileService;
-use Modulon\Modules\FantasyCards\FantasyCardsRepository;
+use ModulNest\FantasyCards\FantasyCardsProfileService;
+use ModulNest\FantasyCards\FantasyCardsRepository;
 
 final class UserModule implements NativeModuleInterface
 {
@@ -23,7 +23,7 @@ final class UserModule implements NativeModuleInterface
             'route_prefix' => 'profil',
             'access_level' => 'user',
             'description' => 'Benutzerprofil und Einstellungen.',
-            'show_in_header' => true,
+            'show_in_header' => false,
             'show_on_home' => false,
         ];
     }
@@ -31,7 +31,7 @@ final class UserModule implements NativeModuleInterface
     public static function create(ModuleContext $context): ?NativeModuleInterface
     {
         $fantasyCardsProfile = null;
-        if ($context->pdo !== null && $context->isNativeActive('fantasy-cards')) {
+        if ($context->pdo !== null && $context->isNativeActive('fantasy-cards') && class_exists(FantasyCardsProfileService::class)) {
             $fantasyCardsProfile = new FantasyCardsProfileService(
                 $context->pdo,
                 new FantasyCardsRepository($context->pdo),
@@ -78,6 +78,13 @@ final class UserModule implements NativeModuleInterface
         $router->post('/profil/password', [$this->controller, 'updatePassword'], 'user');
         $router->post('/profil/settings', [$this->controller, 'updateSettings'], 'user');
         $router->post('/profil/theme', [$this->controller, 'updateTheme'], 'user');
+        $router->post('/profil/admin-nav-layout', [$this->controller, 'updateAdminNavLayout'], 'user');
+        $router->post('/profil/avatar', [$this->controller, 'updateAvatar'], 'user');
+        $router->post('/profil/avatar/delete', [$this->controller, 'deleteAvatar'], 'user');
+        $router->post('/profil/favorites/toggle', [$this->controller, 'toggleFavoriteModule'], 'user');
+        $router->post('/profil/header-modules/toggle', [$this->controller, 'toggleHeaderModule'], 'user');
+        $router->post('/profil/header-modules/reset', [$this->controller, 'resetHeaderModules'], 'user');
+        $router->post('/profil/header-modules/reorder', [$this->controller, 'reorderHeaderModules'], 'user');
         $router->post('/profil/fantasy-cards', [$this->controller, 'updateFantasyCardsProfile'], 'user');
     }
 

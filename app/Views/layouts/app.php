@@ -13,6 +13,10 @@ $layoutThemeMode = in_array($layoutThemeCandidate, ['system', 'light', 'dark'], 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars((string) ($title ?? 'Modulon'), ENT_QUOTES, 'UTF-8') ?></title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/modulon-icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
     <script src="/assets/js/theme-init.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -26,11 +30,17 @@ $layoutThemeMode = in_array($layoutThemeCandidate, ['system', 'light', 'dark'], 
         <?php
         $layoutCurrentPath = '/' . trim((string) ($current_path ?? ''), '/');
         $layoutAdminNavItems = is_array($admin_nav_items ?? null) ? $admin_nav_items : [];
-        if (($layoutCurrentPath === '/admin' || str_starts_with($layoutCurrentPath, '/admin/')) && $layoutAdminNavItems !== []) {
+        $layoutIsAdminPage = ($layoutCurrentPath === '/admin' || str_starts_with($layoutCurrentPath, '/admin/')) && $layoutAdminNavItems !== [];
+        $layoutAdminNavMode = (string) ($admin_nav_layout ?? 'tabs');
+        if ($layoutIsAdminPage && $layoutAdminNavMode === 'sidebar') {
+            require dirname(__DIR__) . '/admin/partials/sidebar-layout.php';
+        } elseif ($layoutIsAdminPage) {
             require dirname(__DIR__) . '/admin/partials/nav.php';
+            echo $content ?? '';
+        } else {
+            echo $content ?? '';
         }
         ?>
-        <?= $content ?? '' ?>
     </div>
 </main>
 

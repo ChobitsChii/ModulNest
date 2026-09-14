@@ -2,6 +2,12 @@
 
 Dieses Dokument beschreibt den **aktuellen technischen Stand** von ModulNest und ergänzt die README um interne Architekturdetails. Der interne Core-/Arbeitsname lautet Modulon.
 
+> **Modul-v2-Hinweis:** Abschnitte, die `app/Modules`, Native Discovery oder
+> Legacy-Routing beschreiben, erklären die weiterhin vorhandene v1-Kompatibilität,
+> nicht den Authoring-Weg für neue Produktmodule. Neue Module sind unabhängige
+> Katalogpakete. Die kanonische Anleitung ist
+> [module-v2-authoring.md](../development/module-v2-authoring.md).
+
 ## 1) Gesamtarchitektur
 
 ModulNest ist ein serverseitig gerendertes PHP-System mit:
@@ -9,8 +15,9 @@ ModulNest ist ein serverseitig gerendertes PHP-System mit:
 - einem zentralen **Front Controller**
 - einem schlanken **Core** (HTTP, Routing, Rendering, Session, ENV, DB)
 - einem datenbankgestützten **Modulsystem** (`modules`-Tabelle)
-- drei Modultypen:
-  - `native` (interne Controller)
+- Core-Registry und paketverwaltete Modul-v2-Releases
+- drei historische/lokale Kompatibilitätstypen:
+  - `native` (Modul v1 bzw. interner Core-Controller)
   - `legacy` (eingebundene Altanwendungen unter `app/Legacy`)
   - `placeholder` (Übergangstyp ohne eigene native Implementierung)
 
@@ -49,9 +56,12 @@ Architekturprinzip:
   - Core-Schema und Core-Seeds (`schema/core.sql`, `seeds/core.sql`)
   - `schema.sql` bleibt als Kompatibilitäts-/Gesamtschema erhalten
 - `app/Modules/`
-  - fachliche Module/Controller/Repositories
-  - optionale Modul-Schemas liegen im jeweiligen Modul unter `Database/schema.sql`
-  - z. B. `Auth`, `Admin`, `Dashboard`, `Mail`, `News`, `User`, `Systeminfo`, `Banking`, `Modules`
+  - Core-Komponenten sowie verbliebene v1-/private Kompatibilitätsmodule
+  - **kein Ziel für neue öffentliche Modul-v2-Pakete**
+- `modules/<id>/releases/<release>/`
+  - vom Lifecycle installierter, unveränderlicher Modul-v2-Code
+- `storage/modules/<id>/`, `storage/cache/modules/<id>/`
+  - persistente Daten und Cache eines Modul-v2
 - `app/Views/`
   - Templates inkl. `layouts/` und `partials/`
 - `app/Legacy/`
@@ -110,7 +120,7 @@ Die `modules`-Tabelle steuert Modul-Metadaten:
 - `handler` (`native|legacy|placeholder`)
 - `legacy_entry`, `admin_entry`, `enable_overlay`, `is_active`
 
-### `handler = native`
+### `handler = native` (v1-/Core-Kompatibilität)
 
 - Ein auto-discoverbares natives Modul **muss** die Klasse `Modulon\Modules\<Ordner>\<Ordner>Module` bereitstellen und `NativeModuleInterface` implementieren.
 - diese Modulklasse registriert eigene Frontend-Routen, Admin-Routen, Untermenüs und Binding-Metadaten
@@ -233,7 +243,7 @@ Ergebnis: konsistente Navbar/Footer-Logik auf allen Seiten.
 
 ---
 
-## 9) Native Module: Profil, News, Dashboard, Mail, Banking, Systeminfo
+## 9) Core-, v1- und paketverwaltete Module
 
 ### Profil (`/profil`)
 
@@ -255,7 +265,7 @@ Ergebnis: konsistente Navbar/Footer-Logik auf allen Seiten.
 
 ### Dashboard (`/dashboard`)
 
-- Controller/Modulklasse unter `app/Modules/Dashboard/`
+- v2-Paket: `modulnest.dashboard`; Runtime-Code aus dem aktiven Paketrelease
 - usergebundene Links, Aufgaben, Notizen
 - Uhr/Zeitzone, Auto-Refresh mit Pause bei Dialogen
 
@@ -266,7 +276,7 @@ Ergebnis: konsistente Navbar/Footer-Logik auf allen Seiten.
 
 ### Banking (`/banking`)
 
-- Controller/Services/Repositories unter `app/Modules/Banking/`
+- v2-Paket: `modulnest.banking`; Runtime-Code aus dem aktiven Paketrelease
 - native usergebundene Umsätze, Monatsübersicht, wiederkehrende Regeln, CSV-Import
 - Legacy-Fallback read-only unter `/banking-old`
 
@@ -285,19 +295,18 @@ Unterschied zu Legacy:
 
 ---
 
-## 10) Wo ändere ich was? (für neue Module)
+## 10) Wo ändere ich was?
 
-Wenn ein neues **natives** Modul gebaut wird:
+Ein neues öffentliches Produktmodul ist immer ein **Modul v2**:
 
-1. Controller/Repository/Services in `app/Modules/<Modul>/` anlegen
-2. Modulklasse `Modulon\Modules\<Modul>\<Modul>Module` implementieren
-3. Views in `app/Views/<modul>/` anlegen
-4. Modulverwaltung öffnen, damit Auto-Discovery den DB-Eintrag deaktiviert anlegt
-5. Modul in `/admin/modules` aktivieren und Sichtbarkeit/Zugriff konfigurieren
-6. optional Provider für Modul-Untermenüs, Admin-Navigation oder User-Navigation registrieren
+1. versionsbezogenen, eigenständigen Workspace mit `module.json` anlegen,
+2. `NativeModuleInterface` als paketlokalen Entrypoint implementieren,
+3. Views, Assets und Migrationen ausschließlich paketlokal halten,
+4. Paket validieren und über denselben `ModuleLifecycleService` testen,
+5. unabhängig über den signierten Modul-Katalog veröffentlichen.
 
-Die normative Entwicklerreferenz mit exakten API-Verträgen steht unter
-[`docs/development/`](../development/README.md).
+Die normative Entwicklerreferenz mit exakten API-Verträgen ist
+[`module-v2-authoring.md`](../development/module-v2-authoring.md).
 
 Wenn ein **Legacy**-Modul eingebunden wird:
 

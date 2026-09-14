@@ -23,6 +23,8 @@ final readonly class CatalogService
         'modulnest.sneak-preview' => 'sneak-preview',
         'modulnest.tools' => 'tools',
         'modulnest.banking' => 'banking',
+        'modulnest.fantasy-cards' => 'fantasy-cards',
+        'modulnest.mail' => 'mail',
     ];
 
     /** @var array<string,array{name:string,description:string}> */
@@ -99,11 +101,15 @@ final readonly class CatalogService
                 'active' => (bool) $row['is_active'],
                 'installed_version' => $row['installed_version'],
                 'available_version' => null,
+                'latest_version' => null,
+                'latest_update_compatible' => true,
+                'update_incompatibility_reason' => null,
                 'update_available' => false,
                 'compatible' => true,
                 'incompatibility_reason' => null,
                 'release' => null,
                 'catalog' => null,
+                'catalog_source_id' => $row['catalog_source_id'] !== null ? (string) $row['catalog_source_id'] : null,
                 'data_schema_version' => (int) $row['data_schema_version'],
                 'adoption_candidate' => false,
                 'adoptable' => false,
@@ -134,6 +140,16 @@ final readonly class CatalogService
             return $classification !== 0 ? $classification : strcasecmp((string) $left['name'], (string) $right['name']);
         });
         return $result;
+    }
+
+    /** @return array{updates:int,entdecken:int,installiert:int} */
+    public function counts(): array
+    {
+        return [
+            'updates' => count($this->updateCandidates()),
+            'entdecken' => count($this->discover()),
+            'installiert' => count($this->installed()),
+        ];
     }
 
     public function module(string $id): ?array
@@ -181,9 +197,19 @@ final readonly class CatalogService
     public function updateCandidates(): array
     {
         return array_values(array_filter($this->modules(), static function (array $module): bool {
-            if ($module['classification'] !== 'v2' || !$module['v2_installed'] || $module['installed_version'] === null || $module['latest_version'] === null) return false;
-            return SemVer::parse((string) $module['latest_version'])->compare(SemVer::parse((string) $module['installed_version'])) > 0;
+            $latest = $module['latest_version'] ?? null;
+            $installed = $module['installed_version'] ?? null;
+            if (($module['classification'] ?? '') !== 'v2' || empty($module['v2_installed']) || $installed === null || $latest === null) {
+                return false;
+            }
+            return SemVer::parse((string) $latest)->compare(SemVer::parse((string) $installed)) > 0;
         }));
+    }
+
+    /** @param array<string,mixed> $module @return array<string,mixed>|null */
+    public function compatibleRelease(array $module): ?array
+    {
+        return $this->latestCompatible($module);
     }
 
     private function catalogView(array $module, ?array $current, ?array $adoptionRow, ?array $release, ?array $latest, ?string $reason): array
@@ -201,7 +227,15 @@ final readonly class CatalogService
         $origin = $isAdoption ? 'v1' : (string) ($current['origin'] ?? 'catalog-managed');
         $classification = $isAdoption ? 'v1' : 'v2';
 
+        $checkVer = (string) ($installedVersion ?? $available ?? $latestVersion ?? '');
+        $channel = (string) ($release['channel'] ?? $latest['channel'] ?? '');
+        $isBeta = ($channel === 'beta')
+            || ($channel === 'alpha')
+            || (bool) preg_match('/-(?:beta|alpha|rc|dev)\b/i', $checkVer);
+
         return [
+            'is_beta' => $isBeta,
+            'channel' => $channel !== '' ? $channel : ($isBeta ? 'beta' : 'stable'),
             'id' => $module['id'],
             'name' => $module['name'],
             'description' => $isAdoption ? $adoptionRow['description'] : $module['description'],
@@ -224,6 +258,7 @@ final readonly class CatalogService
             'incompatibility_reason' => $reason,
             'release' => $release,
             'catalog' => $module,
+            'catalog_source_id' => (string) ($module['_catalog_source_id'] ?? $this->catalog->sourceId),
             'data_schema_version' => (int) ($current['data_schema_version'] ?? 0),
             'last_operation' => $current ? $this->lastOperation((string) $module['id']) : null,
             'resources' => $resources,
@@ -250,6 +285,8 @@ final readonly class CatalogService
             'classification_label' => $this->classificationLabel($classification),
             'origin' => $classification,
             'origin_label' => $this->originLabel($classification),
+            'is_beta' => false,
+            'channel' => 'stable',
             'installed' => true,
             'v2_installed' => false,
             'retained' => false,
@@ -257,6 +294,9 @@ final readonly class CatalogService
             'active' => (bool) $row['is_active'],
             'installed_version' => null,
             'available_version' => null,
+            'latest_version' => null,
+            'latest_update_compatible' => true,
+            'update_incompatibility_reason' => null,
             'update_available' => false,
             'compatible' => true,
             'incompatibility_reason' => null,

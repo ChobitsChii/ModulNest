@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "id": "modulnest.publisher-test",
+  "name": "Publisher Test",
+  "description": "Nicht öffentliches Fixture für den generischen Modul-v2-Publisher.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "authors": [{"name": "ModulNest test suite"}],
+  "homepage": "https://github.com/ChobitsChii/ModulNest-Modules",
+  "repository": "https://github.com/ChobitsChii/ModulNest-Modules",
+  "requires": {"core": ">=2.0.0 <3.0.0", "php": ">=8.3.0", "extensions": []},
+  "entrypoint": {"class": "ModulNest\\PublisherTest\\PublisherTestModule", "file": "src/PublisherTestModule.php"},
+  "autoload": {"psr4": {"ModulNest\\PublisherTest\\": "src/"}},
+  "dependencies": {},
+  "optional_dependencies": {},
+  "conflicts": {},
+  "capabilities": {},
+  "data": {"schema_version": 0, "compatible_schema": "=0", "ownership": {"tables": [], "settings": [], "storage": [], "uploads": [], "jobs": []}},
+  "route_prefix": "publisher-test",
+  "access_level": "admin"
+}

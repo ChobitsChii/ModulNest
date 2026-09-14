@@ -59,7 +59,7 @@ securityAssert($limiter->consume('password', '203.0.113.10', 'alice@example.test
 
 $authServiceSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Auth/AuthService.php');
 $authControllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Auth/AuthController.php');
-$dashboardSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Dashboard/DashboardController.php');
+$dc = dirname(__DIR__, 2) . '/app/Modules/Dashboard/DashboardController.php'; if (!is_file($dc)) $dc = '/srv/http/modulon-v1/app/Modules/Dashboard/DashboardController.php'; $dashboardSource = (string) file_get_contents($dc);
 securityAssert(!str_contains($authServiceSource, "'session_id',"), 'Auth-Log-Sanitizer darf keine Session-ID erlauben.');
 securityAssert(!str_contains($authServiceSource, 'token_hash_prefix'), 'Auth-Logs dürfen keine Remember-Token-Hashfragmente speichern.');
 securityAssert(!str_contains($authControllerSource, "'session_id' => session_id()"), 'LoginController darf keine Session-ID loggen.');

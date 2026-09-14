@@ -81,7 +81,7 @@ sneak_preview_csrf_assert($status === 419, 'Sneak Preview akzeptiert einen Token
 [$status, $body] = $dispatch('/admin/sneak-preview/settings', ['_csrf' => $otherSessionToken]);
 sneak_preview_csrf_assert($status === 200 && $body === 'handled', 'Sneak Preview akzeptiert den aktuellen Session-Token nicht.');
 
-$moduleSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/SneakPreview/SneakPreviewModule.php');
+$sm = dirname(__DIR__, 2) . '/app/Modules/SneakPreview/SneakPreviewModule.php'; if (!is_file($sm)) $sm = '/srv/http/modulon-v1/app/Modules/SneakPreview/SneakPreviewModule.php'; $moduleSource = (string) file_get_contents($sm);
 foreach ($routes as $route) {
     sneak_preview_csrf_assert(
         preg_match("~router->post\\('" . preg_quote($route, '~') . "'.*?'admin'\\);~", $moduleSource) === 1,
@@ -89,7 +89,7 @@ foreach ($routes as $route) {
     );
 }
 
-$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/SneakPreview/SneakPreviewController.php');
+$sc = dirname(__DIR__, 2) . '/app/Modules/SneakPreview/SneakPreviewController.php'; if (!is_file($sc)) $sc = '/srv/http/modulon-v1/app/Modules/SneakPreview/SneakPreviewController.php'; $controllerSource = (string) file_get_contents($sc);
 foreach (['sneak_preview_form_token', 'sneak_preview_delete_token', 'sneak_preview_settings_token'] as $legacyKey) {
     sneak_preview_csrf_assert(!str_contains($controllerSource, $legacyKey), 'Der alte Session-Key ' . $legacyKey . ' ist noch vorhanden.');
 }
@@ -98,7 +98,7 @@ sneak_preview_csrf_assert(str_contains($controllerSource, '$this->repository->de
 sneak_preview_csrf_assert(str_contains($controllerSource, '$this->repository->saveDisplayFields($fields)'), 'Die Settings-Fachlogik fehlt.');
 
 foreach (['form.php', 'settings.php', 'partials/table.php'] as $view) {
-    $viewSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/sneak-preview/' . $view);
+    $vp = dirname(__DIR__, 2) . '/app/Views/sneak-preview/' . $view; if (!is_file($vp)) $vp = '/srv/http/modulon-v1/app/Views/sneak-preview/' . $view; $viewSource = (string) file_get_contents($vp);
     sneak_preview_csrf_assert(!str_contains($viewSource, 'name="csrf_token"'), $view . ' enthält noch ein altes CSRF-Feld.');
     sneak_preview_csrf_assert(str_contains($viewSource, 'View::csrfField'), $view . ' nutzt kein zentrales CSRF-Feld.');
 }

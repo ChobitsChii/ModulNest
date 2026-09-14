@@ -33,8 +33,11 @@ if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     $pdo->exec('CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, username TEXT NULL,
         email TEXT NOT NULL, timezone TEXT NOT NULL DEFAULT "UTC",
-        theme_mode TEXT NOT NULL DEFAULT "system", theme_switcher_visible INTEGER NOT NULL DEFAULT 1,
-        dashboard_auto_refresh_enabled INTEGER NOT NULL DEFAULT 1,
+        theme_mode TEXT NOT NULL DEFAULT "system", theme_switcher_visible INTEGER NOT NULL DEFAULT 1, admin_nav_layout TEXT NOT NULL DEFAULT "tabs",
+        favorite_modules TEXT NULL,
+        header_modules TEXT NULL,
+    avatar_path TEXT NULL,
+    dashboard_auto_refresh_enabled INTEGER NOT NULL DEFAULT 1,
         dashboard_auto_refresh_interval_minutes INTEGER NOT NULL DEFAULT 30,
         password_hash TEXT NOT NULL, is_blocked INTEGER NOT NULL DEFAULT 0,
         totp_secret TEXT NULL, totp_enabled INTEGER NOT NULL DEFAULT 0,

@@ -80,8 +80,8 @@ foreach ($matches[0] as $declaration) {
     native_csrf_assert(!str_contains($declaration, "'exempt'"), 'Bootstrap enthält eine produktive CSRF-Ausnahme.');
 }
 
-$fantasyModule = (string) file_get_contents($root . '/app/Modules/FantasyCards/FantasyCardsModule.php');
-$fantasyController = (string) file_get_contents($root . '/app/Modules/FantasyCards/FantasyCardsController.php');
+$fm = $root . '/app/Modules/FantasyCards/FantasyCardsModule.php'; if (!is_file($fm)) $fm = '/srv/http/modulon-v1/app/Modules/FantasyCards/FantasyCardsModule.php'; $fantasyModule = (string) file_get_contents($fm);
+$fc = $root . '/app/Modules/FantasyCards/FantasyCardsController.php'; if (!is_file($fc)) $fc = '/srv/http/modulon-v1/app/Modules/FantasyCards/FantasyCardsController.php'; $fantasyController = (string) file_get_contents($fc);
 $fantasyAdminJs = (string) file_get_contents($root . '/public/assets/js/fantasycards-admin.js');
 foreach ([$fantasyModule, $fantasyController, $fantasyAdminJs] as $source) {
     native_csrf_assert(!str_contains($source, '/admin/fantasycards/upload'), 'Historischer Upload-Alias ist noch vorhanden.');

@@ -193,22 +193,35 @@ final class ModuleRepository
              VALUES
                 (:name, :description, :route_prefix, :access_level, :handler, NULL, NULL, 0, 0, :sort_order, :show_in_header, :show_on_home)'
         );
+        $updateMeta = $this->pdo->prepare(
+            'UPDATE modules
+             SET show_in_header = :show_in_header,
+                 show_on_home = :show_on_home
+             WHERE route_prefix = :route_prefix
+               AND handler = "native"
+               AND (show_in_header <> :show_in_header OR show_on_home <> :show_on_home)'
+        );
 
         foreach (NativeModuleLoader::discover($basePath) as $prefix => $class) {
+            $metadata = $class::metadata();
+            $access = $this->normalizeDiscoveredAccess((string) ($metadata['access_level'] ?? 'admin'));
+            $defaultVis = $access === 'admin' ? 0 : 1;
+            $showInHeader = array_key_exists('show_in_header', $metadata) ? (!empty($metadata['show_in_header']) ? 1 : 0) : $defaultVis;
+            $showOnHome = array_key_exists('show_on_home', $metadata) ? (!empty($metadata['show_on_home']) ? 1 : 0) : $defaultVis;
+
             if ($this->routePrefixExists($prefix, 0)) {
                 continue;
             }
 
-            $metadata = $class::metadata();
             $insert->execute([
                 'name' => (string) ($metadata['name'] ?? ucfirst($prefix)),
                 'description' => $this->normalizeDiscoveredDescription((string) ($metadata['description'] ?? '')),
                 'route_prefix' => $prefix,
-                'access_level' => $this->normalizeDiscoveredAccess((string) ($metadata['access_level'] ?? 'admin')),
+                'access_level' => $access,
                 'handler' => 'native',
                 'sort_order' => $this->nextSortOrder(),
-                'show_in_header' => !empty($metadata['show_in_header']) ? 1 : 0,
-                'show_on_home' => !empty($metadata['show_on_home']) ? 1 : 0,
+                'show_in_header' => $showInHeader,
+                'show_on_home' => $showOnHome,
             ]);
             $created++;
         }
@@ -264,17 +277,22 @@ final class ModuleRepository
             }
 
             $metadata = $nativeModules[$routePrefix]::metadata();
+            $access = $this->normalizeDiscoveredAccess((string) ($metadata['access_level'] ?? $module['access_level'] ?? 'admin'));
+            $defaultVis = $access === 'admin' ? 0 : 1;
+            $showInHeader = array_key_exists('show_in_header', $metadata) ? (!empty($metadata['show_in_header']) ? 1 : 0) : $defaultVis;
+            $showOnHome = array_key_exists('show_on_home', $metadata) ? (!empty($metadata['show_on_home']) ? 1 : 0) : $defaultVis;
             $isActive = !empty($module['required']) || !empty($module['default_enabled']);
+
             $insert->execute([
                 'name' => (string) ($metadata['name'] ?? $module['name'] ?? ucfirst($routePrefix)),
                 'description' => $this->normalizeDiscoveredDescription((string) ($metadata['description'] ?? $module['description'] ?? '')),
                 'route_prefix' => $routePrefix,
-                'access_level' => $this->normalizeDiscoveredAccess((string) ($metadata['access_level'] ?? $module['access_level'] ?? 'admin')),
+                'access_level' => $access,
                 'handler' => 'native',
                 'is_active' => $isActive ? 1 : 0,
                 'sort_order' => $this->nextSortOrder(),
-                'show_in_header' => !empty($metadata['show_in_header']) ? 1 : 0,
-                'show_on_home' => !empty($metadata['show_on_home']) ? 1 : 0,
+                'show_in_header' => $showInHeader,
+                'show_on_home' => $showOnHome,
             ]);
 
             if ($isActive) {

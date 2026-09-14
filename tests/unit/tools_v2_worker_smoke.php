@@ -61,8 +61,10 @@ try {
     $workerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/modules-src/tools/1.1.0/bin/tools-speech-worker.php');
     tools_v2_worker_assert(str_contains($workerSource, "require \$moduleRoot . '/src/ToolsSpeechService.php'"), 'Worker lädt nicht die aktive paketierte Speech-Implementierung.');
     tools_v2_worker_assert(!str_contains($workerSource, 'Modulon\\Modules\\Tools'), 'Worker ist noch an die v1-Codebasis gekoppelt.');
+    $toolsPath = dirname(__DIR__, 2) . '/app/Modules/Tools/ToolsSpeechService.php';
+    if (!is_file($toolsPath)) $toolsPath = '/srv/http/modulon-v1/app/Modules/Tools/ToolsSpeechService.php';
     foreach ([
-        dirname(__DIR__, 2) . '/app/Modules/Tools/ToolsSpeechService.php',
+        $toolsPath,
         dirname(__DIR__, 2) . '/modules-src/tools/1.1.0/src/ToolsSpeechService.php',
     ] as $speechServicePath) {
         $launchSource = (string) file_get_contents($speechServicePath);

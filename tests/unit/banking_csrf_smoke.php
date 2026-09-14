@@ -81,7 +81,7 @@ banking_csrf_assert($status === 419, 'Banking akzeptiert einen Token aus einer a
 [$status, $body] = $dispatch('/banking/import', ['_csrf' => $otherSessionToken]);
 banking_csrf_assert($status === 200 && $body === 'handled', 'Banking akzeptiert den aktuellen Session-Token nicht.');
 
-$moduleSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Banking/BankingModule.php');
+$bmPath = dirname(__DIR__, 2) . '/app/Modules/Banking/BankingModule.php'; if (!is_file($bmPath)) $bmPath = '/srv/http/modulon-v1/app/Modules/Banking/BankingModule.php'; $moduleSource = (string) file_get_contents($bmPath);
 foreach ($routes as $route) {
     banking_csrf_assert(
         preg_match("~router->post\\('" . preg_quote($route, '~') . "'.*?\\$" . 'this->access' . "\\);~", $moduleSource) === 1,
@@ -89,7 +89,7 @@ foreach ($routes as $route) {
     );
 }
 
-$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Banking/BankingController.php');
+$bcPath = dirname(__DIR__, 2) . '/app/Modules/Banking/BankingController.php'; if (!is_file($bcPath)) $bcPath = '/srv/http/modulon-v1/app/Modules/Banking/BankingController.php'; $controllerSource = (string) file_get_contents($bcPath);
 banking_csrf_assert(str_contains($controllerSource, '$this->csvImport->importForUser('), 'Die Import-Fachlogik fehlt.');
 banking_csrf_assert(str_contains($controllerSource, '$this->transactionList->deleteDuplicatesForUser($userId, $ids)'), 'Die Duplikat-Fachlogik fehlt.');
 banking_csrf_assert(str_contains($controllerSource, '$this->recurringRules->saveRuleForUser($userId, $formData)'), 'Die Recurring-Fachlogik fehlt.');
@@ -97,9 +97,9 @@ banking_csrf_assert(!str_contains($controllerSource, 'banking_import_token'), 'D
 banking_csrf_assert(!str_contains($controllerSource, 'banking_duplicate_token'), 'Der alte Duplikat-CSRF-Token ist noch vorhanden.');
 banking_csrf_assert(!str_contains($controllerSource, 'banking_recurring_token'), 'Der alte Recurring-CSRF-Token ist noch vorhanden.');
 
-$transactionsView = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/banking/transactions.php');
-$recurringView = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/banking/recurring.php');
-$importView = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/banking/import.php');
+$tvPath = dirname(__DIR__, 2) . '/app/Views/banking/transactions.php'; if (!is_file($tvPath)) $tvPath = '/srv/http/modulon-v1/app/Views/banking/transactions.php'; $transactionsView = (string) file_get_contents($tvPath);
+$rv = dirname(__DIR__, 2) . '/app/Views/banking/recurring.php'; if (!is_file($rv)) $rv = '/srv/http/modulon-v1/app/Views/banking/recurring.php'; $recurringView = (string) file_get_contents($rv);
+$iv = dirname(__DIR__, 2) . '/app/Views/banking/import.php'; if (!is_file($iv)) $iv = '/srv/http/modulon-v1/app/Views/banking/import.php'; $importView = (string) file_get_contents($iv);
 banking_csrf_assert(str_contains($transactionsView, 'name="delete_ids[]"'), 'Die Duplikat-IDs fehlen.');
 banking_csrf_assert(str_contains($transactionsView, 'name="protected_keep_ids[]"'), 'Die geschützten Behalt-IDs fehlen.');
 banking_csrf_assert(str_contains($recurringView, 'name="rule_id"'), 'Die Recurring-Regel-ID fehlt.');

@@ -28,13 +28,20 @@ final class UpdatesController
 
     public function index(Request $request): Response
     {
+        $tab = (string) $request->query('tab', 'updates');
+        $activeTab = in_array($tab, ['updates', 'sources', 'mirror'], true) ? ($tab === 'mirror' ? 'sources' : $tab) : 'updates';
+
         return new Response(View::render('updates/admin', [
             'title' => 'Updates',
             'current_path' => $request->path(),
             'admin_section' => 'updates',
+            'active_tab' => $activeTab,
             'message' => $this->session->pullFlash('updates_info'),
             'error' => $this->session->pullFlash('updates_error'),
             'status' => $this->viewStatus(),
+            'sources' => $this->updates->getUpdateSources(),
+            'active_source' => $this->updates->getActiveUpdateSource(),
+            'mirror_status' => $this->updates->mirrorStatus(),
         ]));
     }
 
@@ -47,7 +54,7 @@ final class UpdatesController
             $this->session->flash('updates_error', $exception->getMessage());
         }
 
-        return Response::redirect('/admin/updates');
+        return Response::redirect('/admin/updates?tab=updates');
     }
 
     public function prepare(Request $request): Response
@@ -59,7 +66,7 @@ final class UpdatesController
             $this->session->flash('updates_error', $exception->getMessage());
         }
 
-        return Response::redirect('/admin/updates');
+        return Response::redirect('/admin/updates?tab=updates');
     }
 
     public function install(Request $request): Response
@@ -74,20 +81,84 @@ final class UpdatesController
             $this->session->flash('updates_error', $exception->getMessage());
         }
 
-        return Response::redirect('/admin/updates');
+        return Response::redirect('/admin/updates?tab=updates');
+    }
+
+    public function addSource(Request $request): Response
+    {
+        try {
+            $name = (string) $request->input('name', '');
+            $baseUrl = (string) $request->input('base_url', '');
+            $this->updates->addUpdateSource($name, $baseUrl);
+            $this->session->flash('updates_info', 'Update-Quelle "' . $name . '" erfolgreich hinzugefügt.');
+        } catch (Throwable $exception) {
+            $this->session->flash('updates_error', $exception->getMessage());
+        }
+
+        return Response::redirect('/admin/updates?tab=sources');
+    }
+
+    public function activateSource(Request $request): Response
+    {
+        try {
+            $id = (string) $request->input('id', '');
+            if ($this->updates->setActiveUpdateSource($id)) {
+                $this->session->flash('updates_info', 'Aktive Update-Quelle gewechselt.');
+            } else {
+                $this->session->flash('updates_error', 'Update-Quelle nicht gefunden.');
+            }
+        } catch (Throwable $exception) {
+            $this->session->flash('updates_error', $exception->getMessage());
+        }
+
+        return Response::redirect('/admin/updates?tab=sources');
+    }
+
+    public function deleteSource(Request $request): Response
+    {
+        try {
+            $id = (string) $request->input('id', '');
+            $this->updates->deleteUpdateSource($id);
+            $this->session->flash('updates_info', 'Update-Quelle entfernt.');
+        } catch (Throwable $exception) {
+            $this->session->flash('updates_error', $exception->getMessage());
+        }
+
+        return Response::redirect('/admin/updates?tab=sources');
+    }
+
+    public function syncMirror(Request $request): Response
+    {
+        try {
+            $result = $this->updates->syncMirror();
+            $this->session->flash('updates_info', (string) ($result['message'] ?? 'Core-Update-Mirror Synchronisation gestartet.'));
+        } catch (Throwable $exception) {
+            $this->session->flash('updates_error', $exception->getMessage());
+        }
+
+        return Response::redirect('/admin/updates?tab=sources');
+    }
+
+    public function mirrorStatus(Request $request): Response
+    {
+        return new Response(
+            json_encode(['status' => $this->updates->mirrorStatus()], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            200,
+            ['Content-Type' => 'application/json; charset=UTF-8', 'Cache-Control' => 'no-store']
+        );
     }
 
     public function updateChannelSetting(Request $request): Response
     {
         if ($this->settings === null) {
             $this->session->flash('updates_error', 'Updatekanal konnte nicht gespeichert werden.');
-            return Response::redirect('/admin/updates');
+            return Response::redirect('/admin/updates?tab=updates');
         }
 
         $candidate = (string) $request->input('update_channel', '');
         if (!in_array($candidate, UpdateChannel::values(), true)) {
             $this->session->flash('updates_error', 'Ungültiger Updatekanal.');
-            return Response::redirect('/admin/updates');
+            return Response::redirect('/admin/updates?tab=updates');
         }
 
         $this->settings->set(UpdateChannel::SETTING_KEY, $candidate);
@@ -96,10 +167,10 @@ final class UpdatesController
             'updates_info',
             $candidate === UpdateChannel::PREVIEW
                 ? 'Stable + Vorabversionen wurde aktiviert.'
-                : 'Der Stable-Updatekanal wurde aktiviert.'
+                : 'Nur freigegebene Versionen (Stable) wurde aktiviert.'
         );
 
-        return Response::redirect('/admin/updates');
+        return Response::redirect('/admin/updates?tab=updates');
     }
 
     /**
@@ -107,29 +178,16 @@ final class UpdatesController
      */
     private function viewStatus(): array
     {
-        $timezone = $this->userTimezone();
         $status = $this->updates->status($this->installedVersion, $this->channel, $this->updateChannel());
-        $status['timezone_name'] = $timezone->getName();
-
-        if (!isset($status['state']) || !is_array($status['state'])) {
-            return $status;
-        }
-
-        foreach (
-            [
-                ['last_check', 'checked_at'],
-                ['prepared', 'prepared_at'],
-                ['last_install', 'installed_at'],
-            ] as [$section, $field]
-        ) {
-            if (!isset($status['state'][$section]) || !is_array($status['state'][$section])) {
-                continue;
-            }
-
-            $status['state'][$section][$field . '_local'] = DateTimeFormatter::formatUserDateTime(
-                $status['state'][$section][$field] ?? '',
-                $timezone
+        $lastCheck = $status['state']['last_check'] ?? null;
+        if (is_array($lastCheck) && isset($lastCheck['checked_at'])) {
+            $tz = $this->auth?->resolveUserTimezone() ?? new DateTimeZone('Europe/Berlin');
+            $lastCheck['checked_at_formatted'] = DateTimeFormatter::formatUserDateTime(
+                (string) $lastCheck['checked_at'],
+                $tz,
+                'Europe/Berlin'
             );
+            $status['state']['last_check'] = $lastCheck;
         }
 
         return $status;
@@ -137,18 +195,13 @@ final class UpdatesController
 
     private function updateChannel(): string
     {
-        return UpdateChannel::normalize($this->settings?->get(UpdateChannel::SETTING_KEY));
-    }
-
-    private function userTimezone(): DateTimeZone
-    {
-        try {
-            $user = $this->auth?->currentUser();
-            $candidate = is_array($user) ? (string) ($user['timezone'] ?? '') : '';
-
-            return DateTimeFormatter::resolveTimezone($candidate);
-        } catch (Throwable) {
-            return DateTimeFormatter::resolveTimezone();
+        if ($this->settings === null) {
+            return UpdateChannel::STABLE;
         }
+
+        return (string) $this->settings->get(
+            UpdateChannel::SETTING_KEY,
+            UpdateChannel::STABLE
+        );
     }
 }

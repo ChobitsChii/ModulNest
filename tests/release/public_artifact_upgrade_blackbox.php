@@ -28,7 +28,7 @@ function blackboxAssert(bool $condition, string $message): void
 
 $root = realpath(dirname(__DIR__, 2));
 blackboxAssert(is_string($root), 'Artefaktwurzel fehlt.');
-$expected = (string) (getenv('BLACKBOX_EXPECTED_VERSION') ?: '2.0.1');
+$expected = (string) (getenv('BLACKBOX_EXPECTED_VERSION') ?: '2.1.0');
 $catalogUrl = (string) (getenv('BLACKBOX_CATALOG_URL') ?: 'https://repo.modulnest.de');
 $openBasedir = (string) ini_get('open_basedir');
 blackboxAssert($openBasedir !== '' && str_contains($openBasedir, $root), 'Blackbox-Test läuft nicht in einer Dateisystem-Sandbox.');

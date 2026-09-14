@@ -106,6 +106,9 @@ body.app-body {
 
 .app-container {
     max-width: 96%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin: 0 auto;
 }
 
 .app-navbar {
@@ -120,7 +123,7 @@ body.app-body {
     backdrop-filter: blur(8px);
     border-color: var(--app-border) !important;
     position: relative;
-    z-index: 1100;
+    z-index: 1040;
 }
 
 .app-navbar .nav-link.active {
@@ -131,32 +134,62 @@ body.app-body {
     gap: 0.3rem;
 }
 
-.app-header-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+.app-header-flex {
+    display: flex;
     align-items: center;
-    column-gap: 0.75rem;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+    gap: 0.75rem;
 }
 
-.app-header-shell {
+.app-header-left {
+    flex-shrink: 0;
+    display: flex;
     align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    grid-column: 1 / -1;
-    overflow: visible;
 }
 
 .app-header-middle {
-    flex: 1 1 auto;
+    flex: 1 1 0%;
     min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+.app-header-nav-scroller {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+    gap: 0.25rem;
 }
 
 .app-header-middle .app-main-nav {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    flex: 1 1 0%;
+    min-width: 0;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    white-space: nowrap;
+    gap: 0.25rem;
+    margin-bottom: 0 !important;
+    scroll-behavior: smooth;
+}
+
+.app-header-middle .app-main-nav::-webkit-scrollbar {
+    display: none;
 }
 
 .app-header-right {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.65rem;
@@ -165,7 +198,9 @@ body.app-body {
 
 .app-navbar .app-nav-link {
     border-radius: 7px;
-    padding: 0.36rem 0.72rem;
+    padding: 0.28rem 0.52rem;
+    font-size: 0.855rem;
+    white-space: nowrap;
     color: color-mix(in srgb, var(--app-nav-text) 76%, transparent);
     transition: color .16s ease, background-color .16s ease, box-shadow .16s ease;
 }
@@ -243,61 +278,9 @@ body.app-body {
     margin: 0;
 }
 
-@media (min-width: 992px) {
-    .app-header-grid {
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        column-gap: 1rem;
-    }
 
-    .app-header-shell {
-        display: contents !important;
-    }
 
-    .app-header-middle {
-        grid-column: 2;
-        justify-self: stretch;
-        display: flex;
-        justify-content: center;
-        margin-top: 0;
-    }
 
-    .app-header-middle .app-main-nav {
-        justify-content: center;
-    }
-
-    .app-header-right {
-        grid-column: 3;
-        justify-self: end;
-        margin-left: 0;
-    }
-}
-
-@media (max-width: 991.98px) {
-    .app-header-shell {
-        align-items: stretch;
-    }
-
-    .app-header-middle {
-        margin-top: 0.45rem;
-    }
-
-    .app-header-middle .app-main-nav {
-        justify-content: flex-start;
-    }
-
-    .app-header-right {
-        margin-top: 0.35rem;
-        padding-top: 0.6rem;
-        border-top: 1px solid var(--app-border);
-        flex-wrap: wrap;
-        justify-content: flex-start;
-        margin-left: 0;
-    }
-
-    .app-admin-link {
-        margin-left: 0;
-    }
-}
 
 .app-theme-button {
     align-items: center;
@@ -3281,4 +3264,402 @@ button.app-sort-handle {
         height: 3.5rem;
         font-size: 2rem;
     }
+}
+
+/* Admin Navigation & Tabs */
+.admin-nav-bar .nav-tabs .nav-link {
+    margin-bottom: -1px;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.admin-nav-bar .nav-tabs .nav-link.active {
+    font-weight: 600;
+}
+
+.admin-nav-bar .dropdown {
+    position: relative;
+}
+
+.admin-nav-bar .dropdown .dropdown-menu {
+    top: 100%;
+    right: 0;
+    left: auto;
+    margin-top: 0.25rem;
+}
+
+@media (min-width: 768px) {
+    .admin-nav-bar .dropdown:hover > .dropdown-menu {
+        display: block;
+        top: 100%;
+        right: 0;
+        left: auto;
+        margin-top: 0.25rem;
+    }
+}
+
+
+/* App Launcher / Module Grid Styling */
+.app-module-tile {
+    position: relative;
+    border-radius: 12px;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    box-shadow: var(--app-shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    overflow: hidden;
+}
+
+.app-module-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.12);
+    border-color: color-mix(in srgb, var(--app-primary) 50%, var(--app-border));
+}
+
+.app-module-icon-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    transition: transform 0.18s ease;
+    flex-shrink: 0;
+}
+
+.app-module-tile:hover .app-module-icon-badge {
+    transform: scale(1.08);
+}
+
+.app-tile-arrow {
+    display: inline-block;
+    transition: transform 0.18s ease;
+}
+
+.app-module-tile:hover .app-tile-arrow {
+    transform: translateX(4px);
+}
+
+.app-favorite-btn {
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.4rem;
+    font-size: 1.15rem;
+    color: var(--app-muted);
+    transition: color 0.15s ease, transform 0.15s ease;
+    z-index: 10;
+    position: relative;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.app-favorite-btn:hover {
+    color: #f59e0b;
+    transform: scale(1.15);
+}
+
+.app-favorite-btn.is-active {
+    color: #f59e0b;
+}
+
+/* User Avatar & Header Enhancements */
+.app-user-avatar {
+    border: 2px solid color-mix(in srgb, var(--app-primary) 40%, var(--app-border));
+}
+
+.app-user-avatar-initial {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+}
+
+.app-user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.22rem 0.65rem 0.22rem 0.35rem;
+    border-radius: 999px;
+    border: 1px solid var(--app-border);
+    background: var(--app-surface-2);
+    color: var(--app-nav-text);
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.app-user-chip:hover {
+    background: color-mix(in srgb, var(--app-primary) 10%, var(--app-surface-2));
+    border-color: color-mix(in srgb, var(--app-primary) 35%, var(--app-border));
+}
+
+.app-user-profile-header {
+    background: color-mix(in srgb, var(--app-surface-2) 90%, var(--app-primary));
+    border-bottom: 1px solid var(--app-border);
+    padding: 0.85rem 1rem;
+    border-top-left-radius: calc(var(--bs-dropdown-border-radius) - 1px);
+    border-top-right-radius: calc(var(--bs-dropdown-border-radius) - 1px);
+    margin-top: -0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+/* Google-Style 9-Dots App Launcher */
+.app-launcher-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--app-nav-text);
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.app-launcher-btn:hover,
+.app-launcher-btn:focus-visible,
+.app-launcher-btn[aria-expanded="true"] {
+    background: var(--app-surface-2);
+    border-color: var(--app-border);
+    color: var(--app-primary);
+}
+
+.app-launcher-menu {
+    width: min(520px, calc(100vw - 1.25rem));
+    border-radius: 14px;
+    border: 1px solid var(--app-border);
+    background: var(--app-surface) !important;
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+    margin-top: 0.5rem;
+    z-index: 1060;
+    overflow: hidden;
+}
+
+.app-launcher-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: min(80vh, 580px);
+}
+
+.app-launcher-header {
+    background: color-mix(in srgb, var(--app-surface-2) 60%, transparent);
+    flex-shrink: 0;
+}
+
+.app-launcher-sort-toggle {
+    font-size: 0.76rem;
+    border-radius: 6px;
+}
+
+.app-launcher-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(min(80vh, 580px) - 52px);
+    padding: 0.85rem !important;
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-border) transparent;
+}
+
+.app-launcher-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.app-launcher-body::-webkit-scrollbar-thumb {
+    background: var(--app-border);
+    border-radius: 3px;
+}
+
+.app-launcher-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+    .app-launcher-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.app-launcher-card {
+    height: 142px;
+    padding: 0.6rem;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--app-surface-2) 40%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-border) 60%, transparent);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+    box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.app-launcher-card:hover {
+    border-color: color-mix(in srgb, var(--app-primary) 40%, var(--app-border));
+    background: var(--app-surface-2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.app-launcher-card.is-draggable {
+    cursor: grab;
+}
+
+.app-launcher-card.is-draggable:active {
+    cursor: grabbing;
+}
+
+.app-launcher-card.is-dragging {
+    opacity: 0.45;
+    border: 2px dashed var(--app-primary) !important;
+    transform: scale(0.96);
+}
+
+.app-launcher-drag-handle {
+    color: var(--app-muted);
+    font-size: 1rem;
+    cursor: grab;
+    line-height: 1;
+    padding: 0.1rem;
+}
+
+.app-launcher-drag-handle:hover {
+    color: var(--app-primary);
+}
+
+.app-launcher-icon-box {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    text-decoration: none;
+    transition: transform 0.16s ease;
+    flex-shrink: 0;
+}
+
+.app-launcher-card:hover .app-launcher-icon-box {
+    transform: scale(1.06);
+}
+
+.app-launcher-title {
+    font-size: 0.835rem;
+    line-height: 1.25;
+    margin: 0.15rem 0 0.1rem;
+    font-weight: 600;
+}
+
+.app-launcher-desc {
+    font-size: 0.72rem;
+    color: var(--app-muted);
+    line-height: 1.25;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+
+.app-launcher-card-footer {
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+}
+
+.app-launcher-pin-btn {
+    background: transparent;
+    border: none;
+    padding: 0.15rem 0.3rem;
+    border-radius: 6px;
+    color: var(--app-muted);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.app-launcher-pin-btn:hover {
+    color: var(--app-primary);
+    background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+    transform: scale(1.15);
+}
+
+.app-launcher-pin-btn.is-pinned {
+    color: var(--app-primary);
+}
+
+.app-launcher-sub-btn {
+    font-size: 0.74rem;
+    color: var(--app-muted) !important;
+    text-align: left;
+}
+
+.app-launcher-sub-btn:hover {
+    color: var(--app-primary) !important;
+}
+
+.app-launcher-subview .list-group-item {
+    background: var(--app-surface-2);
+    border-color: var(--app-border);
+    color: var(--app-nav-text);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.app-launcher-subview .list-group-item:hover {
+    background: color-mix(in srgb, var(--app-primary) 15%, var(--app-surface-2));
+    color: var(--app-primary);
+}
+
+.app-header-nav-scroller {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden;
+    position: relative;
+    gap: 0.25rem;
+}
+
+.app-nav-scroll-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    color: var(--app-nav-text);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+    flex-shrink: 0;
+    z-index: 10;
+    font-size: 0.78rem;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.15s ease;
+}
+
+.app-nav-scroll-btn:hover {
+    background: var(--app-primary);
+    color: #fff;
+    border-color: var(--app-primary);
+}
+
+.app-nav-scroll-left {
+    left: 0;
+}
+
+.app-nav-scroll-right {
+    right: 0;
 }

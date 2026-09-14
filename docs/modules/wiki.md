@@ -26,11 +26,11 @@ Der Index wird beim Sync inkrementell anhand der bereits vorhandenen Content-Has
 
 Wiki v1 unterstützt keine privaten Repositories, Tokens, mehrere Quellen, automatische Synchronisierung oder Bearbeitung.
 
-## Übergang zum v2-Paket
+## Modul-v2-Paket
 
-Auf `develop/2.0` ist Wiki das erste selbstenthaltene Produktpaket mit der
-unveränderlichen ID `modulnest.wiki`. Die unabhängige Modulversion beginnt bei
-`1.0.0`; `1.0.1` ist ein reines Wiki-Update und ändert die Core-Version nicht.
+Wiki ist das selbstenthaltene Produktpaket mit der unveränderlichen ID
+`modulnest.wiki`. Die aktuelle unabhängige Modulversion ist `1.3.0` und ändert
+die Core-Version nicht.
 Paketquellen liegen unter `modules-src/wiki/<version>/`, Runtime-Inhalte unter
 `storage/modules/modulnest.wiki/` und immutable Assets releasebezogen unter
 `public/assets/modules/modulnest.wiki/<release>/`.

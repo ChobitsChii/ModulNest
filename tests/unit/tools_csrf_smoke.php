@@ -82,7 +82,7 @@ tools_csrf_assert($status === 419, 'Tools akzeptiert einen Token aus einer ander
 tools_csrf_assert($status === 200 && $body === 'handled', 'Tools akzeptiert den aktuellen Session-Token nicht.');
 
 $root = dirname(__DIR__, 2);
-foreach ([$root . '/app/Modules/Tools/ToolsModule.php', $root . '/modules-src/tools/1.1.0/src/ToolsModule.php'] as $modulePath) {
+foreach ([(is_file($root . '/app/Modules/Tools/ToolsModule.php') ? $root . '/app/Modules/Tools/ToolsModule.php' : '/srv/http/modulon-v1/app/Modules/Tools/ToolsModule.php'), $root . '/modules-src/tools/1.1.0/src/ToolsModule.php'] as $modulePath) {
     $moduleSource = (string) file_get_contents($modulePath);
     foreach ($routes as $route) {
         tools_csrf_assert(
@@ -92,7 +92,7 @@ foreach ([$root . '/app/Modules/Tools/ToolsModule.php', $root . '/modules-src/to
     }
 }
 
-foreach ([$root . '/app/Modules/Tools/ToolsController.php', $root . '/modules-src/tools/1.1.0/src/ToolsController.php'] as $controllerPath) {
+foreach ([(is_file($root . '/app/Modules/Tools/ToolsController.php') ? $root . '/app/Modules/Tools/ToolsController.php' : '/srv/http/modulon-v1/app/Modules/Tools/ToolsController.php'), $root . '/modules-src/tools/1.1.0/src/ToolsController.php'] as $controllerPath) {
     $controllerSource = (string) file_get_contents($controllerPath);
     tools_csrf_assert(str_contains($controllerSource, '$this->network->run($tool, $input)'), 'Die Network-Fachlogik fehlt: ' . $controllerPath);
     tools_csrf_assert(str_contains($controllerSource, '$this->speech->createUploadJob($file,'), 'Die Speech-Upload-Logik fehlt: ' . $controllerPath);

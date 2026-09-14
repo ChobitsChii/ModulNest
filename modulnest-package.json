@@ -2,10 +2,10 @@
     "schema": 1,
     "product": "ModulNest",
     "core": "Modulon",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "channel": "stable",
-    "requires_migrations": false,
-    "generated_at": "2026-09-09T18:28:39+00:00",
+    "requires_migrations": true,
+    "generated_at": "2026-09-14T05:18:52+00:00",
     "required_modules": [
         "Admin",
         "Auth",
@@ -67,7 +67,7 @@
             "required": true,
             "default_enabled": true,
             "native": true,
-            "show_in_header": true,
+            "show_in_header": false,
             "show_on_home": false,
             "view_dir": "user"
         },

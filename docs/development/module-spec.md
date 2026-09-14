@@ -1,7 +1,11 @@
-# Nativer Modulvertrag
+# Historischer nativer Modul-v1-Vertrag
 
-Dieses Dokument ist normativ. Die Schlüsselwörter **MUST**, **MUST NOT**,
-**SHOULD**, **SHOULD NOT** und **MAY** sind verbindlich zu verstehen.
+> Nur für v1-/Core-Kompatibilität. Neue Katalogmodule folgen ausschließlich der
+> [kanonischen Modul-v2-Anleitung](module-v2-authoring.md).
+
+Innerhalb der v1-Kompatibilität ist dieses Dokument normativ. Die Schlüsselwörter
+**MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT** und **MAY** gelten nicht als
+Vertrag für Modul-v2-Pakete.
 
 ## Discovery und Identität
 

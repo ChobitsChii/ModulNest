@@ -81,6 +81,11 @@ final class UpdatesModule implements NativeModuleInterface
         $router->post('/admin/updates/prepare', [$this->controller, 'prepare'], 'admin');
         $router->post('/admin/updates/install', [$this->controller, 'install'], 'admin');
         $router->post('/admin/updates/channel', [$this->controller, 'updateChannelSetting'], 'admin');
+        $router->post('/admin/updates/sources/add', [$this->controller, 'addSource'], 'admin');
+        $router->post('/admin/updates/sources/activate', [$this->controller, 'activateSource'], 'admin');
+        $router->post('/admin/updates/sources/delete', [$this->controller, 'deleteSource'], 'admin');
+        $router->post('/admin/updates/sync-mirror', [$this->controller, 'syncMirror'], 'admin');
+        $router->get('/admin/updates/mirror-status', [$this->controller, 'mirrorStatus'], 'admin');
     }
 
     public function nativeBinding(): array
@@ -90,7 +95,7 @@ final class UpdatesModule implements NativeModuleInterface
             'internal_name' => 'Updates',
             'controller' => UpdatesController::class,
             'implementation_path' => 'app/Modules/Updates/UpdatesController.php',
-            'route_binding' => 'GET /admin/updates, POST /admin/updates/check, POST /admin/updates/prepare, POST /admin/updates/install, POST /admin/updates/channel',
+            'route_binding' => 'GET /admin/updates, POST /admin/updates/check, POST /admin/updates/prepare, POST /admin/updates/install, POST /admin/updates/channel, POST /admin/updates/sync-mirror, GET /admin/updates/mirror-status',
         ];
     }
 

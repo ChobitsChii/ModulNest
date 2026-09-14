@@ -1,4 +1,8 @@
-# Das vollständige Example-Modul
+# Historisches v1-ExampleNotes
+
+> Dieses Beispiel zeigt den alten Native-/Core-Workflow und ist keine Vorlage für
+> ein Modul-v2. Siehe [Modul-v2-Authoring](module-v2-authoring.md) und die dort
+> genannten real veröffentlichten Referenzmodule.
 
 [`ExampleNotes`](https://github.com/ChobitsChii/ModulNest/tree/main/examples/modules/ExampleNotes/) ist ein
 ausführbares, bewusst etwas umfangreicheres Referenzmodul für ModulNest 1.x.

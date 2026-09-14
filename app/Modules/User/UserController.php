@@ -13,7 +13,7 @@ use Modulon\Core\ThemePreference;
 use Modulon\Core\View;
 use Modulon\Modules\Auth\AuthService;
 use Modulon\Modules\Auth\UserRepository;
-use Modulon\Modules\FantasyCards\FantasyCardsProfileService;
+use ModulNest\FantasyCards\FantasyCardsProfileService;
 
 final class UserController
 {
@@ -229,7 +229,9 @@ final class UserController
             return Response::redirect('/profil/settings');
         }
 
-        $this->users->updateSettings($userId, $timezone, $autoRefreshEnabled, $interval, $themeMode, $themeSwitcherVisible);
+        $adminNavLayout = (string) $request->input('admin_nav_layout', 'tabs');
+        $adminNavLayout = in_array($adminNavLayout, ['tabs', 'sidebar'], true) ? $adminNavLayout : 'tabs';
+        $this->users->updateSettings($userId, $timezone, $autoRefreshEnabled, $interval, $themeMode, $themeSwitcherVisible, $adminNavLayout);
         $this->session->flash('settings_info', 'Einstellungen gespeichert.');
         return Response::redirect('/profil/settings');
     }
@@ -252,6 +254,309 @@ final class UserController
 
         $this->users->updateThemeMode((int) ($user['id'] ?? 0), $themeMode);
         return $this->json(['success' => true, 'theme_mode' => $themeMode]);
+    }
+
+    public function toggleFavoriteModule(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return $this->json(['success' => false, 'error' => 'Service Unavailable'], 503);
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return $this->json(['success' => false, 'error' => 'Unauthenticated'], 401);
+        }
+
+        $moduleKey = trim((string) $request->input('module_key', ''));
+        if ($moduleKey === '') {
+            return $this->json(['success' => false, 'error' => 'Module key required'], 400);
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $favorites = $this->users->favoriteModules($userId);
+        $isFavorite = false;
+
+        if (in_array($moduleKey, $favorites, true)) {
+            $favorites = array_values(array_filter($favorites, fn ($k) => $k !== $moduleKey));
+            $isFavorite = false;
+        } else {
+            $favorites[] = $moduleKey;
+            $isFavorite = true;
+        }
+
+        $this->users->updateFavorites($userId, $favorites);
+
+        return $this->json([
+            'success' => true,
+            'module_key' => $moduleKey,
+            'is_favorite' => $isFavorite,
+            'favorites' => $favorites,
+        ]);
+    }
+
+    public function toggleHeaderModule(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return $this->json(['success' => false, 'error' => 'Service Unavailable'], 503);
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return $this->json(['success' => false, 'error' => 'Unauthenticated'], 401);
+        }
+
+        $moduleKey = trim((string) $request->input('module_key', ''));
+        if ($moduleKey === '') {
+            return $this->json(['success' => false, 'error' => 'Module key required'], 400);
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $current = $this->users->headerModules($userId);
+        
+        if ($current === null) {
+            $defaultPinned = $request->inputRaw('default_pinned_keys', []);
+            $current = is_array($defaultPinned) ? array_values(array_filter(array_map('strval', $defaultPinned))) : [];
+        }
+
+        $isPinned = false;
+        if (in_array($moduleKey, $current, true)) {
+            $current = array_values(array_filter($current, fn ($k) => $k !== $moduleKey));
+            $isPinned = false;
+        } else {
+            $canonicalKeys = $request->inputRaw('canonical_keys', []);
+            if (is_array($canonicalKeys) && $canonicalKeys !== []) {
+                $current[] = $moduleKey;
+                $ordered = [];
+                foreach ($canonicalKeys as $ck) {
+                    if (in_array($ck, $current, true)) {
+                        $ordered[] = (string) $ck;
+                    }
+                }
+                $current = $ordered;
+            } else {
+                $current[] = $moduleKey;
+            }
+            $isPinned = true;
+        }
+
+        $this->users->updateHeaderModules($userId, $current);
+
+        return $this->json([
+            'success' => true,
+            'module_key' => $moduleKey,
+            'is_pinned' => $isPinned,
+            'header_modules' => $current,
+        ]);
+    }
+
+    public function reorderHeaderModules(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return $this->json(['success' => false, 'error' => 'Service Unavailable'], 503);
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return $this->json(['success' => false, 'error' => 'Unauthenticated'], 401);
+        }
+
+        $keys = $request->inputRaw('keys', []);
+        if (!is_array($keys)) {
+            return $this->json(['success' => false, 'error' => 'Keys array required'], 400);
+        }
+
+        $normalized = array_values(array_unique(array_filter(array_map('strval', $keys), fn ($k) => trim($k) !== '')));
+        $userId = (int) ($user['id'] ?? 0);
+        $this->users->updateHeaderModules($userId, $normalized);
+
+        return $this->json([
+            'success' => true,
+            'header_modules' => $normalized,
+        ]);
+    }
+
+    public function resetHeaderModules(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return $this->json(['success' => false, 'error' => 'Service Unavailable'], 503);
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return $this->json(['success' => false, 'error' => 'Unauthenticated'], 401);
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $this->users->updateHeaderModules($userId, null);
+
+        return $this->json([
+            'success' => true,
+            'reset' => true,
+        ]);
+    }
+
+    public function updateAvatar(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return Response::redirect('/profil');
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return Response::redirect('/login');
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $file = $_FILES['avatar'] ?? null;
+
+        if (!is_array($file)) {
+            $this->session->flash('profile_error', 'Bitte wähle ein Bild zum Hochladen aus.');
+            return Response::redirect('/profil');
+        }
+
+        $uploadError = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            $errorMessage = match ($uploadError) {
+                UPLOAD_ERR_INI_SIZE => 'Das Bild überschreitet das Upload-Limit des Servers.',
+                UPLOAD_ERR_FORM_SIZE => 'Das Bild ist größer als im Formular erlaubt.',
+                UPLOAD_ERR_PARTIAL => 'Das Bild wurde nur unvollständig übertragen. Bitte erneut versuchen.',
+                UPLOAD_ERR_NO_FILE => 'Bitte wähle eine Datei zum Hochladen aus.',
+                default => 'Upload-Fehler (Code ' . $uploadError . ').',
+            };
+            $this->session->flash('profile_error', $errorMessage);
+            return Response::redirect('/profil');
+        }
+
+        $tmpPath = (string) ($file['tmp_name'] ?? '');
+        $size = (int) ($file['size'] ?? 0);
+
+        if ($size > 15 * 1024 * 1024) {
+            $this->session->flash('profile_error', 'Das Bild darf maximal 15 MB groß sein.');
+            return Response::redirect('/profil');
+        }
+
+        @ini_set('memory_limit', '256M');
+
+        $imgInfo = @getimagesize($tmpPath);
+        if ($imgInfo === false) {
+            $this->session->flash('profile_error', 'Die Datei ist kein gültiges Bild.');
+            return Response::redirect('/profil');
+        }
+
+        $rawImage = @file_get_contents($tmpPath);
+        if ($rawImage === false) {
+            $this->session->flash('profile_error', 'Bild konnte nicht gelesen werden.');
+            return Response::redirect('/profil');
+        }
+
+        $srcImage = @imagecreatefromstring($rawImage);
+        if ($srcImage === false) {
+            $this->session->flash('profile_error', 'Bildformat wird nicht unterstützt.');
+            return Response::redirect('/profil');
+        }
+
+        $srcWidth = imagesx($srcImage);
+        $srcHeight = imagesy($srcImage);
+
+        $cropSize = min($srcWidth, $srcHeight);
+        $cropX = (int) (($srcWidth - $cropSize) / 2);
+        $cropY = (int) (($srcHeight - $cropSize) / 2);
+
+        $targetSize = 256;
+        $destImage = imagecreatetruecolor($targetSize, $targetSize);
+        imagealphablending($destImage, false);
+        imagesavealpha($destImage, true);
+        $transparent = imagecolorallocatealpha($destImage, 0, 0, 0, 127);
+        imagefilledrectangle($destImage, 0, 0, $targetSize, $targetSize, $transparent);
+
+        imagecopyresampled(
+            $destImage,
+            $srcImage,
+            0, 0,
+            $cropX, $cropY,
+            $targetSize, $targetSize,
+            $cropSize, $cropSize
+        );
+        imagedestroy($srcImage);
+
+        $storageDir = dirname(__DIR__, 3) . '/storage/avatars';
+        if (!is_dir($storageDir)) {
+            @mkdir($storageDir, 0775, true);
+        }
+
+        $oldUser = $this->users->findById($userId);
+        if (is_array($oldUser) && !empty($oldUser['avatar_path'])) {
+            $oldPath = dirname(__DIR__, 3) . '/' . ltrim((string) $oldUser['avatar_path'], '/');
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        $filename = 'avatar_' . $userId . '_' . bin2hex(random_bytes(8)) . '.webp';
+        $fullPath = $storageDir . '/' . $filename;
+        $relativePath = 'storage/avatars/' . $filename;
+
+        if (function_exists('imagewebp')) {
+            imagewebp($destImage, $fullPath, 90);
+        } else {
+            imagepng($destImage, $fullPath, 8);
+        }
+        imagedestroy($destImage);
+
+        $this->users->updateAvatar($userId, $relativePath);
+        $this->session->flash('profile_info', 'Avatar erfolgreich aktualisiert.');
+
+        return Response::redirect('/profil');
+    }
+
+    public function deleteAvatar(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return Response::redirect('/profil');
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return Response::redirect('/login');
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $oldUser = $this->users->findById($userId);
+        if (is_array($oldUser) && !empty($oldUser['avatar_path'])) {
+            $oldPath = dirname(__DIR__, 3) . '/' . ltrim((string) $oldUser['avatar_path'], '/');
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        $this->users->updateAvatar($userId, null);
+        $this->session->flash('profile_info', 'Avatar entfernt.');
+
+        return Response::redirect('/profil');
+    }
+
+    public function updateAdminNavLayout(Request $request): Response
+    {
+        if ($this->auth === null || $this->users === null) {
+            return $this->json(['success' => false, 'error' => 'service_unavailable'], 503);
+        }
+
+        $user = $this->auth->currentUser();
+        if ($user === null) {
+            return $this->json(['success' => false, 'error' => 'authentication_required'], 401);
+        }
+
+        $layout = (string) $request->input('admin_nav_layout', 'tabs');
+        $layout = in_array($layout, ['tabs', 'sidebar'], true) ? $layout : 'tabs';
+
+        $this->users->updateAdminNavLayout((int) ($user['id'] ?? 0), $layout);
+
+        if ($request->header('Accept') !== null && str_contains((string) $request->header('Accept'), 'application/json')) {
+            return $this->json(['success' => true, 'admin_nav_layout' => $layout]);
+        }
+
+        $returnUrl = (string) $request->input('return_url', '/admin/module-catalog');
+        return Response::redirect($returnUrl !== '' ? $returnUrl : '/admin/module-catalog');
     }
 
     private function renderUserArea(Request $request, string $tab): Response
@@ -298,6 +603,7 @@ final class UserController
             'timezone_options' => $this->buildTimezoneOptions(),
             'settings_timezone' => $timezoneValue,
             'settings_dashboard_auto_refresh_enabled' => $dashboardAutoRefreshEnabled,
+            'settings_admin_nav_layout' => ($user['admin_nav_layout'] ?? 'tabs') === 'sidebar' ? 'sidebar' : 'tabs',
             'settings_dashboard_auto_refresh_interval_minutes' => $dashboardAutoRefreshIntervalMinutes,
             'settings_theme_mode' => $themeMode,
             'settings_theme_switcher_visible' => $themeSwitcherVisible,

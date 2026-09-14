@@ -1,8 +1,10 @@
-# Modul-Lebenszyklus heute
+# Historischer Modul-v1-Lebenszyklus
 
 Dieses Dokument beschreibt den Legacy-Lebenszyklus von ModulNest 1.x. Der
 aktuelle katalogverwaltete Modul-v2-Lifecycle steht in
-[`module-system-v2.md`](module-system-v2.md).
+[`module-v2-authoring.md`](module-v2-authoring.md#10-lifecycle). Die folgenden
+Aussagen sind nur für verbliebene v1-/Legacy-Kompatibilität bestimmt und dürfen
+nicht als Anleitung für neue Module verwendet werden.
 
 ## Discovery und Aktivierung
 
@@ -30,31 +32,28 @@ werden über den zentralen MigrationRunner geprüft und ausgeführt, wenn ein
 Release Migrationen verlangt. Details stehen in [Release](../release.md) und
 [Datenbank](../database.md).
 
-## Aktuelle Grenzen
+## Historische Grenzen von v1
 
-Heute gibt es ausdrücklich **nicht**:
+Im hier beschriebenen v1-System gab es ausdrücklich **nicht**:
 
 - physische Installation einzelner Module aus einem Marketplace,
 - Einzelmodul-Updates,
 - deklarierte Modulabhängigkeiten,
 - automatische Uninstall-/Datenrollback-Logik.
 
-Ein späterer Marketplace kann dafür Paketmetadaten für Modulversion,
-`requires_modulnest`, Abhängigkeiten, Paket-Hash/Signatur sowie Upgrade- und
-Uninstall-Policy definieren. Diese Felder sind heute keine implementierte API.
+Das später implementierte Modul-v2 verwendet dafür das in der kanonischen
+Authoring-Anleitung dokumentierte Manifest, den signierten Katalog und
+`ModuleLifecycleService`. Der frühe Vorschlagsname `requires_modulnest` ist keine
+aktuelle API; implementiert ist `requires.core`.
 
-## Versionierung heute und mit zukünftigem Marketplace
+## Historische v1-Versionierung
 
-Heute wird ModulNest als Gesamtpaket versioniert. Ändert sich ein mitgeliefertes
+In v1 wurde ModulNest als Gesamtpaket versioniert. Änderte sich ein mitgeliefertes
 Produktmodul und soll diese Änderung öffentlich ausgeliefert werden, benötigt
 das gesamte ModulNest-Paket eine neue Version.
 
-Ein späteres Marketplace-Modul, das einzeln installiert oder aktualisiert
-werden kann, benötigt dagegen eine eigene SemVer-Version. Seine künftigen
-Paketmetadaten müssen mindestens eine Modulversion, `requires_modulnest`,
-Abhängigkeiten beziehungsweise optionale Abhängigkeiten, eine Upgrade- und
-Migrations-Policy sowie einen Paket-Hash oder eine Signatur beschreiben.
+Ein Modul-v2, das einzeln installiert oder aktualisiert wird, besitzt dagegen
+eine eigene SemVer-Version und die heute implementierten Manifest-/Katalogdaten.
 
-Core- und Modulversion wären dann unabhängig, etwa ModulNest Core `1.4.2`,
-Wiki `1.7.0` und Banking `2.1.3`. Diese Metadaten und APIs sind heute bewusst
-noch nicht implementiert.
+Core- und Modulversion sind seit ModulNest 2 unabhängig. Die exakten heute
+implementierten Metadaten stehen ausschließlich in der Authoring-Anleitung.

@@ -163,6 +163,16 @@ final class ModuleBatchUpdateService
         return $state;
     }
 
+    
+    public function dismiss(string $operationId): void
+    {
+        $state = $this->status($operationId);
+        if (is_array($state)) {
+            $state['dismissed'] = true;
+            $state['dismissed_at'] = gmdate(DATE_ATOM);
+            $this->write($operationId, $state);
+        }
+    }
     public function recordFailure(string $operationId, string $code, string $message): void
     {
         $state = $this->status($operationId);

@@ -4,8 +4,8 @@
 
 Veröffentlicht News und Updatehinweise. Inhalte unterstützen sicher gerendertes Markdown; rohe HTML-Eingabe wird nicht ausgeführt.
 
-Auf `develop/2.0` ist News das eigenständige Paket `modulnest.news` in den
-Versionen `1.0.0` und `1.0.1`. Es besitzt exakt die Tabelle `news_entries`
+News ist das eigenständige Paket `modulnest.news`, aktuell Version `1.2.0`.
+Es besitzt exakt die Tabelle `news_entries`
 (Data-Schema 1), einschließlich Paketmigration und Seeds. Öffentliche Routen,
 Admin-CRUD und Markdown bleiben unverändert.
 

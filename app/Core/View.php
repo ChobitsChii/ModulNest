@@ -30,6 +30,18 @@ final class View
                 throw new RuntimeException('Ungültige Modul-View: ' . $template);
             }
             $templatePath = self::$moduleRoots[$moduleId] . '/' . trim($moduleTemplate, '/') . '.php';
+        } elseif (!is_file($templatePath) && str_contains($template, '/')) {
+            [$prefix, $subTemplate] = explode('/', trim($template, '/'), 2);
+            $candidates = [$prefix, 'modulnest.' . $prefix];
+            foreach ($candidates as $candidate) {
+                if (isset(self::$moduleRoots[$candidate])) {
+                    $candidatePath = self::$moduleRoots[$candidate] . '/' . trim($subTemplate, '/') . '.php';
+                    if (is_file($candidatePath)) {
+                        $templatePath = $candidatePath;
+                        break;
+                    }
+                }
+            }
         }
         $layoutPath = $viewsPath . '/layouts/app.php';
 
@@ -97,6 +109,35 @@ final class View
     /**
      * @param array<string, mixed> $data
      */
+    public static function renderPartial(string $template, array $data = []): string
+    {
+        $viewsPath = dirname(__DIR__) . '/Views';
+        $templatePath = $viewsPath . '/' . trim($template, '/') . '.php';
+        if (str_starts_with($template, '@')) {
+            [$moduleId, $moduleTemplate] = array_pad(explode('/', substr($template, 1), 2), 2, '');
+            if (isset(self::$moduleRoots[$moduleId]) && $moduleTemplate !== '') {
+                $templatePath = self::$moduleRoots[$moduleId] . '/' . trim($moduleTemplate, '/') . '.php';
+            }
+        } elseif (!is_file($templatePath) && str_contains($template, '/')) {
+            [$prefix, $subTemplate] = explode('/', trim($template, '/'), 2);
+            foreach ([$prefix, 'modulnest.' . $prefix] as $candidate) {
+                if (isset(self::$moduleRoots[$candidate])) {
+                    $candidatePath = self::$moduleRoots[$candidate] . '/' . trim($subTemplate, '/') . '.php';
+                    if (is_file($candidatePath)) {
+                        $templatePath = $candidatePath;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!is_file($templatePath)) {
+            throw new RuntimeException('Partial View nicht gefunden: ' . $template);
+        }
+
+        return self::capture($templatePath, $data);
+    }
+
     private static function capture(string $filePath, array $data): string
     {
         extract($data, EXTR_SKIP);

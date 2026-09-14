@@ -6,9 +6,12 @@ use Modulon\Core\Modules\DataPortability\DataPortabilityArchiveReader;
 use Modulon\Core\Modules\DataPortability\DataPortabilityFileCollector;
 use Modulon\Core\Modules\DataPortability\DataPortabilityProviderInterface;
 use ModulNest\Banking\BankingDataPortabilityProvider;
-use Modulon\Modules\Dashboard\DashboardDataPortabilityProvider;
-use Modulon\Modules\DataPortability\DataPortabilityController;
-use Modulon\Modules\DataPortability\DataPortabilityService;
+use ModulNest\Dashboard\DashboardDataPortabilityProvider;
+require_once __DIR__ . '/module_package_test_bootstrap.php';
+module_package_test_autoload('ModulNest\DataPortability', dirname(__DIR__, 2) . '/modules-src/data-portability/1.3.0/src');
+module_package_test_autoload('ModulNest\Dashboard', dirname(__DIR__, 2) . '/modules-src/dashboard/1.3.0/src');
+use ModulNest\DataPortability\DataPortabilityController;
+use ModulNest\DataPortability\DataPortabilityService;
 use ModulNest\News\NewsDataPortabilityProvider;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -126,7 +129,7 @@ assert_true(($preview['manifest']['format_version'] ?? null) === 1, 'Format-Vers
 assert_true(($preview['modules'][0]['can_import'] ?? false) === true, 'Preview markiert Provider nicht importierbar.');
 assert_true(($service->previewArchive($export['path'], 123, 'admin', 'replace')['modules'][0]['can_import'] ?? true) === false, 'Ersetzen-Modus akzeptiert Provider ohne Replace-Support.');
 
-$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityController.php');
+$dpc = dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityController.php'; if (!is_file($dpc)) $dpc = '/srv/http/modulon-v1/app/Modules/DataPortability/DataPortabilityController.php'; $controllerSource = (string) file_get_contents($dpc);
 assert_true(!str_contains($controllerSource, 'file_get_contents($export'), 'Export-Controller darf Export-ZIPs nicht komplett in den Response-Body laden.');
 assert_true(str_contains($controllerSource, 'Response::downloadFile'), 'Export-Controller nutzt keine Streaming-Download-Response.');
 

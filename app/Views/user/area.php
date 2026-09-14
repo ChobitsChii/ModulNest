@@ -66,6 +66,31 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
         </div>
     <?php endif; ?>
 
+        <div class="card shadow-sm border-0 app-card mb-4">
+        <div class="card-body p-4">
+            <h2 class="h6 mb-3">Profilbild / Avatar</h2>
+            <div class="d-flex flex-wrap align-items-center gap-4">
+                <div>
+                    <?= \Modulon\Core\UserAvatarHelper::render($profileUser, 72, 'shadow-sm') ?>
+                </div>
+                <div class="flex-grow-1">
+                    <form method="post" action="/profil/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                        <input type="file" name="avatar" class="form-control form-control-sm w-auto" accept="image/png, image/jpeg, image/webp, image/gif" required>
+                        <button type="submit" class="btn btn-primary btn-sm">Avatar hochladen</button>
+                    </form>
+                    <div class="form-text small mt-1">Erlaubt: PNG, JPG, WebP, GIF bis max. 5 MB. Das Bild wird automatisch quadratisch skaliert und bereinigt.</div>
+                    <?php if (!empty($profileUser['avatar_path'])): ?>
+                        <form method="post" action="/profil/avatar/delete" class="mt-2">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Möchtest du deinen Avatar wirklich entfernen?');">Avatar entfernen</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm border-0 app-card">
         <div class="card-body p-4">
             <form method="post" action="/profil/update" class="row g-3">
@@ -353,6 +378,31 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
         </div>
     <?php endif; ?>
 
+        <div class="card shadow-sm border-0 app-card mb-4">
+        <div class="card-body p-4">
+            <h2 class="h6 mb-3">Profilbild / Avatar</h2>
+            <div class="d-flex flex-wrap align-items-center gap-4">
+                <div>
+                    <?= \Modulon\Core\UserAvatarHelper::render($profileUser, 72, 'shadow-sm') ?>
+                </div>
+                <div class="flex-grow-1">
+                    <form method="post" action="/profil/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
+                        <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                        <input type="file" name="avatar" class="form-control form-control-sm w-auto" accept="image/png, image/jpeg, image/webp, image/gif" required>
+                        <button type="submit" class="btn btn-primary btn-sm">Avatar hochladen</button>
+                    </form>
+                    <div class="form-text small mt-1">Erlaubt: PNG, JPG, WebP, GIF bis max. 5 MB. Das Bild wird automatisch quadratisch skaliert und bereinigt.</div>
+                    <?php if (!empty($profileUser['avatar_path'])): ?>
+                        <form method="post" action="/profil/avatar/delete" class="mt-2">
+                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Möchtest du deinen Avatar wirklich entfernen?');">Avatar entfernen</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm border-0 app-card">
         <div class="card-body p-4">
             <form method="post" action="/profil/settings" class="row g-3">
@@ -374,6 +424,18 @@ $credentials = is_array($credentials ?? null) ? $credentials : [];
                         <label class="form-check-label" for="settings_theme_switcher_visible">Theme-Umschalter in der Kopfzeile anzeigen</label>
                     </div>
                     <div class="form-text">Blendet den schnellen Theme-Umschalter in der Kopfzeile ein oder aus.</div>
+                    <?php if (!empty($auth['is_admin'])): ?>
+                        <div class="mt-3 pt-3 border-top">
+                            <span class="form-label d-block mb-2">Admin-Navigationslayout</span>
+                            <div class="btn-group" role="group" aria-label="Admin-Navigationslayout auswählen">
+                                <input class="btn-check" type="radio" name="admin_nav_layout" id="settings_admin_nav_tabs" value="tabs"<?= ($settings_admin_nav_layout ?? 'tabs') === 'tabs' ? ' checked' : '' ?>>
+                                <label class="btn btn-outline-secondary" for="settings_admin_nav_tabs"><i class="bi bi-segmented-nav me-1"></i> Horizontale Tabs (Standard)</label>
+                                <input class="btn-check" type="radio" name="admin_nav_layout" id="settings_admin_nav_sidebar" value="sidebar"<?= ($settings_admin_nav_layout ?? 'tabs') === 'sidebar' ? ' checked' : '' ?>>
+                                <label class="btn btn-outline-secondary" for="settings_admin_nav_sidebar"><i class="bi bi-layout-sidebar-inset me-1"></i> Vertikale Sidebar</label>
+                            </div>
+                            <div class="form-text">Wähle, ob die Admin-Navigation als aufgeräumte horizontale Leiste mit Modul-Dropdown oder als vertikale Seitenleiste dargestellt werden soll.</div>
+                        </div>
+                    <?php endif; ?>
                 </fieldset>
                 <div class="col-12 col-md-7 col-lg-6">
                     <label class="form-label mb-1" for="profile_timezone">Zeitzone</label>

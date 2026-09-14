@@ -1,64 +1,36 @@
-# Entwicklung nativer Module
+# Modulentwicklung
 
-Diese Dokumentation beschreibt den aktuellen, öffentlichen ModulNest-Vertrag
-für native Module. Sie ist so geschrieben, dass Menschen und Coding-KIs ein
-Modul allein anhand des Repositorys und dieser Dateien umsetzen können.
+## Modul v2 – aktueller Standard
 
-Ein **natives Modul** ist PHP-Code, der über eine Modulklasse Routen,
-Navigation und Bindungsmetadaten am Core anmeldet. Native Module unterscheiden
-sich von **Legacy-Anwendungen**: Legacy-Code wird dateibasiert unter
-`app/Legacy/` eingebunden und verwendet bei Formularen die
-[`LegacyCsrf`](../modules/README.md)-Bridge.
+Neue öffentliche Produktmodule für ModulNest 2 sind unabhängig versionierte,
+paket- und katalogverwaltete Modul-v2. Der verbindliche Einstieg ist:
 
-## Wichtigster Einstieg
+- [Modul-v2-Authoring](module-v2-authoring.md) – kanonischer, vollständiger
+  Vertrag für Manifest, Entrypoint, Daten, Capabilities, Tests und Veröffentlichung.
+- [AI-Quickstart](module-v2-ai-checklist.md) – kompakte Checkliste für Coding-KIs.
+- [Modul-v2-Pakete](module-packages-v2.md) – Laufzeit- und Lifecyclesicht.
+- [Modul-v2 veröffentlichen](module-v2-publishing.md) – Erstaufnahme und
+  unabhängige Folgereleases offizieller Module.
+- [Signierter Modulkatalog](module-catalog-v2.md) – Format, Trust Store und LKG.
+- [Statische Release-Mirrors](static-release-mirrors.md) – Distribution und
+  atomare Spiegelung.
 
-- [Modulvertrag](module-spec.md) – verbindliche MUST/MUST-NOT-Regeln.
-- [Ein Modul erstellen](create-module.md) – typische Umsetzung Schritt für Schritt.
-- [Security](security.md) – Zugriff, CSRF, Daten, Uploads und Logging.
-- [Tests](testing.md) – vorhandene Prüfungen und erwartete Negativtests.
-- [Lebenszyklus](lifecycle.md) – Discovery, Aktivierung, Release und heutige Grenzen.
-- [Vollständiges Example-Modul](example-module.md) – ausführbare Referenz mit
-  Service, Repository, Migration, Assets und CSRF.
-- [Modulpakete v2](module-packages-v2.md) – implementierter Paket-Lifecycle,
-  Retain/Purge und Wiki-Adoption.
-- [Signierter Modulkatalog v2](module-catalog-v2.md) – statisches Format,
-  Trust Store, LKG, Betrieb und Testfixtures.
-- [Statische Release-Mirrors](static-release-mirrors.md) – GitHub-Sync,
-  atomare Veröffentlichung und Last Known Good.
+Neuer Modulcode gehört nicht nach `app/Modules`, globale `app/Views` oder globale
+Assetpfade. Das 1.x-ExampleNotes ist keine Modul-v2-Vorlage.
 
-Bestehende Systemdokumentation ergänzt diese Referenz:
+## Modul v1 und Legacy – nur Kompatibilität
 
-- [Module](../modules/README.md)
-- [Technische Architektur](../technical/tech-architecture.md)
-- [Datenbank und Migrationen](../database.md)
-- [Release und Public Export](../release.md)
-- [Projektweite E2E-Tests](../testing.md)
+Die folgenden Dokumente erklären den weiterhin unterstützten historischen
+Native-/Legacy-Vertrag. Sie dürfen nicht als Startpunkt für ein neues Katalogmodul
+verwendet werden:
 
-## Schnellübersicht
+- [Historischer Modul-v1-Vertrag](module-spec.md)
+- [Historischer v1-Generator](create-module.md)
+- [Historischer v1-Lifecycle](lifecycle.md)
+- [v1-ExampleNotes](example-module.md)
+- [Security-Grundlagen](security.md) und [Test-Grundlagen](testing.md), soweit ihre
+  Regeln nicht durch die kanonische v2-Anleitung präzisiert werden.
 
-Ein normales Produktmodul liegt unter `app/Modules/<Modul>/`. Der Loader sucht
-dort genau nach `Modulon\Modules\<Modul>\<Modul>Module`. Views gehören zentral
-unter `app/Views/`, öffentliche Assets unter `public/assets/`.
-
-```text
-app/Modules/MyModule/MyModuleModule.php
-app/Modules/MyModule/MyModuleController.php       # nur bei Bedarf
-app/Modules/MyModule/Database/Migrations/*.php    # bei Schemaänderungen
-app/Views/my-module/*.php                          # nur bei HTML-Ausgabe
-public/assets/js/my-module.js                      # nur bei Browser-JS
-```
-
-Das ausführbare Lehrbeispiel liegt bewusst außerhalb dieses Pfads unter
- [`examples/modules/ExampleNotes/`](https://github.com/ChobitsChii/ModulNest/tree/main/examples/modules/ExampleNotes/). Es
-wird deshalb weder auto-discovered noch als deaktiviertes Produktmodul angelegt.
-
-Für ein kleines Grundgerüst steht optional `php tools/create-module.php` bereit.
-Der manuelle Weg bleibt vollständig unterstützt; Optionen, Dry Run und JSON für
-Automatisierung sind in [Ein Modul erstellen](create-module.md) beschrieben.
-Für Navigation unterscheidet der Generator bewusst Hauptnavigation
-(`--main-navigation`) und persönliches Account-Menü (`--account-navigation`).
-
-Markdown-Codeblöcke werden zentral sicher gerendert. Sie erhalten ein Sprachlabel
-und eine lokale Kopierhilfe; Syntax Highlighting ist bewusst noch keine externe
-Runtime-Abhängigkeit und wird erst mit einer lokal gebündelten, CSP-kompatiblen
-Lösung ergänzt.
+Ergänzend: [Technische Architektur](../technical/tech-architecture.md),
+[Datenbank](../database.md), [Release/Public Export](../release.md) und
+[projektweite E2E-Tests](../testing.md).

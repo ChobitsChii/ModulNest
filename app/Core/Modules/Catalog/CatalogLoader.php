@@ -20,6 +20,7 @@ final class CatalogLoader
 
     public function refresh(CatalogSourceInterface $source): CatalogSnapshot
     {
+        $bindingHash = $this->bindingHash($source);
         $rootJson = $source->read('catalog/v1/root.json', 1048576);
         $root = $this->schema->root($rootJson);
         $signature = $this->schema->signature($source->read('catalog/v1/root.json.sig', 4096));
@@ -45,7 +46,7 @@ final class CatalogLoader
         if (new DateTimeImmutable($root['expires_at']) <= $now) {
             throw new RuntimeException('Katalog ist abgelaufen.');
         }
-        $old = $this->cache->load($source->id());
+        $old = $this->cache->load($source->id(), $bindingHash);
         if ($old !== null) {
             $oldSequence = (int) $old->root['sequence'];
             $newSequence = (int) $root['sequence'];
@@ -79,7 +80,7 @@ final class CatalogLoader
         }
 
         $snapshot = new CatalogSnapshot($source->id(), $root, $modules);
-        $this->cache->store($snapshot);
+        $this->cache->store($snapshot, $bindingHash);
 
         return $snapshot;
     }
@@ -89,7 +90,7 @@ final class CatalogLoader
         try {
             return $this->refresh($source);
         } catch (\Throwable $exception) {
-            $old = $this->cache->load($source->id());
+            $old = $this->cache->load($source->id(), $this->bindingHash($source));
             if ($old === null) {
                 throw $exception;
             }
@@ -121,5 +122,10 @@ final class CatalogLoader
         );
 
         return $bytes;
+    }
+
+    private function bindingHash(CatalogSourceInterface $source): string
+    {
+        return hash('sha256', $source->identity() . "\0" . $this->trust->identity());
     }
 }

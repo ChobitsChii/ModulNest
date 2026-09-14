@@ -56,7 +56,7 @@ try {
     wiki_export_assert(!is_dir($target . '/app/Modules/ExampleNotes'), 'ExampleNotes must remain reference code outside productive module discovery.');
     $metadata = json_decode((string) file_get_contents($target . '/modulnest-package.json'), true);
     wiki_export_assert(is_array($metadata)
-        && ($metadata['version'] ?? '') === '2.0.1'
+        && ($metadata['version'] ?? '') === '2.1.0'
         && ($metadata['channel'] ?? '') === 'stable'
         && ($metadata['requires_migrations'] ?? false) === true,
         'The stable package metadata must carry its version, channel, and migration flag.');

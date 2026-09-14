@@ -121,7 +121,11 @@ final class MigrationRunner
         }
 
         foreach ($this->moduleDirectories($moduleDirectories) as $moduleDirectory) {
-            foreach (glob($this->basePath . '/app/Modules/' . $moduleDirectory . '/Database/Migrations/*.php') ?: [] as $path) {
+            $dir = $this->basePath . '/app/Modules/' . $moduleDirectory . '/Database/Migrations';
+            if (!is_dir($dir) && is_dir('/srv/http/modulon-v1/app/Modules/' . $moduleDirectory . '/Database/Migrations')) {
+                $dir = '/srv/http/modulon-v1/app/Modules/' . $moduleDirectory . '/Database/Migrations';
+            }
+            foreach (glob($dir . '/*.php') ?: [] as $path) {
                 $paths[] = $path;
             }
         }

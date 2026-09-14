@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-use Modulon\Modules\Dashboard\DashboardRepository;
+require __DIR__ . '/module_package_test_bootstrap.php';
+$dashDir = dirname(__DIR__, 2) . '/modules-src/dashboard/1.3.0/src';
+if (!is_dir($dashDir)) $dashDir = dirname(__DIR__, 2) . '/modules-src/dashboard/1.0.0/src';
+module_package_test_autoload('ModulNest\Dashboard', $dashDir);
+use ModulNest\Dashboard\DashboardRepository;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 

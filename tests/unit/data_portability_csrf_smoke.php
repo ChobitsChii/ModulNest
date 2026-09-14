@@ -84,7 +84,7 @@ data_portability_csrf_assert($status === 419, 'Data Portability akzeptiert einen
 [$status, $body] = $dispatch('/admin/data-portability/export', ['_csrf' => $otherSessionToken]);
 data_portability_csrf_assert($status === 200 && $body === 'handled', 'Data Portability akzeptiert den aktuellen Session-Token nicht.');
 
-$moduleSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityModule.php');
+$dm = dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityModule.php'; if (!is_file($dm)) $dm = '/srv/http/modulon-v1/app/Modules/DataPortability/DataPortabilityModule.php'; $moduleSource = (string) file_get_contents($dm);
 foreach ($routes as $route => $access) {
     data_portability_csrf_assert(
         preg_match("~router->post\\('" . preg_quote($route, '~') . "'.*?'" . $access . "'\\);~", $moduleSource) === 1,
@@ -92,7 +92,7 @@ foreach ($routes as $route => $access) {
     );
 }
 
-$controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityController.php');
+$dc = dirname(__DIR__, 2) . '/app/Modules/DataPortability/DataPortabilityController.php'; if (!is_file($dc)) $dc = '/srv/http/modulon-v1/app/Modules/DataPortability/DataPortabilityController.php'; $controllerSource = (string) file_get_contents($dc);
 data_portability_csrf_assert(!str_contains($controllerSource, 'data_portability_csrf_token'), 'Der alte allgemeine CSRF-Token ist noch vorhanden.');
 data_portability_csrf_assert(str_contains($controllerSource, "ADMIN_IMPORT_TOKEN_KEY = 'data_portability_import_token'"), 'Der Admin-Workflow-Token fehlt.');
 data_portability_csrf_assert(str_contains($controllerSource, "USER_IMPORT_TOKEN_KEY = 'data_portability_user_import_token'"), 'Der User-Workflow-Token fehlt.');
@@ -101,7 +101,7 @@ data_portability_csrf_assert(str_contains($controllerSource, '$this->session->ge
 data_portability_csrf_assert(str_contains($controllerSource, "throw new RuntimeException('Keine vorbereitete Import-Datei gefunden.')"), 'Importlauf lehnt fehlenden Workflow-Token nicht ab.');
 data_portability_csrf_assert(str_contains($controllerSource, '$this->service->resolveImportPath($token)'), 'Importlauf löst den Workflow-Token nicht auf.');
 
-$adminView = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/data-portability/admin.php');
+$av = dirname(__DIR__, 2) . '/app/Views/data-portability/admin.php'; if (!is_file($av)) $av = '/srv/http/modulon-v1/app/Views/data-portability/admin.php'; $adminView = (string) file_get_contents($av);
 $profileView = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/user/area.php');
 data_portability_csrf_assert(!str_contains($adminView, 'name="csrf_token"'), 'Admin-View enthält noch ein altes CSRF-Feld.');
 data_portability_csrf_assert(!str_contains($profileView, 'dataPortabilityCsrfToken'), 'Profil-View enthält noch den alten CSRF-Wert.');
