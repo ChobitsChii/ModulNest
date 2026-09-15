@@ -25,6 +25,8 @@ $mirror = is_array($mirror_status ?? null) ? $mirror_status : [];
 $mirrorConfigured = (bool) ($mirror['configured'] ?? false);
 $mirrorRunning = (bool) ($mirror['is_running'] ?? false);
 $mirrorExecutable = (bool) ($mirror['script_executable'] ?? false);
+$backupsOverview = is_array($backups_overview ?? null) ? $backups_overview : ['total_size' => 0, 'total_size_formatted' => '0 B', 'backups_count' => 0, 'items' => []];
+$backupItems = is_array($backupsOverview['items'] ?? null) ? $backupsOverview['items'] : [];
 
 $activeTab = (string) ($_GET['tab'] ?? 'updates');
 if (!in_array($activeTab, ['updates', 'sources'], true)) {
@@ -94,41 +96,72 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
     </div>
 
     <?php if ($activeTab === 'updates'): ?>
+        <style>
+            .history-collapse-toggle {
+                cursor: pointer;
+                user-select: none;
+                transition: background-color 0.15s ease;
+                border-radius: var(--bs-border-radius);
+                padding: 0.5rem 0.75rem;
+                margin: -0.5rem -0.75rem;
+            }
+            .history-collapse-toggle:hover {
+                background-color: rgba(var(--bs-primary-rgb), 0.05);
+            }
+            .history-collapse-toggle .history-chevron {
+                transition: transform 0.2s ease;
+            }
+            .history-collapse-toggle[aria-expanded="true"] .history-chevron {
+                transform: rotate(180deg);
+            }
+        </style>
         <div class="col-12">
             <div class="card shadow-sm border-0 app-card">
-                <details class="updates-channel-details">
-                    <summary class="updates-channel-summary p-4" aria-expanded="false">
-                        <span class="updates-channel-current">
-                            <span class="h6 mb-0">Updatekanal</span>
-                            <strong><?= $e($updateChannelLabel) ?></strong>
+                <div class="card-body p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-0 history-collapse-toggle"
+                         role="button"
+                         tabindex="0"
+                         data-bs-toggle="collapse"
+                         data-bs-target="#collapseUpdateChannel"
+                         aria-expanded="false"
+                         aria-controls="collapseUpdateChannel">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <i class="bi bi-funnel text-primary"></i>
+                            <h2 class="h6 mb-0">Updatekanal</h2>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                <?= $e($updateChannelLabel) ?>
+                            </span>
                             <?php if ($updateChannel === 'preview'): ?>
                                 <span class="badge text-bg-warning">Vorabversionen aktiviert</span>
                             <?php endif; ?>
-                            <span class="btn btn-outline-secondary btn-sm updates-channel-action" aria-hidden="true">
-                                <span class="updates-channel-open-label">Ändern <span aria-hidden="true">▾</span></span>
-                                <span class="updates-channel-close-label">Schließen <span aria-hidden="true">▴</span></span>
-                            </span>
-                        </span>
-                    </summary>
-                    <div class="card-body px-4 pt-0 pb-4">
-                        <p class="text-body-secondary small">Diese Einstellung gilt für die gesamte ModulNest-Installation.</p>
-                        <form method="post" action="/admin/updates/channel">
-                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="radio" name="update_channel" value="stable" id="update_channel_stable"<?= $updateChannel === 'stable' ? ' checked' : '' ?>>
-                                <label class="form-check-label" for="update_channel_stable"><strong>Stable</strong><br><span class="small text-body-secondary">Nur fertige, empfohlene Releases.</span></label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="update_channel" value="preview" id="update_channel_preview"<?= $updateChannel === 'preview' ? ' checked' : '' ?>>
-                                <label class="form-check-label" for="update_channel_preview"><strong>Stable + Vorabversionen</strong><br><span class="small text-body-secondary">Zusätzlich Alpha-, Beta- und Release-Candidate-Versionen. Diese können noch Fehler enthalten.</span></label>
-                            </div>
-                            <button class="btn btn-primary btn-sm mt-3" type="submit">Updatekanal speichern</button>
-                        </form>
-                        <?php if ($updateChannel === 'preview'): ?>
-                            <div class="alert alert-warning small mt-3 mb-0" role="status"><strong>Vorabversionen sind aktiviert.</strong> Stable-Releases werden weiterhin berücksichtigt und ersetzen ältere Vorabversionen automatisch.</div>
-                        <?php endif; ?>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 text-primary small fw-semibold">
+                            <span>Kanal einstellen</span>
+                            <i class="bi bi-chevron-down history-chevron"></i>
+                        </div>
                     </div>
-                </details>
+
+                    <div class="collapse mt-3" id="collapseUpdateChannel">
+                        <div class="border-top pt-3">
+                            <p class="text-body-secondary small">Diese Einstellung gilt für die gesamte ModulNest-Installation.</p>
+                            <form method="post" action="/admin/updates/channel">
+                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="radio" name="update_channel" value="stable" id="update_channel_stable"<?= $updateChannel === 'stable' ? ' checked' : '' ?>>
+                                    <label class="form-check-label" for="update_channel_stable"><strong>Stable</strong><br><span class="small text-body-secondary">Nur fertige, empfohlene Releases.</span></label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="update_channel" value="preview" id="update_channel_preview"<?= $updateChannel === 'preview' ? ' checked' : '' ?>>
+                                    <label class="form-check-label" for="update_channel_preview"><strong>Stable + Vorabversionen</strong><br><span class="small text-body-secondary">Zusätzlich Alpha-, Beta- und Release-Candidate-Versionen. Diese können noch Fehler enthalten.</span></label>
+                                </div>
+                                <button class="btn btn-primary btn-sm mt-3" type="submit">Updatekanal speichern</button>
+                            </form>
+                            <?php if ($updateChannel === 'preview'): ?>
+                                <div class="alert alert-warning small mt-3 mb-0" role="status"><strong>Vorabversionen sind aktiviert.</strong> Stable-Releases werden weiterhin berücksichtigt und ersetzen ältere Vorabversionen automatisch.</div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -219,11 +252,28 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
             <div class="card shadow-sm border-0 app-card h-100">
                 <div class="card-body p-4">
                     <h2 class="h6 mb-3">3. Installieren</h2>
-                    <div class="alert alert-warning small" role="alert">
-                        Bitte vor Updates ein Datenbank-Backup erstellen. Dateien werden vor dem Überschreiben unter <code>storage/backups/updates/</code> gesichert.
+                    <div class="alert alert-info small d-flex flex-column gap-2" role="alert">
+                        <div>
+                            <i class="bi bi-shield-check text-success me-1"></i>
+                            <strong>Automatische Sicherung vor Installation:</strong> Unmittelbar vor dem Überschreiben der Dateien wird automatisch ein vollständiges Backup aller betroffenen Dateien sowie der aktuellen Datenbank unter <code>storage/backups/updates/</code> als ZIP archiviert.
+                        </div>
+                        <div class="border-top border-info-subtle pt-2 mt-1">
+                            <div class="fw-semibold mb-1">
+                                <i class="bi bi-database me-1"></i>Manuelles Live-Backup:
+                            </div>
+                            <form method="post" action="/admin/updates/backup-db" class="d-inline">
+                                <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Erstellt in Echtzeit ein frisches Backup der aktuellen Live-Datenbank">
+                                    <i class="bi bi-file-earmark-zip me-1"></i>Aktuelle Live-Datenbank sichern (.zip)
+                                </button>
+                            </form>
+                            <div class="text-body-secondary mt-1" style="font-size: 0.78rem;">
+                                Erzeugt in Echtzeit einen tagesaktuellen SQL-Dump des jetzigen Live-Zustands.
+                            </div>
+                        </div>
                     </div>
                     <?php if ($prepared !== []): ?>
-                        <form method="post" action="/admin/updates/install" onsubmit="return confirm('Update jetzt installieren? Bitte stelle sicher, dass ein Datenbank-Backup vorhanden ist.');">
+                        <form method="post" action="/admin/updates/install" onsubmit="return confirm('Update jetzt installieren? Vor dem Überschreiben wird automatisch ein vollständiges Datenbank- und Datei-Backup erstellt.');">
                             <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <button class="btn btn-danger" type="submit">Vorbereitetes Update installieren</button>
                         </form>
@@ -257,6 +307,28 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                                 </div>
                             <?php endif; ?>
                             <div class="col-12">Backup-Pfad: <span class="text-break"><?= $e((string) ($lastInstall['backup_path'] ?? '')) ?></span></div>
+                            <?php
+                            $latestBackupMatch = null;
+                            foreach ($backupItems as $bItem) {
+                                if ((string) ($bItem['backup_path'] ?? '') === (string) ($lastInstall['backup_path'] ?? '') || (string) ($bItem['id'] ?? '') === basename((string) ($lastInstall['backup_path'] ?? ''))) {
+                                    $latestBackupMatch = $bItem;
+                                    break;
+                                }
+                            }
+                            ?>
+                            <?php if ($latestBackupMatch !== null): ?>
+                                <div class="col-12 col-md-6">Größe dieses Backups: <strong><?= $e((string) $latestBackupMatch['total_size_formatted']) ?></strong> <span class="text-body-secondary small">(inkl. komprimiertem Datenbank-Backup)</span></div>
+                            <?php endif; ?>
+                            <?php if (!empty($lastInstall['database_backup'])): ?>
+                                <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                                    <span><i class="bi bi-file-earmark-zip text-success me-1"></i>Datenbank-Backup: <span class="text-break"><strong><?= $e(basename((string) $lastInstall['database_backup'])) ?></strong> (gesichert)</span></span>
+                                    <?php if ($latestBackupMatch !== null): ?>
+                                        <a href="/admin/updates/backup-db?id=<?= urlencode((string) $latestBackupMatch['id']) ?>" class="btn btn-sm btn-outline-success py-0 px-2" title="SQL-Dump (.zip) dieses Updates herunterladen">
+                                            <i class="bi bi-download me-1"></i>Dump herunterladen
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             <?php if (is_array($lastInstall['migrations'] ?? null)): ?>
                                 <?php $migrations = $lastInstall['migrations']; ?>
                                 <?php
@@ -287,6 +359,104 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                 </div>
             </div>
         <?php endif; ?>
+
+        <div class="col-12">
+            <div class="card shadow-sm border-0 app-card">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-0 history-collapse-toggle"
+                         role="button"
+                         tabindex="0"
+                         data-bs-toggle="collapse"
+                         data-bs-target="#collapseUpdateHistory"
+                         aria-expanded="false"
+                         aria-controls="collapseUpdateHistory">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <i class="bi bi-clock-history text-primary"></i>
+                            <h2 class="h6 mb-0">Update-Historie & Backups</h2>
+                            <span class="badge bg-secondary-subtle text-secondary border">
+                                <?= $e((string) ($backupsOverview['backups_count'] ?? 0)) ?> Backups
+                            </span>
+                            <span class="badge bg-info-subtle text-info border">
+                                <?= $e((string) ($backupsOverview['total_size_formatted'] ?? '0 B')) ?> Belegter Speicherplatz
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 text-primary small fw-semibold">
+                            <span>Historie ein-/ausklappen</span>
+                            <i class="bi bi-chevron-down history-chevron"></i>
+                        </div>
+                    </div>
+
+                    <div class="collapse mt-3" id="collapseUpdateHistory">
+                        <div class="border-top pt-3">
+                            <?php if ($backupItems === []): ?>
+                                <p class="text-body-secondary small mb-0">Bisher wurden keine archivierten Update-Backups gefunden.</p>
+                            <?php else: ?>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover align-middle mb-0 small">
+                                        <thead>
+                                            <tr class="table-light">
+                                                <th>Datum</th>
+                                                <th>Version</th>
+                                                <th>Backup-Größe</th>
+                                                <th>SQL-Dump</th>
+                                                <th class="text-end">Aktionen</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($backupItems as $item): ?>
+                                                <tr>
+                                                    <td class="text-nowrap">
+                                                        <i class="bi bi-calendar-event me-1 text-body-secondary"></i>
+                                                        <strong><?= $e((string) ($item['created_at_formatted'] ?? $item['created_at'] ?? '')) ?></strong>
+                                                    </td>
+                                                    <td class="text-nowrap">
+                                                        <?php if (!empty($item['from_version'])): ?>
+                                                            <?= $e((string) $item['from_version']) ?> <i class="bi bi-arrow-right text-body-secondary mx-1"></i>
+                                                        <?php endif; ?>
+                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                            <?= $e((string) ($item['version'] ?? '')) ?>
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-nowrap">
+                                                        <strong><?= $e((string) ($item['total_size_formatted'] ?? '0 B')) ?></strong>
+                                                        <span class="text-body-secondary small ms-1">(<?= $e((string) ($item['file_count'] ?? 0)) ?> Dateien)</span>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (!empty($item['has_database_backup'])): ?>
+                                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                                    <i class="bi bi-shield-check me-1"></i>Vorhanden (<?= $e((string) ($item['database_backup_size_formatted'] ?? '')) ?>)
+                                                                </span>
+                                                                <a href="/admin/updates/backup-db?id=<?= urlencode((string) $item['id']) ?>" class="btn btn-sm btn-outline-secondary py-0 px-2" title="SQL-Dump (.zip) dieses Updates herunterladen">
+                                                                    <i class="bi bi-download me-1"></i>Herunterladen
+                                                                </a>
+                                                            </div>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-secondary-subtle text-body-secondary border">
+                                                                <i class="bi bi-dash-circle me-1"></i>Nicht enthalten
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="text-end text-nowrap">
+                                                        <form method="post" action="/admin/updates/backups/delete" onsubmit="return confirm('Möchtest du das Backup von <?= $e((string) ($item['version'] ?? $item['id'])) ?> (<?= $e((string) ($item['total_size_formatted'] ?? '0 B')) ?>) wirklich unwiderruflich löschen?');" class="d-inline">
+                                                            <?= \Modulon\Core\View::csrfField($csrfToken) ?>
+                                                            <input type="hidden" name="id" value="<?= $e((string) $item['id']) ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Backup löschen, um Speicherplatz freizugeben">
+                                                                <i class="bi bi-trash me-1"></i>Löschen
+                                                            </button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <?php elseif ($activeTab === 'sources'): ?>
         <div class="col-12">

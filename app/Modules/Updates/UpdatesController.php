@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Modulon\Modules\Updates;
 
 use DateTimeZone;
+use Modulon\Core\Database\DatabaseBackupService;
 use Modulon\Core\DateTimeFormatter;
+use Modulon\Core\Modules\Catalog\CatalogService;
 use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Session;
@@ -23,6 +25,7 @@ final class UpdatesController
         private readonly string $channel,
         private readonly ?AuthService $auth = null,
         private readonly ?AppSettingRepository $settings = null,
+        private readonly ?CatalogService $catalog = null,
     ) {
     }
 
@@ -42,6 +45,7 @@ final class UpdatesController
             'sources' => $this->updates->getUpdateSources(),
             'active_source' => $this->updates->getActiveUpdateSource(),
             'mirror_status' => $this->updates->mirrorStatus(),
+            'backups_overview' => $this->updates->backupsOverview(),
         ]));
     }
 
@@ -171,6 +175,75 @@ final class UpdatesController
         );
 
         return Response::redirect('/admin/updates?tab=updates');
+    }
+
+    public function downloadDatabaseBackup(Request $request): Response
+    {
+        $backupId = trim((string) ($request->query('id', '') ?: $request->input('id', '')));
+        if ($backupId !== '') {
+            $historicalZip = $this->updates->historicalDatabaseBackupPath($backupId);
+            if ($historicalZip === null || !is_file($historicalZip)) {
+                $this->session->flash('updates_error', 'Das angeforderte Datenbank-Backup aus diesem Update existiert nicht oder enthält keinen SQL-Dump.');
+                return Response::redirect('/admin/updates?tab=updates');
+            }
+
+            $filename = 'modulnest-database-backup-' . $backupId . '.zip';
+            return Response::downloadFile($historicalZip, $filename, 'application/zip', false);
+        }
+
+        $pdo = $this->updates->getPdo();
+        if ($pdo === null) {
+            $this->session->flash('updates_error', 'Keine aktive Datenbankverbindung für ein Backup verfügbar.');
+            return Response::redirect('/admin/updates?tab=updates');
+        }
+
+        try {
+            $backupService = new DatabaseBackupService($pdo, $this->updates->getBasePath());
+            $tempZip = $backupService->dumpToTempZip();
+            $filename = 'modulnest-database-backup-' . date('Y-m-d_His') . '.zip';
+
+            return Response::downloadFile($tempZip, $filename, 'application/zip', true);
+        } catch (Throwable $exception) {
+            $this->session->flash('updates_error', 'Fehler beim Erstellen des Datenbank-Backups: ' . $exception->getMessage());
+            return Response::redirect('/admin/updates?tab=updates');
+        }
+    }
+
+    public function deleteBackup(Request $request): Response
+    {
+        $id = trim((string) $request->input('id', ''));
+        if ($id === '') {
+            $this->session->flash('updates_error', 'Keine Backup-Kennung übergeben.');
+            return Response::redirect('/admin/updates?tab=updates');
+        }
+
+        try {
+            $this->updates->deleteBackup($id);
+            $this->session->flash('updates_info', 'Das Backup "' . $id . '" wurde erfolgreich gelöscht.');
+        } catch (Throwable $exception) {
+            $this->session->flash('updates_error', 'Fehler beim Löschen des Backups: ' . $exception->getMessage());
+        }
+
+        return Response::redirect('/admin/updates?tab=updates');
+    }
+
+    public function notificationStatus(Request $request): Response
+    {
+        $force = (string) $request->query('force', '') === '1';
+        $notificationService = new UpdateNotificationService(
+            $this->updates,
+            $this->catalog,
+            $this->installedVersion,
+            $this->updates->getBasePath() . '/storage/updates'
+        );
+
+        $data = $notificationService->check($force);
+
+        return new Response(
+            json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            200,
+            ['Content-Type' => 'application/json; charset=UTF-8', 'Cache-Control' => 'no-store']
+        );
     }
 
     /**

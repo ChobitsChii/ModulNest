@@ -360,6 +360,7 @@ if ($userHeaderModules !== null) {
                     <div class="nav-item dropdown app-admin-nav">
                         <a class="nav-link app-nav-link app-admin-link dropdown-toggle <?= $isActive('/admin') ?>" href="/admin/modules" id="admin-nav-dropdown" role="button" data-bs-toggle="dropdown" data-bs-display="static" data-app-nav-dropdown-link aria-expanded="false">
                             Admin
+                            <span id="admin-update-badge" class="badge rounded-pill bg-warning text-dark ms-1 d-none" title="Updates verfügbar">!</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end app-module-dropdown shadow-sm" aria-labelledby="admin-nav-dropdown">
                             <li><h6 class="dropdown-header text-uppercase small text-body-tertiary">Verwaltung & System</h6></li>

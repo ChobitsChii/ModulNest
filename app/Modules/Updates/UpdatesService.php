@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modulon\Modules\Updates;
 
 use Closure;
+use Modulon\Core\Database\DatabaseBackupService;
 use Modulon\Core\Database\MigrationRunner;
 use Modulon\Core\RecoveryManager;
 use Modulon\Core\RotatingFileLogger;
@@ -203,6 +204,22 @@ final class UpdatesService
         $keepMaintenance = false;
         $this->enableMaintenance('Update auf ' . $version);
 
+        $dbBackupZip = null;
+        if ($this->pdo !== null) {
+            try {
+                $dbBackupService = new DatabaseBackupService($this->pdo, $this->basePath);
+                $dbBackupZip = $backupPath . '/database-backup.zip';
+                $dbBackupService->dumpToZipFile($dbBackupZip, 'database.sql');
+                $this->log('Datenbank-Backup vor Update erfolgreich erstellt', ['path' => $dbBackupZip]);
+            } catch (Throwable $dbBackupError) {
+                $this->log('Datenbank-Backup vor Update fehlgeschlagen', ['error' => $dbBackupError->getMessage()]);
+                if (!empty($prepared['requires_migrations'])) {
+                    $this->disableMaintenance();
+                    throw new RuntimeException('Sicherheitsabbruch: Das Datenbank-Backup vor einem Update mit Migrationen ist fehlgeschlagen: ' . $dbBackupError->getMessage());
+                }
+            }
+        }
+
         try {
             [$copied, $backedUp, $skipped, $copiedPhpFiles] = $this->copyPreparedFiles($stagingPath, $backupPath, static function () use (&$mutationStarted): void {
                 $mutationStarted = true;
@@ -216,6 +233,7 @@ final class UpdatesService
                 'from_version' => (string) ($prepared['from_version'] ?? ''),
                 'version' => $version,
                 'backup_path' => $backupPath,
+                'database_backup' => $dbBackupZip !== null && is_file($dbBackupZip) ? $dbBackupZip : null,
                 'copied_files' => $copied,
                 'backed_up_files' => $backedUp,
                 'skipped_entries' => $skipped,
@@ -227,9 +245,44 @@ final class UpdatesService
                     ? 'Keine Datenbankverbindung verfügbar; Migrationen wurden nicht ausgeführt.'
                     : 'Datenbankmigrationen geprüft: ' . count($migrationResult['executed']) . ' ausgeführt, ' . count($migrationResult['skipped']) . ' übersprungen.',
             ];
+            $history = is_array($state['install_history'] ?? null) ? $state['install_history'] : [];
+            array_unshift($history, $installed);
+            $history = array_slice($history, 0, 50);
+
+            // Write backup-meta.json for instant cached reading without disk I/O
+            try {
+                $backupDirSize = 0;
+                $backupFileCount = 0;
+                $hasDb = $dbBackupZip !== null && is_file($dbBackupZip);
+                $dbSize = $hasDb ? (int) filesize($dbBackupZip) : 0;
+                if (is_dir($backupPath)) {
+                    $it = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($backupPath, RecursiveDirectoryIterator::SKIP_DOTS)
+                    );
+                    foreach ($it as $f) {
+                        if ($f->isFile()) {
+                            $backupDirSize += (int) $f->getSize();
+                            $backupFileCount++;
+                        }
+                    }
+                }
+                @file_put_contents($backupPath . '/backup-meta.json', json_encode([
+                    'total_size' => $backupDirSize,
+                    'file_count' => $backupFileCount,
+                    'has_database_backup' => $hasDb,
+                    'database_backup_size' => $dbSize,
+                    'created_at' => date(DATE_ATOM),
+                    'version' => $version,
+                    'from_version' => (string) ($prepared['from_version'] ?? ''),
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            } catch (Throwable) {
+                // Non-fatal
+            }
+
             $nextState = array_merge($state, [
                 'prepared' => null,
                 'last_install' => $installed,
+                'install_history' => $history,
             ]);
             $nextState = $this->normalizeStateForInstalledVersion($nextState, $version);
             $this->writeState($nextState);
@@ -251,6 +304,7 @@ final class UpdatesService
                     'status' => 'recovery_required',
                     'version' => $version,
                     'backup_path' => $backupPath,
+                'database_backup' => $dbBackupZip !== null && is_file($dbBackupZip) ? $dbBackupZip : null,
                     'message' => 'Update nach Beginn der Dateikopie fehlgeschlagen. Wiederherstellung prüfen.',
                 ];
                 $this->writeState(array_merge($state, [
@@ -903,6 +957,211 @@ final class UpdatesService
     /**
      * @return array{status:string,pid?:int,message:string}
      */
+    /**
+     * @return array{
+     *     total_size: int,
+     *     total_size_formatted: string,
+     *     backups_count: int,
+     *     items: list<array<string, mixed>>
+     * }
+     */
+    public function backupsOverview(): array
+    {
+        $backupDir = $this->basePath . '/storage/backups/updates';
+        $state = $this->readState();
+        $history = is_array($state['install_history'] ?? null) ? $state['install_history'] : [];
+        if ($history === [] && is_array($state['last_install'] ?? null)) {
+            $history = [$state['last_install']];
+        }
+
+        $historyMap = [];
+        foreach ($history as $h) {
+            if (is_array($h)) {
+                $path = (string) ($h['backup_path'] ?? '');
+                if ($path !== '') {
+                    $historyMap[basename($path)] = $h;
+                    $historyMap[$path] = $h;
+                }
+            }
+        }
+
+        $items = [];
+        $totalSize = 0;
+
+        if (is_dir($backupDir)) {
+            $entries = scandir($backupDir);
+            if (is_array($entries)) {
+                foreach ($entries as $entry) {
+                    if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+                        continue;
+                    }
+                    $fullPath = $backupDir . '/' . $entry;
+                    if (!is_dir($fullPath)) {
+                        continue;
+                    }
+
+                    $metaFile = $fullPath . '/backup-meta.json';
+                    $cachedMeta = null;
+                    if (is_file($metaFile)) {
+                        $cachedMeta = json_decode((string) file_get_contents($metaFile), true);
+                    }
+
+                    if (is_array($cachedMeta) && isset($cachedMeta['total_size'], $cachedMeta['file_count'])) {
+                        $dirSize = (int) $cachedMeta['total_size'];
+                        $fileCount = (int) $cachedMeta['file_count'];
+                        $hasDbBackup = (bool) ($cachedMeta['has_database_backup'] ?? false);
+                        $dbBackupSize = (int) ($cachedMeta['database_backup_size'] ?? 0);
+                    } else {
+                        $dirSize = 0;
+                        $fileCount = 0;
+                        $hasDbBackup = false;
+                        $dbBackupSize = 0;
+
+                        $iterator = new RecursiveIteratorIterator(
+                            new RecursiveDirectoryIterator($fullPath, RecursiveDirectoryIterator::SKIP_DOTS)
+                        );
+                        foreach ($iterator as $file) {
+                            if ($file->isFile()) {
+                                $size = (int) $file->getSize();
+                                $dirSize += $size;
+                                $fileCount++;
+                                if ($file->getFilename() === 'database-backup.zip') {
+                                    $hasDbBackup = true;
+                                    $dbBackupSize = $size;
+                                }
+                            }
+                        }
+
+                        // Write metadata file so all subsequent requests require 0 directory traversal
+                        @file_put_contents($metaFile, json_encode([
+                            'total_size' => $dirSize,
+                            'file_count' => $fileCount,
+                            'has_database_backup' => $hasDbBackup,
+                            'database_backup_size' => $dbBackupSize,
+                            'scanned_at' => date(DATE_ATOM),
+                        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    }
+
+                    $totalSize += $dirSize;
+
+                    $createdAt = '';
+                    $createdAtFormatted = '';
+                    $version = '';
+                    if (preg_match('/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_(.+)$/', $entry, $m)) {
+                        $createdAt = "{$m[1]}-{$m[2]}-{$m[3]} {$m[4]}:{$m[5]}:{$m[6]}";
+                        $createdAtFormatted = "{$m[3]}.{$m[2]}.{$m[1]} {$m[4]}:{$m[5]} Uhr";
+                        $version = $m[7];
+                    } else {
+                        $createdAt = date('Y-m-d H:i:s', filemtime($fullPath));
+                        $createdAtFormatted = date('d.m.Y H:i', filemtime($fullPath)) . ' Uhr';
+                        $version = $entry;
+                    }
+
+                    $meta = $historyMap[$entry] ?? $historyMap[$fullPath] ?? [];
+
+                    $fromVersion = isset($meta['from_version']) && (string) $meta['from_version'] !== ''
+                        ? (string) $meta['from_version']
+                        : null;
+
+                    $items[] = [
+                        'id' => $entry,
+                        'dir_name' => $entry,
+                        'backup_path' => $fullPath,
+                        'created_at' => $createdAt,
+                        'created_at_formatted' => $createdAtFormatted,
+                        'version' => $version !== '' ? $version : (string) ($meta['version'] ?? $entry),
+                        'from_version' => $fromVersion,
+                        'total_size' => $dirSize,
+                        'total_size_formatted' => self::formatBytes($dirSize),
+                        'file_count' => $fileCount,
+                        'has_database_backup' => $hasDbBackup,
+                        'database_backup_size' => $dbBackupSize,
+                        'database_backup_size_formatted' => self::formatBytes($dbBackupSize),
+                        'requires_migrations' => (bool) ($meta['requires_migrations'] ?? false),
+                        'migrations' => is_array($meta['migrations'] ?? null) ? $meta['migrations'] : null,
+                        'migration_note' => isset($meta['migration_note']) ? (string) $meta['migration_note'] : null,
+                        'installed_at' => isset($meta['installed_at']) ? (string) $meta['installed_at'] : null,
+                    ];
+                }
+            }
+        }
+
+        usort($items, static fn (array $a, array $b): int => strcmp((string) $b['id'], (string) $a['id']));
+
+        return [
+            'total_size' => $totalSize,
+            'total_size_formatted' => self::formatBytes($totalSize),
+            'backups_count' => count($items),
+            'items' => $items,
+        ];
+    }
+
+    public function deleteBackup(string $id): bool
+    {
+        if (!preg_match('/^[a-zA-Z0-9_.-]+$/', $id) || $id === '.' || $id === '..') {
+            throw new RuntimeException('Ungültige Backup-Kennung.');
+        }
+
+        $target = $this->basePath . '/storage/backups/updates/' . $id;
+        if (!is_dir($target)) {
+            throw new RuntimeException('Das angegebene Backup existiert nicht oder wurde bereits gelöscht.');
+        }
+
+        $this->removeDirectory($target);
+
+        $state = $this->readState();
+        $history = is_array($state['install_history'] ?? null) ? $state['install_history'] : [];
+        if ($history !== []) {
+            $newHistory = array_values(array_filter($history, static function ($h) use ($id, $target): bool {
+                if (!is_array($h)) {
+                    return true;
+                }
+                $path = (string) ($h['backup_path'] ?? '');
+                return $path !== $target && basename($path) !== $id;
+            }));
+            $state['install_history'] = $newHistory;
+            $this->writeState($state);
+        }
+
+        $this->log('Update-Backup gelöscht', ['backup_id' => $id, 'path' => $target]);
+
+        return true;
+    }
+
+    public function historicalDatabaseBackupPath(string $id): ?string
+    {
+        if (!preg_match('/^[a-zA-Z0-9_.-]+$/', $id) || $id === '.' || $id === '..') {
+            return null;
+        }
+
+        $path = $this->basePath . '/storage/backups/updates/' . $id . '/database-backup.zip';
+        return is_file($path) ? $path : null;
+    }
+
+    public static function formatBytes(int $bytes, int $precision = 1): string
+    {
+        if ($bytes <= 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $pow = (int) floor(log($bytes, 1024));
+        $pow = min($pow, count($units) - 1);
+        $value = $bytes / (1024 ** $pow);
+
+        return number_format($value, $pow === 0 ? 0 : $precision, ',', '.') . ' ' . $units[$pow];
+    }
+
+    public function getPdo(): ?PDO
+    {
+        return $this->pdo;
+    }
+
+    public function getBasePath(): string
+    {
+        return $this->basePath;
+    }
+
     public function syncMirror(?string $configPath = null): array
     {
         $status = $this->mirrorStatus($configPath);

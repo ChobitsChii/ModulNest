@@ -6,6 +6,7 @@ namespace Modulon\Modules\Updates;
 
 use Modulon\Core\AdminNavigationRegistry;
 use Modulon\Core\ModuleContext;
+use Modulon\Core\Modules\Catalog\CatalogService;
 use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleInterface;
 use Modulon\Core\Router;
@@ -32,6 +33,7 @@ final class UpdatesModule implements NativeModuleInterface
     {
         $authService = $context->service('authService');
         $settings = $context->service('appSettingRepository');
+        $catalogService = $context->service('catalogService');
         $controller = new UpdatesController(
             new UpdatesService($context->basePath, $context->pdo),
             $context->session,
@@ -39,6 +41,7 @@ final class UpdatesModule implements NativeModuleInterface
             (string) $context->config('app_channel', 'alpha'),
             $authService instanceof AuthService ? $authService : null,
             $settings instanceof AppSettingRepository ? $settings : null,
+            $catalogService instanceof CatalogService ? $catalogService : null,
         );
 
         return new self($controller, $context->moduleRow('updates'));
@@ -86,6 +89,10 @@ final class UpdatesModule implements NativeModuleInterface
         $router->post('/admin/updates/sources/delete', [$this->controller, 'deleteSource'], 'admin');
         $router->post('/admin/updates/sync-mirror', [$this->controller, 'syncMirror'], 'admin');
         $router->get('/admin/updates/mirror-status', [$this->controller, 'mirrorStatus'], 'admin');
+        $router->get('/admin/updates/backup-db', [$this->controller, 'downloadDatabaseBackup'], 'admin');
+        $router->post('/admin/updates/backup-db', [$this->controller, 'downloadDatabaseBackup'], 'admin');
+        $router->post('/admin/updates/backups/delete', [$this->controller, 'deleteBackup'], 'admin');
+        $router->get('/admin/api/updates/status', [$this->controller, 'notificationStatus'], 'admin');
     }
 
     public function nativeBinding(): array

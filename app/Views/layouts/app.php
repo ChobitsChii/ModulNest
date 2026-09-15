@@ -27,6 +27,9 @@ $layoutThemeMode = in_array($layoutThemeCandidate, ['system', 'light', 'dark'], 
 
 <main class="py-4 py-md-5">
     <div class="container app-container">
+        <?php if ($layoutAuthenticated && !empty($layoutAuth['is_admin'])): ?>
+            <div id="admin-update-banner-container"></div>
+        <?php endif; ?>
         <?php
         $layoutCurrentPath = '/' . trim((string) ($current_path ?? ''), '/');
         $layoutAdminNavItems = is_array($admin_nav_items ?? null) ? $admin_nav_items : [];
@@ -48,5 +51,8 @@ $layoutThemeMode = in_array($layoutThemeCandidate, ['system', 'light', 'dark'], 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/assets/js/app.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>"></script>
 <script src="/assets/js/markdown-highlight.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>" defer></script>
+<?php if ($layoutAuthenticated && !empty($layoutAuth['is_admin'])): ?>
+<script src="/assets/js/admin-update-check.js<?= $assetVersion !== '' ? '?v=' . $assetVersion : '' ?>" defer></script>
+<?php endif; ?>
 </body>
 </html>
