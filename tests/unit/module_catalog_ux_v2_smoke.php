@@ -121,6 +121,8 @@ catalog_ux_assert(str_contains($detailSource, 'confirm_reinstall_module_id'), 'B
 catalog_ux_assert(str_contains($detailSource, 'data-adoption-operation') && str_contains($detailSource, 'module-catalog-operation/status'), 'Reload-fester Adoptionsfortschritt fehlt in der Katalogdetailseite.');
 $controllerSource = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Modules/Admin/ModuleCatalogController.php');
 catalog_ux_assert(str_contains($controllerSource, '$id === \'modulnest.tools\'') && str_contains($controllerSource, 'adoptionOperations->start($id)'), 'Tools-Adoption wird nicht als kurzer Hintergrundauftrag gestartet.');
+catalog_ux_assert(!str_contains($controllerSource, '$this->installer->prepareAdoptionRelease'), 'ModuleCatalogController ruft fälschlicherweise prepareAdoptionRelease vor der Adoption auf.');
+catalog_ux_assert(!str_contains($controllerSource, 'reinstallFresh'), 'ModuleCatalogController verwendet ungültige Methode reinstallFresh.');
 
 $wikiId = (int) $pdo->query("SELECT id FROM modules WHERE route_prefix = 'wiki'")->fetchColumn();
 $pdo->exec("DELETE FROM modules WHERE id = {$wikiId}");
