@@ -31,11 +31,17 @@ $csrfToken = (string) ($csrf_token ?? '');
             $url = (string) ($item['url'] ?? '#');
             $isActive = (bool) ($item['is_active'] ?? false);
             $icon = (string) ($item['icon'] ?? 'bi-circle');
+            $itemKey = (string) ($item['key'] ?? '');
             ?>
             <li class="nav-item">
                 <a class="nav-link<?= $isActive ? ' active' : '' ?>" href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>">
                     <i class="bi <?= htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') ?> me-1"></i>
                     <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+                    <?php if ($itemKey === 'updates'): ?>
+                        <span class="badge rounded-pill bg-warning text-dark ms-1 admin-updates-item-badge d-none" title="Updates verfügbar">!</span>
+                    <?php elseif ($itemKey === 'module-catalog'): ?>
+                        <span class="badge rounded-pill bg-warning text-dark ms-1 admin-catalog-item-badge d-none" title="Modul-Updates verfügbar">!</span>
+                    <?php endif; ?>
                 </a>
             </li>
         <?php endforeach; ?>

@@ -31,10 +31,16 @@ $csrfToken = (string) ($csrf_token ?? '');
                     $url = (string) ($item['url'] ?? '#');
                     $isActive = (bool) ($item['is_active'] ?? false);
                     $icon = (string) ($item['icon'] ?? 'bi-circle');
+                    $itemKey = (string) ($item['key'] ?? '');
                     ?>
                     <a class="nav-link py-2 px-2.5 rounded d-flex align-items-center gap-2 <?= $isActive ? 'active bg-primary text-white shadow-sm' : 'text-body-emphasis link-body-emphasis' ?>" href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>">
                         <i class="bi <?= htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') ?> <?= $isActive ? 'text-white' : 'text-body-secondary' ?>"></i>
-                        <span class="small fw-medium"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
+                        <span class="small fw-medium flex-grow-1"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if ($itemKey === 'updates'): ?>
+                            <span class="badge rounded-pill bg-warning text-dark ms-auto admin-updates-item-badge d-none" title="Updates verfügbar">!</span>
+                        <?php elseif ($itemKey === 'module-catalog'): ?>
+                            <span class="badge rounded-pill bg-warning text-dark ms-auto admin-catalog-item-badge d-none" title="Modul-Updates verfügbar">!</span>
+                        <?php endif; ?>
                     </a>
                 <?php endforeach; ?>
             <?php endforeach; ?>

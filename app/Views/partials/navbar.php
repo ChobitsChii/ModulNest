@@ -369,12 +369,18 @@ if ($userHeaderModules !== null) {
                                 $adminUrl = (string) ($item['url'] ?? '#');
                                 $adminLabel = (string) ($item['label'] ?? '');
                                 $adminActive = (bool) ($item['is_active'] ?? false);
-                                $adminIcon = (string) ($item['icon'] ?? \Modulon\Core\AdminNavigationRegistry::iconForKey((string) ($item['key'] ?? '')));
+                                $adminKey = (string) ($item['key'] ?? '');
+                                $adminIcon = (string) ($item['icon'] ?? \Modulon\Core\AdminNavigationRegistry::iconForKey($adminKey));
                                 ?>
                                 <li>
                                     <a class="dropdown-item d-flex align-items-center gap-2<?= $adminActive ? ' active' : '' ?>" href="<?= htmlspecialchars($adminUrl, ENT_QUOTES, 'UTF-8') ?>">
                                         <i class="bi <?= htmlspecialchars($adminIcon, ENT_QUOTES, 'UTF-8') ?> text-body-secondary"></i>
-                                        <span><?= htmlspecialchars($adminLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <span class="flex-grow-1"><?= htmlspecialchars($adminLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php if ($adminKey === 'updates'): ?>
+                                            <span class="badge rounded-pill bg-warning text-dark ms-auto admin-updates-item-badge d-none" title="Updates verfügbar">!</span>
+                                        <?php elseif ($adminKey === 'module-catalog'): ?>
+                                            <span class="badge rounded-pill bg-warning text-dark ms-auto admin-catalog-item-badge d-none" title="Modul-Updates verfügbar">!</span>
+                                        <?php endif; ?>
                                     </a>
                                 </li>
                             <?php endforeach; ?>
@@ -387,12 +393,18 @@ if ($userHeaderModules !== null) {
                                     $adminUrl = (string) ($item['url'] ?? '#');
                                     $adminLabel = (string) ($item['label'] ?? '');
                                     $adminActive = (bool) ($item['is_active'] ?? false);
-                                    $adminIcon = (string) ($item['icon'] ?? \Modulon\Core\AdminNavigationRegistry::iconForKey((string) ($item['key'] ?? '')));
+                                    $adminKey = (string) ($item['key'] ?? '');
+                                    $adminIcon = (string) ($item['icon'] ?? \Modulon\Core\AdminNavigationRegistry::iconForKey($adminKey));
                                     ?>
                                     <li>
                                         <a class="dropdown-item d-flex align-items-center gap-2<?= $adminActive ? ' active' : '' ?>" href="<?= htmlspecialchars($adminUrl, ENT_QUOTES, 'UTF-8') ?>">
                                             <i class="bi <?= htmlspecialchars($adminIcon, ENT_QUOTES, 'UTF-8') ?> text-body-secondary"></i>
-                                            <span><?= htmlspecialchars($adminLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                            <span class="flex-grow-1"><?= htmlspecialchars($adminLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                            <?php if ($adminKey === 'updates'): ?>
+                                                <span class="badge rounded-pill bg-warning text-dark ms-auto admin-updates-item-badge d-none" title="Updates verfügbar">!</span>
+                                            <?php elseif ($adminKey === 'module-catalog'): ?>
+                                                <span class="badge rounded-pill bg-warning text-dark ms-auto admin-catalog-item-badge d-none" title="Modul-Updates verfügbar">!</span>
+                                            <?php endif; ?>
                                         </a>
                                     </li>
                                 <?php endforeach; ?>
