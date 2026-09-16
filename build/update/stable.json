@@ -1,20 +1,20 @@
 {
-    "latest": "2.1.6",
+    "latest": "2.1.7",
     "channel": "stable",
     "php_requirement": "^8.3",
     "packages": {
         "source": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v2.1.6/modulnest-source-2.1.6.zip",
-            "sha256": "1f494e09e0f3b140849de82695f23cc694e2287785fdde024c5ae50e41f51f77",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v2.1.7/modulnest-source-2.1.7.zip",
+            "sha256": "a1dda165cf0aa6463b0e9d2a06624b520bfa6ab082dad21d770e7fc1c275d153",
             "needs_composer": true
         },
         "bundled": {
-            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v2.1.6/modulnest-bundled-2.1.6.zip",
-            "sha256": "617f11878b3ae7e3ad566e0e1b5ab938a0e6d266d4f16ebe9812ed603f385238",
+            "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v2.1.7/modulnest-bundled-2.1.7.zip",
+            "sha256": "0b9bfcc5cc7678f5ebe4df757f650e85b21debec759ca9ea8289e1e138d14a65",
             "needs_composer": false
         }
     },
-    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v2.1.6",
+    "changelog_url": "https://github.com/ChobitsChii/ModulNest/releases/tag/v2.1.7",
     "requires_migrations": false,
     "package_metadata": "modulnest-package.json",
     "modules": [
@@ -89,5 +89,5 @@
             "view_dir": null
         }
     ],
-    "generated_at": "2026-09-16T06:46:34+00:00"
+    "generated_at": "2026-09-16T07:45:40+00:00"
 }

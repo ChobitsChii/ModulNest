@@ -63,6 +63,7 @@ final class UpdatesController
 
     public function check(Request $request): Response
     {
+        UpdateNotificationService::clearCache($this->updates->getBasePath() . '/storage/updates');
         try {
             $result = $this->updates->check($this->installedVersion, $this->updateChannel());
             $this->session->flash('updates_info', (string) ($result['message'] ?? 'Update-Prüfung abgeschlossen.'));
@@ -98,6 +99,7 @@ final class UpdatesController
 
         try {
             $result = $this->updates->install();
+            UpdateNotificationService::clearCache($this->updates->getBasePath() . '/storage/updates');
             $this->session->flash(
                 'updates_info',
                 'Update auf ' . (string) ($result['version'] ?? '') . ' installiert. Backup: ' . (string) ($result['backup_path'] ?? '')

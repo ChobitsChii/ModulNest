@@ -24,6 +24,7 @@ use Modulon\Core\Request;
 use Modulon\Core\Response;
 use Modulon\Core\Session;
 use Modulon\Core\View;
+use Modulon\Modules\Updates\UpdateNotificationService;
 use Throwable;
 
 final readonly class ModuleCatalogController
@@ -207,6 +208,7 @@ final readonly class ModuleCatalogController
             return Response::redirect('/admin/module-catalog?bereich=entdecken');
         }
 
+        UpdateNotificationService::clearCache(dirname(__DIR__, 2) . '/storage/updates');
         try {
             $backgroundStarted = false;
             match ($action) {

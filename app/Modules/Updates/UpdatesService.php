@@ -102,6 +102,7 @@ final class UpdatesService
         $this->writeState(array_merge($this->readState(), [
             'last_check' => $result,
         ]));
+        UpdateNotificationService::clearCache($this->storagePath);
         $this->log('Update-Prüfung abgeschlossen', ['installed' => $installedVersion, 'latest' => $latest, 'available' => $available]);
 
         return $result;
@@ -286,6 +287,7 @@ final class UpdatesService
             ]);
             $nextState = $this->normalizeStateForInstalledVersion($nextState, $version);
             $this->writeState($nextState);
+            UpdateNotificationService::clearCache($this->storagePath);
             $this->log('Update installiert', [
                 'version' => $version,
                 'copied' => $copied,

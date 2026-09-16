@@ -24,12 +24,12 @@ $layoutThemeMode = in_array($layoutThemeCandidate, ['system', 'light', 'dark'], 
 </head>
 <body class="app-body">
 <?php require dirname(__DIR__) . '/partials/navbar.php'; ?>
+<?php if ($layoutAuthenticated && !empty($layoutAuth['is_admin'])): ?>
+    <div id="admin-update-banner-container" class="admin-update-banner-shell"></div>
+<?php endif; ?>
 
 <main class="py-4 py-md-5">
     <div class="container app-container">
-        <?php if ($layoutAuthenticated && !empty($layoutAuth['is_admin'])): ?>
-            <div id="admin-update-banner-container"></div>
-        <?php endif; ?>
         <?php
         $layoutCurrentPath = '/' . trim((string) ($current_path ?? ''), '/');
         $layoutAdminNavItems = is_array($admin_nav_items ?? null) ? $admin_nav_items : [];

@@ -41,7 +41,21 @@ final class UpdateNotificationService
                 try {
                     $data = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
                     if (is_array($data) && isset($data['checked_at_timestamp']) && (time() - (int) $data['checked_at_timestamp']) < $this->ttl) {
-                        return $data;
+                        $cachedInstalled = (string) ($data['core_current_version'] ?? '');
+                        $coreUpdateAvailable = !empty($data['core_update_available']);
+                        $coreLatest = !empty($data['core_latest_version']) ? (string) $data['core_latest_version'] : null;
+
+                        // Cache is valid only if:
+                        // 1. Cached installed core version matches currently installed core version
+                        // 2. If core update was marked available, core_latest must still be strictly newer than installed
+                        $isStale = ($cachedInstalled !== $this->installedCoreVersion);
+                        if (!$isStale && $coreUpdateAvailable && ($coreLatest === null || !version_compare($coreLatest, $this->installedCoreVersion, '>'))) {
+                            $isStale = true;
+                        }
+
+                        if (!$isStale) {
+                            return $data;
+                        }
                     }
                 } catch (Throwable) {
                     // Cache abgelaufen oder beschädigt, neu prüfen
@@ -55,14 +69,22 @@ final class UpdateNotificationService
         try {
             $status = $this->updatesService->status($this->installedCoreVersion, 'stable');
             $lastCheck = $status['state']['last_check'] ?? null;
-            if (is_array($lastCheck) && !empty($lastCheck['available']) && !empty($lastCheck['latest'])) {
-                $coreAvailable = true;
-                $coreLatest = (string) $lastCheck['latest'];
-            } else {
+            if (is_array($lastCheck) && !empty($lastCheck['latest'])) {
+                $candidate = (string) $lastCheck['latest'];
+                if (version_compare($candidate, $this->installedCoreVersion, '>')) {
+                    $coreAvailable = true;
+                    $coreLatest = $candidate;
+                }
+            }
+
+            if (!$coreAvailable && empty($lastCheck)) {
                 $checkResult = $this->updatesService->check($this->installedCoreVersion, 'stable');
                 if (!empty($checkResult['available'])) {
-                    $coreAvailable = true;
-                    $coreLatest = (string) ($checkResult['latest'] ?? '');
+                    $candidate = (string) ($checkResult['latest'] ?? '');
+                    if (version_compare($candidate, $this->installedCoreVersion, '>')) {
+                        $coreAvailable = true;
+                        $coreLatest = $candidate;
+                    }
                 }
             }
         } catch (Throwable) {
@@ -105,5 +127,18 @@ final class UpdateNotificationService
         @file_put_contents($cacheFile, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 
         return $result;
+    }
+
+    public static function clearCache(string $cacheDir): void
+    {
+        $cacheFile = rtrim($cacheDir, '/') . '/notification_cache.json';
+        if (is_file($cacheFile)) {
+            @unlink($cacheFile);
+        }
+    }
+
+    public function clear(): void
+    {
+        self::clearCache($this->cacheDir);
     }
 }
