@@ -1128,7 +1128,96 @@ final class UpdatesService
         return true;
     }
 
-    public function historicalDatabaseBackupPath(string $id): ?string
+
+    /**
+     * Runs preflight checks before an update installation.
+     *
+     * @return array{
+     *     passed: bool,
+     *     has_legacy_modules: bool,
+     *     legacy_modules: list<array{name: string, route_prefix: string, catalog_id: ?string}>,
+     *     warnings: list<string>
+     * }
+     */
+    public function preflightCheck(): array
+    {
+        $legacyModules = $this->detectLegacyModules();
+        $hasLegacy = $legacyModules !== [];
+        $warnings = [];
+
+        if ($hasLegacy) {
+            $warnings[] = sprintf(
+                "Es wurden %d nicht auf v2 migrierte Module gefunden. Ein Core-Update kann zu Inkompatibilitäten führen.",
+                count($legacyModules)
+            );
+        }
+
+        return [
+            "passed" => !$hasLegacy,
+            "has_legacy_modules" => $hasLegacy,
+            "legacy_modules" => $legacyModules,
+            "warnings" => $warnings,
+        ];
+    }
+
+    /**
+     * @return list<array{name: string, route_prefix: string, catalog_id: ?string}>
+     */
+    public function detectLegacyModules(): array
+    {
+        if ($this->pdo === null) {
+            return [];
+        }
+
+        try {
+            $stmt = $this->pdo->query(
+                "SELECT name, route_prefix FROM modules
+                 WHERE (module_key IS NULL OR module_key = '')
+                   AND handler = 'native'
+                   AND is_active = 1
+                 ORDER BY name ASC"
+            );
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $corePrefixes = ["admin", "auth", "modules", "profil", "updates"];
+        $catalogMap = [
+            "news" => "modulnest.news",
+            "pages" => "modulnest.pages",
+            "banking" => "modulnest.banking",
+            "dashboard" => "modulnest.dashboard",
+            "wiki" => "modulnest.wiki",
+            "tools" => "modulnest.tools",
+            "systeminfo" => "modulnest.systeminfo",
+            "logs" => "modulnest.logs",
+            "homepage" => "modulnest.homepage",
+            "sneak-preview" => "modulnest.sneak-preview",
+            "data-portability" => "modulnest.data-portability",
+            "fantasy-cards" => "modulnest.fantasy-cards",
+            "mail" => "modulnest.mail",
+            "calendar" => "modulnest.calendar",
+        ];
+
+        $results = [];
+        foreach ($rows as $row) {
+            $prefix = (string) ($row["route_prefix"] ?? "");
+            if (in_array(strtolower($prefix), $corePrefixes, true)) {
+                continue;
+            }
+
+            $results[] = [
+                "name" => (string) ($row["name"] ?? $prefix),
+                "route_prefix" => $prefix,
+                "catalog_id" => $catalogMap[strtolower($prefix)] ?? null,
+            ];
+        }
+
+        return $results;
+    }
+
+        public function historicalDatabaseBackupPath(string $id): ?string
     {
         if (!preg_match('/^[a-zA-Z0-9_.-]+$/', $id) || $id === '.' || $id === '..') {
             return null;
@@ -1169,10 +1258,10 @@ final class UpdatesService
             throw new RuntimeException('Die ModulNest-Distributionsinfrastruktur ist nicht eingerichtet.');
         }
         if (!$status['script_executable']) {
-            throw new RuntimeException('Das Skript ' . $status['script_path'] . ' ist nicht ausf�hrbar.');
+            throw new RuntimeException('Das Skript ' . $status['script_path'] . ' ist nicht ausführbar.');
         }
         if ($status['is_running']) {
-            return ['status' => 'already_running', 'message' => 'Die Synchronisation des Core-Update-Mirrors l�uft bereits.'];
+            return ['status' => 'already_running', 'message' => 'Die Synchronisation des Core-Update-Mirrors läuft bereits.'];
         }
 
         $runner = new \Modulon\Core\BackgroundProcessRunner();

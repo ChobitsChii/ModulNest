@@ -34,6 +34,17 @@ final class UpdatesController
         $tab = (string) $request->query('tab', 'updates');
         $activeTab = in_array($tab, ['updates', 'sources', 'mirror'], true) ? ($tab === 'mirror' ? 'sources' : $tab) : 'updates';
 
+        $preflight = $this->updates->preflightCheck();
+        $pendingModuleUpdates = [];
+        if ($this->catalog !== null) {
+            try {
+                $pendingModuleUpdates = $this->catalog->updates();
+            } catch (Throwable) {
+                $pendingModuleUpdates = [];
+            }
+        }
+        $preflight['pending_module_updates'] = $pendingModuleUpdates;
+
         return new Response(View::render('updates/admin', [
             'title' => 'Updates',
             'current_path' => $request->path(),
@@ -46,6 +57,7 @@ final class UpdatesController
             'active_source' => $this->updates->getActiveUpdateSource(),
             'mirror_status' => $this->updates->mirrorStatus(),
             'backups_overview' => $this->updates->backupsOverview(),
+            'preflight' => $preflight,
         ]));
     }
 
@@ -75,6 +87,15 @@ final class UpdatesController
 
     public function install(Request $request): Response
     {
+        $preflight = $this->updates->preflightCheck();
+        if ($preflight['has_legacy_modules'] && (string) $request->input('confirm_unmigrated', '') !== '1') {
+            $this->session->flash(
+                'updates_error',
+                'Installation gestoppt: Es sind noch nicht auf v2 umgestellte Module aktiv. Bitte stellen Sie diese zuerst im Modul-Katalog auf v2 um oder bestätigen Sie die Installation ausdrücklich.'
+            );
+            return Response::redirect('/admin/updates?tab=updates');
+        }
+
         try {
             $result = $this->updates->install();
             $this->session->flash(

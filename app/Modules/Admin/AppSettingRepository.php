@@ -23,11 +23,21 @@ final class AppSettingRepository
 
     public function set(string $key, string $value): void
     {
-        $statement = $this->pdo->prepare(
-            'INSERT INTO app_settings (`key`, value)
-             VALUES (:key, :value)
-             ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = CURRENT_TIMESTAMP'
-        );
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $statement = $this->pdo->prepare(
+                'INSERT INTO app_settings (`key`, value, updated_at)
+                 VALUES (:key, :value, CURRENT_TIMESTAMP)
+                 ON CONFLICT(`key`) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+            );
+        } else {
+            $statement = $this->pdo->prepare(
+                'INSERT INTO app_settings (`key`, value)
+                 VALUES (:key, :value)
+                 ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = CURRENT_TIMESTAMP'
+            );
+        }
+
         $statement->execute([
             'key' => $key,
             'value' => $value,

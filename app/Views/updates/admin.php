@@ -26,6 +26,7 @@ $mirrorConfigured = (bool) ($mirror['configured'] ?? false);
 $mirrorRunning = (bool) ($mirror['is_running'] ?? false);
 $mirrorExecutable = (bool) ($mirror['script_executable'] ?? false);
 $backupsOverview = is_array($backups_overview ?? null) ? $backups_overview : ['total_size' => 0, 'total_size_formatted' => '0 B', 'backups_count' => 0, 'items' => []];
+$preflight = is_array($preflight ?? null) ? $preflight : ['passed' => true, 'has_legacy_modules' => false, 'legacy_modules' => [], 'pending_module_updates' => [], 'warnings' => []];
 $backupItems = is_array($backupsOverview['items'] ?? null) ? $backupsOverview['items'] : [];
 
 $activeTab = (string) ($_GET['tab'] ?? 'updates');
@@ -220,6 +221,15 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                                 <dd><?= $externalLink((string) ($metadata['changelog_url'] ?? ''), 'Changelog öffnen') ?></dd>
                             <?php endif; ?>
                         </dl>
+                        <?php if (!empty($preflight['has_legacy_modules'])): ?>
+                            <div class="alert alert-warning small mb-3" role="alert">
+                                <div class="d-flex align-items-center gap-1 fw-bold text-warning-emphasis mb-1">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <span>Pre-Flight: Alte v1-Module aktiv</span>
+                                </div>
+                                <div>Es wurden <?= count($preflight['legacy_modules']) ?> nicht auf v2 umgestellte(s) Modul(e) erkannt. Es wird dringend empfohlen, diese vorab im Modul-Katalog zu aktualisieren.</div>
+                            </div>
+                        <?php endif; ?>
                         <form method="post" action="/admin/updates/prepare">
                             <?= \Modulon\Core\View::csrfField($csrfToken) ?>
                             <button class="btn btn-primary" type="submit">Update vorbereiten</button>
@@ -275,7 +285,57 @@ $externalLink = static function (string $url, string $label = '') use ($e, $exte
                     <?php if ($prepared !== []): ?>
                         <form method="post" action="/admin/updates/install" onsubmit="return confirm('Update jetzt installieren? Vor dem Überschreiben wird automatisch ein vollständiges Datenbank- und Datei-Backup erstellt.');">
                             <?= \Modulon\Core\View::csrfField($csrfToken) ?>
-                            <button class="btn btn-danger" type="submit">Vorbereitetes Update installieren</button>
+
+                            <?php if (!empty($preflight['has_legacy_modules'])): ?>
+                                <div class="alert alert-warning small mb-3" role="alert">
+                                    <div class="d-flex align-items-center gap-2 fw-bold text-warning-emphasis mb-1">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        <span>Pre-Flight-Warnung: Nicht umgestellte v1-Module</span>
+                                    </div>
+                                    <p class="mb-2">
+                                        Folgende Module laufen noch im alten v1-Format und wurden noch nicht auf den v2-Katalogstandard umgestellt. Ein Core-Update kann alte Moduldateien überschreiben oder Inkompatibilitäten verursachen:
+                                    </p>
+                                    <ul class="mb-2 ps-3">
+                                        <?php foreach ($preflight['legacy_modules'] as $legacyMod): ?>
+                                            <li>
+                                                <strong><?= $e($legacyMod['name']) ?></strong> <code>(<?= $e($legacyMod['route_prefix']) ?>)</code>
+                                                <?php if (!empty($legacyMod['catalog_id'])): ?>
+                                                    &ndash; <a href="/admin/module-catalog/show?id=<?= urlencode($legacyMod['catalog_id']) ?>" class="alert-link">Auf v2 umstellen &rarr;</a>
+                                                <?php else: ?>
+                                                    &ndash; <a href="/admin/module-catalog" class="alert-link">Zum Modul-Katalog &rarr;</a>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                    <div class="form-check pt-2 border-top border-warning-subtle">
+                                        <input class="form-check-input" type="checkbox" name="confirm_unmigrated" value="1" id="confirm_unmigrated_check" required>
+                                        <label class="form-check-label fw-semibold" for="confirm_unmigrated_check">
+                                            Ich verstehe das Risiko und möchte das Core-Update trotzdem durchführen.
+                                        </label>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($preflight['pending_module_updates'])): ?>
+                                <div class="alert alert-light border small mb-3" role="status">
+                                    <div class="d-flex align-items-center gap-2 fw-semibold text-primary mb-1">
+                                        <i class="bi bi-info-circle"></i>
+                                        <span>Hinweis: Modul-Updates verfügbar</span>
+                                    </div>
+                                    <p class="mb-1">
+                                        Für <?= count($preflight['pending_module_updates']) ?> installierte(s) Modul(e) stehen im Modul-Katalog Updates bereit. Es wird empfohlen, Module vor oder direkt nach dem Core-Update zu aktualisieren.
+                                    </p>
+                                    <a href="/admin/module-catalog?filter=updates" class="small text-decoration-none">Zu den Modul-Updates &rarr;</a>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($preflight['has_legacy_modules'])): ?>
+                                <button class="btn btn-warning" type="submit">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Trotzdem installieren
+                                </button>
+                            <?php else: ?>
+                                <button class="btn btn-danger" type="submit">Vorbereitetes Update installieren</button>
+                            <?php endif; ?>
                         </form>
                         <?php if (!empty($prepared['requires_migrations'])): ?>
                             <p class="text-body-secondary small mt-3 mb-0">Dieses Release enthält mögliche Datenbankänderungen. Automatische Migrationen werden während der Installation ausgeführt, sofern Migrationen im Paket enthalten sind.</p>
