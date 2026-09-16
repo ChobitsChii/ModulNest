@@ -125,6 +125,7 @@ final class UpdateNotificationService
             @mkdir($dir, 0775, true);
         }
         @file_put_contents($cacheFile, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        @chmod($cacheFile, 0666);
 
         return $result;
     }
