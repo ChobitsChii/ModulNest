@@ -12,6 +12,7 @@ use Modulon\Core\Env;
 use Modulon\Core\HealthCheckProviderInterface;
 use Modulon\Core\HealthCheckRegistry;
 use Modulon\Core\ModuleContext;
+use Modulon\Core\ModulePresentationRegistry;
 use Modulon\Core\ModuleSubnavigationRegistry;
 use Modulon\Core\NativeModuleLoader;
 use Modulon\Core\NativeModuleMigrationService;

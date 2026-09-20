@@ -7,6 +7,13 @@ namespace Modulon\Core;
 final class ModulePresentationRegistry
 {
     /**
+     * Dynamisch registrierte Präsentationen (zur Laufzeit gefüllt).
+     * @var array<string, array{icon: string, category: string, color?: string}>
+     */
+    private static array $__presentations = [];
+
+    /**
+     * Statische Standard-Päsentationen als Fallback für_backward compatibility.
      * @var array<string, array{icon: string, category: string, color: string, bg: string, text: string}>
      */
     private const PRESENTATIONS = [
@@ -37,6 +44,13 @@ final class ModulePresentationRegistry
             'color' => '#8b5cf6',
             'bg' => 'rgba(139, 92, 246, 0.12)',
             'text' => '#7c3aed',
+        ],
+        'mail-client' => [
+            'icon' => 'bi-envelope-at',
+            'category' => 'Kommunikation',
+            'color' => '#10b981',
+            'bg' => 'rgba(16, 185, 129, 0.12)',
+            'text' => '#059669',
         ],
         'systeminfo' => [
             'icon' => 'bi-info-circle',
@@ -349,6 +363,9 @@ final class ModulePresentationRegistry
         ],
     ];
 
+    /**
+     * Normalisiert einen Modul-Key für den Lookup.
+     */
     public static function normalizeKey(string $key): string
     {
         $k = strtolower(trim($key));
@@ -362,30 +379,191 @@ final class ModulePresentationRegistry
         return $k;
     }
 
+    /**
+     * Registriert eine Präsentation dynamisch zur Laufzeit.
+     * Eine registrierte Präsentation überschreibt alle statischen Werte.
+     *
+     * @param array{icon?: string, category?: string, color?: string} $presentation
+     */
+    public static function register(string $moduleId, array $presentation): void
+    {
+        $key = self::normalizeKey($moduleId);
+        self::$__presentations[$key] = $presentation;
+    }
+
+    /**
+     * Lädt eine Präsentation aus einem v2 module-manifest und registriert sie.
+     * Füllt bg/text aus color wenn nicht vorhanden.
+     *
+     * @param array{presentation?: array{icon?: string, category?: string, color?: string}} $manifest
+     */
+    public static function loadFromManifest(string $moduleId, array $manifest, ?string $routePrefix = null): void
+    {
+        $presentation = $manifest['presentation'] ?? null;
+        if (!\is_array($presentation) || empty($presentation['icon'] ?? null)) {
+            return;
+        }
+
+        $color = (string) ($presentation['color'] ?? '#6366f1');
+        $data = [
+            'icon' => (string) ($presentation['icon'] ?? 'bi-circle'),
+            'category' => (string) ($presentation['category'] ?? 'Modul'),
+            'color' => $color,
+            'bg' => self::computeBg($color),
+            'text' => self::computeTextColor($color),
+        ];
+
+        $keys = [
+            self::normalizeKey($moduleId),
+            strtolower(trim($moduleId)),
+        ];
+        if ($routePrefix !== null && trim($routePrefix) !== '') {
+            $keys[] = self::normalizeKey($routePrefix);
+            $keys[] = strtolower(trim($routePrefix));
+        }
+
+        foreach (array_unique($keys) as $k) {
+            self::$__presentations[$k] = $data;
+        }
+    }
+
+    /**
+     * Berechnet einen semi-transparenten Hintergrund aus einer Hex-Farbe.
+     */
+    private static function computeBg(string $hex): string
+    {
+        $rgb = self::hexToRgb($hex);
+        return \sprintf('rgba(%d, %d, %d, 0.12)', $rgb[0], $rgb[1], $rgb[2]);
+    }
+
+    /**
+     * Berechnet eine dunklere Textfarbe basierend auf der Hintergrundfarbe.
+     */
+    private static function computeTextColor(string $hex): string
+    {
+        $rgb = self::hexToRgb($hex);
+        // Dunkle Variante: 80% der Originalwerte
+        return \sprintf(
+            '#%02x%02x%02x',
+            (int) ($rgb[0] * 0.8),
+            (int) ($rgb[1] * 0.8),
+            (int) ($rgb[2] * 0.8)
+        );
+    }
+
+    /**
+     * Konvertiert Hex-Farbe (#RRGGBB) zu RGB-Array.
+     *
+     * @return array{int, int, int}
+     */
+    private static function hexToRgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        if (strlen($hex) !== 6) {
+            return [99, 102, 241]; // Fallback zu indigo
+        }
+
+        return [
+            (int) hexdec(substr($hex, 0, 2)),
+            (int) hexdec(substr($hex, 2, 2)),
+            (int) hexdec(substr($hex, 4, 2)),
+        ];
+    }
+
+    /**
+     * Gibt das Icon für einen Modul-Key zurück.
+     * Prüft zuerst dynamische Registrierungen, dann statische Fallbacks.
+     */
     public static function icon(string $key): string
     {
         $k = self::normalizeKey($key);
+
+        // Dynamisch zuerst
+        if (isset(self::$__presentations[$k]['icon'])) {
+            return self::$__presentations[$k]['icon'];
+        }
+
+        // Statischer Fallback
         return self::PRESENTATIONS[$k]['icon'] ?? 'bi-circle';
     }
 
+    /**
+     * Gibt die Kategorie für einen Modul-Key zurück.
+     * Prüft zuerst dynamische Registrierungen, dann statische Fallbacks.
+     */
     public static function category(string $key): string
     {
         $k = self::normalizeKey($key);
+
+        // Dynamisch zuerst
+        if (isset(self::$__presentations[$k]['category'])) {
+            return self::$__presentations[$k]['category'];
+        }
+
+        // Statischer Fallback
         return self::PRESENTATIONS[$k]['category'] ?? 'Anwendung';
     }
 
     /**
+     * Gibt die vollständige Präsentation für einen Modul-Key zurück.
+     * Dynamische Registrierungen haben Vorrang vor statischen Werten.
+     *
      * @return array{icon: string, category: string, color: string, bg: string, text: string}
      */
     public static function presentation(string $key): array
     {
         $k = self::normalizeKey($key);
-        return self::PRESENTATIONS[$k] ?? [
+
+        // Dynamisch zuerst zusammenführen mit default
+        if (isset(self::$__presentations[$k])) {
+            $dynamic = self::$__presentations[$k];
+            // Farbe aus dynamisch oder statisch oder default
+            $color = $dynamic['color']
+                ?? self::PRESENTATIONS[$k]['color'] ?? '#6366f1';
+
+            return [
+                'icon' => $dynamic['icon'] ?? self::PRESENTATIONS[$k]['icon'] ?? 'bi-circle',
+                'category' => $dynamic['category'] ?? self::PRESENTATIONS[$k]['category'] ?? 'Modul',
+                'color' => $color,
+                'bg' => $dynamic['bg'] ?? self::computeBg($color),
+                'text' => $dynamic['text'] ?? self::computeTextColor($color),
+            ];
+        }
+
+        // Statischer Fallback
+        if (isset(self::PRESENTATIONS[$k])) {
+            return self::PRESENTATIONS[$k];
+        }
+
+        // Absoluter Fallback
+        return [
             'icon' => 'bi-circle',
             'category' => 'Modul',
             'color' => '#64748b',
             'bg' => 'rgba(100, 116, 139, 0.12)',
             'text' => '#475569',
         ];
+    }
+
+    /**
+     * Gibt alle dynamisch registrierten Präsentationen zurück.
+     *
+     * @return array<string, array{icon: string, category: string, color?: string, bg?: string, text?: string}>
+     */
+    public static function getRegisteredPresentations(): array
+    {
+        return self::$__presentations;
+    }
+
+    /**
+     * Setzt alle dynamisch registrierten Präsentationen zurück.
+     * Nützlich für Tests oder Neuladen.
+     */
+    public static function reset(): void
+    {
+        self::$__presentations = [];
     }
 }

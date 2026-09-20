@@ -57,6 +57,7 @@ try {
         'modulnest.homepage',
         'modulnest.logs',
         'modulnest.mail',
+        'modulnest.mail-client',
         'modulnest.mirror',
         'modulnest.news',
         'modulnest.pages',

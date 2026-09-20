@@ -85,10 +85,12 @@ try {
         (new ModulePackageInspector())->inspect($archives[$version], $hashes[$version]);
     }
 
+    $coreConfig = require $root . '/app/Config/version.php';
+    $coreVersion = (string) ($coreConfig['version'] ?? '2.2.0');
     $lifecycle = new ModuleLifecycleService(
         $server,
         $temporary,
-        '2.0.0-alpha.1',
+        $coreVersion,
         new PdoLogicalBackupProvider($server, $temporary . '/storage/backups/modules'),
         new ModuleOperationLock($temporary . '/storage/locks/modules'),
     );

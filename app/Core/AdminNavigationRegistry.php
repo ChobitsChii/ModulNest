@@ -7,7 +7,7 @@ namespace Modulon\Core;
 final class AdminNavigationRegistry
 {
     /**
-     * @var array<int, array{key:string,label:string,url:string,description?:string,sort_order:int}>
+     * @var array<string, array{key:string,label:string,url:string,description?:string,sort_order:int}>
      */
     private array $coreItems = [];
 
@@ -15,6 +15,92 @@ final class AdminNavigationRegistry
      * @var array<string, AdminNavigationProviderInterface>
      */
     private array $providers = [];
+
+    /**
+     * Dynamisch registrierte Admin-Icons (zur Laufzeit gefüllt).
+     * @var array<string, string>
+     */
+    private static array $__adminIcons = [];
+
+    /**
+     * Statische Standard-Icons als Fallback für backward compatibility.
+     */
+    public const DEFAULT_ICONS = [
+        'dashboard' => 'bi-speedometer2',
+        'module-catalog' => 'bi-box-seam',
+        'catalog' => 'bi-box-seam',
+        'modules' => 'bi-grid',
+        'updates' => 'bi-arrow-repeat',
+        'users' => 'bi-people',
+        'systeminfo' => 'bi-info-circle',
+        'logs' => 'bi-journal-text',
+        'banking' => 'bi-wallet2',
+        'calendar' => 'bi-calendar3',
+        'wiki' => 'bi-book',
+        'news' => 'bi-newspaper',
+        'pages' => 'bi-file-earmark-text',
+        'fantasy-cards' => 'bi-suit-spade',
+        'tools' => 'bi-tools',
+        'mail' => 'bi-envelope',
+        'mail-client' => 'bi-envelope-at',
+        'homepage' => 'bi-house-gear',
+        'data-portability' => 'bi-cloud-arrow-down',
+        'repository-manager' => 'bi-hdd-network',
+        'mirror' => 'bi-hdd-stack',
+        'sneak-preview' => 'bi-stars',
+        'profil' => 'bi-person-circle',
+        'profile' => 'bi-person-circle',
+        'settings' => 'bi-gear',
+        'security' => 'bi-shield-lock',
+    ];
+
+    private const PRIMARY_KEYS = ['dashboard', 'module-catalog', 'modules', 'updates', 'users', 'systeminfo', 'logs'];
+
+    /**
+     * Registriert ein dynamisches Admin-Icon für einen Key.
+     */
+    public static function registerIcon(string $key, string $icon): void
+    {
+        self::$__adminIcons[strtolower(trim($key))] = $icon;
+    }
+
+    /**
+     * Lädt Admin-Icons aus mehreren Modul-Manifesten und registriert sie.
+     *
+     * @param array<int, array{module_key?: string, admin_navigation?: array{icon?: string}>} $manifests
+     */
+    public static function loadFromManifests(array $manifests): void
+    {
+        foreach ($manifests as $manifest) {
+            $moduleKey = $manifest['module_key'] ?? null;
+            $adminNav = $manifest['admin_navigation'] ?? null;
+            if (!\is_array($adminNav) || !\is_string($moduleKey) || $moduleKey === '') {
+                continue;
+            }
+            $icon = $adminNav['icon'] ?? null;
+            if (\is_string($icon) && $icon !== '') {
+                self::registerIcon($moduleKey, $icon);
+            }
+        }
+    }
+
+    /**
+     * Gibt alle dynamisch registrierten Admin-Icons zurück.
+     *
+     * @return array<string, string>
+     */
+    public static function getRegisteredIcons(): array
+    {
+        return self::$__adminIcons;
+    }
+
+    /**
+     * Setzt alle dynamisch registrierten Admin-Icons zurück.
+     */
+    public static function reset(): void
+    {
+        self::$__adminIcons = [];
+    }
 
     public function registerCoreItem(string $key, string $label, string $url, int $sortOrder, string $description = ''): void
     {
@@ -70,36 +156,6 @@ final class AdminNavigationRegistry
         return null;
     }
 
-            public const DEFAULT_ICONS = [
-        'dashboard' => 'bi-speedometer2',
-        'module-catalog' => 'bi-box-seam',
-        'catalog' => 'bi-box-seam',
-        'modules' => 'bi-grid',
-        'updates' => 'bi-arrow-repeat',
-        'users' => 'bi-people',
-        'systeminfo' => 'bi-info-circle',
-        'logs' => 'bi-journal-text',
-        'banking' => 'bi-wallet2',
-        'calendar' => 'bi-calendar3',
-        'wiki' => 'bi-book',
-        'news' => 'bi-newspaper',
-        'pages' => 'bi-file-earmark-text',
-        'fantasy-cards' => 'bi-suit-spade',
-        'tools' => 'bi-tools',
-        'mail' => 'bi-envelope',
-        'homepage' => 'bi-house-gear',
-        'data-portability' => 'bi-cloud-arrow-down',
-        'repository-manager' => 'bi-hdd-network',
-        'mirror' => 'bi-hdd-stack',
-        'sneak-preview' => 'bi-stars',
-        'profil' => 'bi-person-circle',
-        'profile' => 'bi-person-circle',
-        'settings' => 'bi-gear',
-        'security' => 'bi-shield-lock',
-    ];
-
-    private const PRIMARY_KEYS = ['dashboard', 'module-catalog', 'modules', 'updates', 'users', 'systeminfo', 'logs'];
-
     public static function iconForKey(string $key): string
     {
         $key = trim(strtolower($key));
@@ -107,6 +163,19 @@ final class AdminNavigationRegistry
             $key = substr($key, 10);
         }
         $key = str_replace('_', '-', $key);
+
+        // Dynamisch zuerst
+        if (isset(self::$__adminIcons[$key])) {
+            return self::$__adminIcons[$key];
+        }
+
+        // Modul-Präsentations-Registry prüfen
+        $moduleIcon = ModulePresentationRegistry::icon($key);
+        if ($moduleIcon !== 'bi-circle') {
+            return $moduleIcon;
+        }
+
+        // Statischer Fallback
         return self::DEFAULT_ICONS[$key] ?? 'bi-circle';
     }
 
@@ -127,7 +196,7 @@ final class AdminNavigationRegistry
         $activeSecondary = null;
 
         foreach ($allItems as $item) {
-            $item['icon'] = self::iconForKey((string) ($item['key'] ?? ''));
+            $item['icon'] = !empty($item['icon']) ? (string) $item['icon'] : self::iconForKey((string) ($item['key'] ?? ''));
             $key = (string) ($item['key'] ?? '');
             if (in_array($key, self::PRIMARY_KEYS, true)) {
                 $primary[] = $item;
@@ -147,7 +216,7 @@ final class AdminNavigationRegistry
 
         return [
             'all' => array_map(static function (array $item): array {
-                $item['icon'] = self::iconForKey((string) ($item['key'] ?? ''));
+                $item['icon'] = !empty($item['icon']) ? (string) $item['icon'] : self::iconForKey((string) ($item['key'] ?? ''));
                 return $item;
             }, $allItems),
             'primary' => $primary,
@@ -182,6 +251,7 @@ final class AdminNavigationRegistry
                     'url' => (string) ($item['url'] ?? '#'),
                     'description' => (string) ($item['description'] ?? ''),
                     'is_active' => (bool) ($item['is_active'] ?? false),
+                    'icon' => !empty($item['icon']) ? (string) $item['icon'] : self::iconForKey((string) ($item['key'] ?? '')),
                     '_sort_order' => (int) ($item['sort_order'] ?? 1000),
                 ];
             }

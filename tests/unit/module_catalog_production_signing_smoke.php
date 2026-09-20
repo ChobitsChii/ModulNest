@@ -50,11 +50,11 @@ try {
     );
     $source = new LocalCatalogSource('modulnest.production-test', $temporary . '/source');
     $snapshot = $loader->refresh($source);
-    production_signing_assert(count($snapshot->modules) === 16, 'Production-Katalog enthält nicht exakt elf Module.');
+    production_signing_assert(count($snapshot->modules) === 17, 'Production-Katalog enthält nicht exakt elf Module.');
     foreach ($snapshot->modules as $module) {
         production_signing_assert(count($module['releases']) === 1, 'Production-Katalog veröffentlicht nicht exakt den aktuellen Modulrelease.');
         production_signing_assert($module['releases'][0]['signing_key_id'] === 'release-test', 'Modulpaket nutzt nicht den separaten Release-Key.');
-                if (in_array($module['id'], ['modulnest.calendar', 'modulnest.mirror', 'modulnest.repository-manager', 'modulnest.mail', 'modulnest.fantasy-cards'])) {
+                if (in_array($module['id'], ['modulnest.calendar', 'modulnest.mirror', 'modulnest.repository-manager', 'modulnest.mail', 'modulnest.fantasy-cards', 'modulnest.mail-client'])) {
             continue;
         }
         production_signing_assert(isset($module['adoption']), 'Signierte modulbezogene Adoptionsmetadaten fehlen.');
