@@ -79,11 +79,13 @@ try {
     $catalogFail = new CatalogService($server, '1.2.0', $snapshotFail);
     $installerFail = new CatalogPackageInstaller($loader, $sourceFail, $snapshotFail, $catalogFail, $lifecycle);
     $failingBatch = new ModuleBatchUpdateService($server, $temporary, $catalogFail, $installerFail);
-    $failure = $failingBatch->queue(['modulnest.news', 'modulnest.logs']);
+    // Queue logs (which fails in 1.0.2 due to health-fail) first, then news (which succeeds updating from 1.0.0 to 1.0.1)
+    $failure = $failingBatch->queue(['modulnest.logs', 'modulnest.news']);
     $failure = $failingBatch->run((string) $failure['operation_id']);
     batch_assert($failure['status'] === 'failed' && $failure['error_code'] === 'module_update_failed', 'Absichtlich fehlschlagendes Batchupdate meldet keinen verständlichen Abschluss.');
-    batch_assert(array_column($failure['modules'], 'status') === ['succeeded', 'failed'], 'Batch-Fortschritt unterscheidet erfolgreiche und fehlgeschlagene Module nicht.');
-    batch_assert($lifecycle->inspect('modulnest.news')['installed_version'] === '1.0.1', 'Bereits erfolgreiches Update wurde nach späterem Fehler zurückgenommen.');
+    batch_assert($failure['phase'] === 'partial_failure', 'Teilweise erfolgreiches Batchupdate meldet nicht die Phase partial_failure.');
+    batch_assert(array_column($failure['modules'], 'status') === ['failed', 'succeeded'], 'Batch-Fortschritt führt nachfolgende Module nach einem Fehler nicht fort.');
+    batch_assert($lifecycle->inspect('modulnest.news')['installed_version'] === '1.0.1', 'Nachfolgendes Modul wurde nach früherem Fehler nicht erfolgreich aktualisiert.');
     batch_assert($lifecycle->inspect('modulnest.logs')['installed_version'] === '1.0.1', 'Fehlgeschlagenes Modul wurde nicht auf seinen funktionierenden Stand zurückgerollt.');
     batch_assert($lifecycle->inspect('modulnest.systeminfo')['installed_version'] === '1.0.1', 'Nicht beteiligtes Modul wurde verändert.');
     batch_assert(($failingBatch->latest()['operation_id'] ?? '') === $failure['operation_id'], 'Abschlussstatus ist nach Reload nicht mehr abrufbar.');

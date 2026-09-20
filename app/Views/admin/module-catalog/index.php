@@ -94,10 +94,10 @@ $badgeClass = static fn (string $classification): string => \Modulon\Core\Module
 <?php endif; ?>
 
 <?php if (is_array($batch_update_operation ?? null)): $batch=$batch_update_operation; ?>
-    <section class="alert <?= ($batch['status']??'')==='failed'?'alert-danger':(($batch['status']??'')==='succeeded'?'alert-success':'alert-info') ?> position-relative" data-batch-update-status data-operation-id="<?= $e($batch['operation_id'] ?? '') ?>">
+    <section class="alert <?= ($batch['status']??'')==='failed'?((($batch['phase']??'')==='partial_failure')?'alert-warning':'alert-danger'):(($batch['status']??'')==='succeeded'?'alert-success':'alert-info') ?> position-relative" data-batch-update-status data-operation-id="<?= $e($batch['operation_id'] ?? '') ?>">
         <div class="d-flex justify-content-between align-items-start gap-2">
             <div>
-                <strong data-batch-headline><?= ($batch['status']??'')==='failed'?'Modulupdates fehlgeschlagen':(($batch['status']??'')==='succeeded'?'Modulupdates abgeschlossen':'Modulupdates laufen') ?></strong>
+                <strong data-batch-headline><?= ($batch['status']??'')==='failed'?((($batch['phase']??'')==='partial_failure')?'Modulupdates teilweise abgeschlossen':'Modulupdates fehlgeschlagen'):(($batch['status']??'')==='succeeded'?'Modulupdates abgeschlossen':'Modulupdates laufen') ?></strong>
                 <div data-batch-summary><?= (int)($batch['current']??0) ?> / <?= (int)($batch['total']??0) ?></div>
             </div>
             <?php if (($batch['status'] ?? '') !== 'running'): ?>

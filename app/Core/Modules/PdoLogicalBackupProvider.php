@@ -5,9 +5,66 @@ use PDO; use RuntimeException;
 final readonly class PdoLogicalBackupProvider implements DatabaseBackupProviderInterface
 {
     public function __construct(private PDO $pdo,private string $backupRoot){}
-    public function backup(string $moduleId,array $tables): string {ModuleId::assert($moduleId);if(!is_dir($this->backupRoot)&&!@mkdir($this->backupRoot,0700,true)&&!is_dir($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');if(is_link($this->backupRoot)||!is_writable($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');$dir=$this->backupRoot.'/'.$moduleId;if(!is_dir($dir)&&!@mkdir($dir,0700)&&!is_dir($dir))throw new RuntimeException('Modul-Backupordner kann nicht sicher erstellt werden.');if(is_link($dir)||!is_writable($dir))throw new RuntimeException('Der Modul-Backupordner ist für den Webprozess nicht beschreibbar.');@chmod($dir,0700);$payload=['format'=>'modulnest-pdo-logical-v1','module_id'=>$moduleId,'created_at'=>gmdate(DATE_ATOM),'tables'=>[]];foreach($tables as $table){$this->assertTable($table);$create=$this->pdo->query('SHOW CREATE TABLE `'.$table.'`')->fetch(PDO::FETCH_NUM);if(!is_array($create))throw new RuntimeException("Tabelle fehlt: {$table}");$rows=$this->pdo->query('SELECT * FROM `'.$table.'`')->fetchAll(PDO::FETCH_ASSOC);$payload['tables'][$table]=['create'=>(string)$create[1],'rows'=>$rows];}$json=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);$wrapper=json_encode(['sha256'=>hash('sha256',$json),'payload'=>base64_encode($json)],JSON_THROW_ON_ERROR);$path=$dir.'/'.gmdate('YmdHis').'-'.bin2hex(random_bytes(6)).'.json';if(file_put_contents($path,$wrapper,LOCK_EX)===false)throw new RuntimeException('Backup kann nicht geschrieben werden.');if(!@chmod($path,0600)||((int)fileperms($path)&0777)!==0600){@unlink($path);throw new RuntimeException('Backup-Dateirechte konnten nicht sicher gesetzt werden.');}$this->verify($path);return $path;}
+    public function backup(string $moduleId,array $tables): string {
+        ModuleId::assert($moduleId);
+        if(!is_dir($this->backupRoot)&&!@mkdir($this->backupRoot,0700,true)&&!is_dir($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');
+        if(is_link($this->backupRoot)||!is_writable($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');
+        $dir=$this->backupRoot.'/'.$moduleId;
+        if(!is_dir($dir)&&!@mkdir($dir,0700)&&!is_dir($dir))throw new RuntimeException('Modul-Backupordner kann nicht sicher erstellt werden.');
+        if(is_link($dir)||!is_writable($dir))throw new RuntimeException('Der Modul-Backupordner ist für den Webprozess nicht beschreibbar.');
+        @chmod($dir,0700);
+        $payload=['format'=>'modulnest-pdo-logical-v1','module_id'=>$moduleId,'created_at'=>gmdate(DATE_ATOM),'tables'=>[]];
+        foreach($tables as $table){
+            $this->assertTable($table);
+            $check=$this->pdo->prepare('SHOW TABLES LIKE ?');
+            $check->execute([$table]);
+            if($check->fetchColumn()===false){
+                continue;
+            }
+            $create=$this->pdo->query('SHOW CREATE TABLE `'.$table.'`')->fetch(PDO::FETCH_NUM);
+            if(!is_array($create))throw new RuntimeException("Tabelle fehlt: {$table}");
+            $rows=$this->pdo->query('SELECT * FROM `'.$table.'`')->fetchAll(PDO::FETCH_ASSOC);
+            $payload['tables'][$table]=['create'=>(string)$create[1],'rows'=>$rows];
+        }
+        $json=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+        $wrapper=json_encode(['sha256'=>hash('sha256',$json),'payload'=>base64_encode($json)],JSON_THROW_ON_ERROR);
+        $path=$dir.'/'.gmdate('YmdHis').'-'.bin2hex(random_bytes(6)).'.json';
+        if(file_put_contents($path,$wrapper,LOCK_EX)===false)throw new RuntimeException('Backup kann nicht geschrieben werden.');
+        if(!@chmod($path,0600)||((int)fileperms($path)&0777)!==0600){@unlink($path);throw new RuntimeException('Backup-Dateirechte konnten nicht sicher gesetzt werden.');}
+        $this->verify($path);
+        return $path;
+    }
     public function verify(string $reference): void {$this->decode($reference);}
-    public function restore(string $reference): void {$data=$this->decode($reference);$this->pdo->exec('SET FOREIGN_KEY_CHECKS=0');try{foreach($data['tables'] as $table=>$definition){$this->assertTable((string)$table);$this->pdo->exec('DROP TABLE IF EXISTS `'.$table.'`');$this->pdo->exec((string)$definition['create']);foreach($definition['rows'] as $row){if(!is_array($row)||$row===[])continue;$cols=array_keys($row);foreach($cols as $col)$this->assertTable((string)$col);$sql='INSERT INTO `'.$table.'` (`'.implode('`,`',$cols).'`) VALUES ('.implode(',',array_fill(0,count($cols),'?')).')';$this->pdo->prepare($sql)->execute(array_values($row));}}}finally{$this->pdo->exec('SET FOREIGN_KEY_CHECKS=1');}}
-    private function decode(string $path): array {if(!is_file($path))throw new RuntimeException('Backup fehlt.');$wrapper=json_decode((string)file_get_contents($path),true,8,JSON_THROW_ON_ERROR);$json=base64_decode((string)($wrapper['payload']??''),true);if(!is_string($json)||!hash_equals((string)($wrapper['sha256']??''),hash('sha256',$json)))throw new RuntimeException('Backup-Verifikation fehlgeschlagen.');$data=json_decode($json,true,32,JSON_THROW_ON_ERROR);if(($data['format']??'')!=='modulnest-pdo-logical-v1'||!is_array($data['tables']??null))throw new RuntimeException('Unbekanntes Backupformat.');return $data;}
-    private function assertTable(string $value): void {if(!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D',$value))throw new RuntimeException('Unsicherer SQL-Identifier.');}
+    public function restore(string $reference): void {
+        $data=$this->decode($reference);
+        $this->pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        try{
+            foreach($data['tables'] as $table=>$definition){
+                $this->assertTable((string)$table);
+                $this->pdo->exec('DROP TABLE IF EXISTS `'.$table.'`');
+                $this->pdo->exec((string)$definition['create']);
+                foreach($definition['rows'] as $row){
+                    if(!is_array($row)||$row===[])continue;
+                    $cols=array_keys($row);
+                    foreach($cols as $col)$this->assertTable((string)$col);
+                    $sql='INSERT INTO `'.$table.'` (`'.implode('`,`',$cols).'`) VALUES ('.implode(',',array_fill(0,count($cols),'?')).')';
+                    $this->pdo->prepare($sql)->execute(array_values($row));
+                }
+            }
+        }finally{
+            $this->pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+        }
+    }
+    private function decode(string $path): array {
+        if(!is_file($path))throw new RuntimeException('Backup fehlt.');
+        $wrapper=json_decode((string)file_get_contents($path),true,8,JSON_THROW_ON_ERROR);
+        $json=base64_decode((string)($wrapper['payload']??''),true);
+        if(!is_string($json)||!hash_equals((string)($wrapper['sha256']??''),hash('sha256',$json)))throw new RuntimeException('Backup-Verifikation fehlgeschlagen.');
+        $data=json_decode($json,true,32,JSON_THROW_ON_ERROR);
+        if(($data['format']??'')!=='modulnest-pdo-logical-v1'||!is_array($data['tables']??null))throw new RuntimeException('Unbekanntes Backupformat.');
+        return $data;
+    }
+    private function assertTable(string $value): void {
+        if(!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D',$value))throw new RuntimeException('Unsicherer SQL-Identifier.');
+    }
 }
