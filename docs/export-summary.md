@@ -1,7 +1,7 @@
 # ModulNest Export Summary
 
 - Zielpfad: `/srv/http/modulnest`
-- Erstellt am: `2026-09-21T13:21:56+02:00`
+- Erstellt am: `2026-09-21T13:31:04+02:00`
 - Core-Module: `Admin Auth Modules User Updates`
 - Optionale Module: `(keine)`
 

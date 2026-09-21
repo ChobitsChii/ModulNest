@@ -7,34 +7,122 @@ final readonly class PdoLogicalBackupProvider implements DatabaseBackupProviderI
     public function __construct(private PDO $pdo,private string $backupRoot){}
     public function backup(string $moduleId,array $tables): string {
         ModuleId::assert($moduleId);
-        if(!is_dir($this->backupRoot)&&!@mkdir($this->backupRoot,0700,true)&&!is_dir($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');
+        if(!is_dir($this->backupRoot)&&!@mkdir($this->backupRoot,0770,true)&&!is_dir($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');
         if(is_link($this->backupRoot)||!is_writable($this->backupRoot))throw new RuntimeException('Das Modul-Backup-Verzeichnis ist für den Webprozess nicht beschreibbar.');
         $dir=$this->backupRoot.'/'.$moduleId;
-        if(!is_dir($dir)&&!@mkdir($dir,0700)&&!is_dir($dir))throw new RuntimeException('Modul-Backupordner kann nicht sicher erstellt werden.');
+        if(!is_dir($dir)&&!@mkdir($dir,0770)&&!is_dir($dir))throw new RuntimeException('Modul-Backupordner kann nicht sicher erstellt werden.');
         if(is_link($dir)||!is_writable($dir))throw new RuntimeException('Der Modul-Backupordner ist für den Webprozess nicht beschreibbar.');
-        @chmod($dir,0700);
-        $payload=['format'=>'modulnest-pdo-logical-v1','module_id'=>$moduleId,'created_at'=>gmdate(DATE_ATOM),'tables'=>[]];
-        foreach($tables as $table){
-            $this->assertTable($table);
-            $check=$this->pdo->prepare('SHOW TABLES LIKE ?');
-            $check->execute([$table]);
-            if($check->fetchColumn()===false){
-                continue;
-            }
-            $create=$this->pdo->query('SHOW CREATE TABLE `'.$table.'`')->fetch(PDO::FETCH_NUM);
-            if(!is_array($create))throw new RuntimeException("Tabelle fehlt: {$table}");
-            $rows=$this->pdo->query('SELECT * FROM `'.$table.'`')->fetchAll(PDO::FETCH_ASSOC);
-            $payload['tables'][$table]=['create'=>(string)$create[1],'rows'=>$rows];
-        }
-        $json=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
-        $wrapper=json_encode(['sha256'=>hash('sha256',$json),'payload'=>base64_encode($json)],JSON_THROW_ON_ERROR);
+        @chmod($dir,0770);
+
         $path=$dir.'/'.gmdate('YmdHis').'-'.bin2hex(random_bytes(6)).'.json';
-        if(file_put_contents($path,$wrapper,LOCK_EX)===false)throw new RuntimeException('Backup kann nicht geschrieben werden.');
+        $tempPayloadPath=$path.'.raw';
+        $raw=fopen($tempPayloadPath,'wb');
+        if($raw===false)throw new RuntimeException('Backup kann nicht geschrieben werden.');
+
+        try{
+            fwrite($raw,'{"format":"modulnest-pdo-logical-v1","module_id":'.json_encode($moduleId).',"created_at":'.json_encode(gmdate(DATE_ATOM)).',"tables":{');
+            $tIndex=0;
+            foreach($tables as $table){
+                $this->assertTable($table);
+                $check=$this->pdo->prepare('SHOW TABLES LIKE ?');
+                $check->execute([$table]);
+                if($check->fetchColumn()===false){
+                    continue;
+                }
+                $create=$this->pdo->query('SHOW CREATE TABLE `'.$table.'`')->fetch(PDO::FETCH_NUM);
+                if(!is_array($create))throw new RuntimeException("Tabelle fehlt: {$table}");
+                if($tIndex>0)fwrite($raw,',');
+                $tIndex++;
+                fwrite($raw,json_encode((string)$table).':{"create":'.json_encode((string)$create[1]).',"rows":[');
+                $stmt=$this->pdo->query('SELECT * FROM `'.$table.'`');
+                $rIndex=0;
+                while($row=$stmt->fetch(PDO::FETCH_ASSOC)){
+                    if($rIndex>0)fwrite($raw,',');
+                    $rIndex++;
+                    fwrite($raw,json_encode($row,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+                }
+                fwrite($raw,']}');
+            }
+            fwrite($raw,'}}');
+        }finally{
+            fclose($raw);
+        }
+
+        $sha256=hash_file('sha256',$tempPayloadPath);
+        $out=fopen($path,'wb');
+        if($out===false){@unlink($tempPayloadPath);throw new RuntimeException('Backup kann nicht geschrieben werden.');}
+        $in=fopen($tempPayloadPath,'rb');
+        if($in===false){fclose($out);@unlink($tempPayloadPath);throw new RuntimeException('Temp-Backup kann nicht gelesen werden.');}
+        try{
+            fwrite($out,'{"sha256":'.json_encode($sha256).',"payload":"');
+            $chunkSize=65535; // multiple of 3 bytes for base64 without padding
+            while(!feof($in)){
+                $chunk=fread($in,$chunkSize);
+                if($chunk!==false&&$chunk!==''){
+                    fwrite($out,base64_encode($chunk));
+                }
+            }
+            fwrite($out,'"}');
+        }finally{
+            fclose($in);
+            fclose($out);
+            @unlink($tempPayloadPath);
+        }
+
         if(!@chmod($path,0600)||((int)fileperms($path)&0777)!==0600){@unlink($path);throw new RuntimeException('Backup-Dateirechte konnten nicht sicher gesetzt werden.');}
         $this->verify($path);
         return $path;
     }
-    public function verify(string $reference): void {$this->decode($reference);}
+    public function verify(string $reference): void {
+        $this->verifyBackupFile($reference);
+    }
+    private function verifyBackupFile(string $path): void {
+        if(!is_file($path))throw new RuntimeException('Backup fehlt.');
+        $in=fopen($path,'rb');
+        if($in===false)throw new RuntimeException('Backup kann nicht geöffnet werden.');
+        try{
+            $header=fread($in,256);
+            if(!is_string($header)||preg_match('/^\{\"sha256\":\"([a-f0-9]{64})\",\"payload\":\"/',$header,$matches)!==1){
+                throw new RuntimeException('Backup-Header ungültig.');
+            }
+            $expectedSha=$matches[1];
+            $payloadOffset=strlen($matches[0]);
+            fseek($in,$payloadOffset);
+
+            $hasher=hash_init('sha256');
+            $b64ChunkSize=65536; // multiple of 4 bytes
+            $remainder='';
+            while(!feof($in)){
+                $rawB64=fread($in,$b64ChunkSize);
+                if($rawB64===false||$rawB64==='')break;
+                $quotePos=strpos($rawB64,'"');
+                if($quotePos!==false){
+                    $rawB64=substr($rawB64,0,$quotePos);
+                    $chunkToDecode=$remainder.$rawB64;
+                    if($chunkToDecode!==''){
+                        $decoded=base64_decode($chunkToDecode,true);
+                        if(!is_string($decoded))throw new RuntimeException('Ungültiges Base64 im Backup.');
+                        hash_update($hasher,$decoded);
+                    }
+                    break;
+                }
+                $chunkToDecode=$remainder.$rawB64;
+                $validLen=strlen($chunkToDecode)-(strlen($chunkToDecode)%4);
+                if($validLen>0){
+                    $decoded=base64_decode(substr($chunkToDecode,0,$validLen),true);
+                    if(!is_string($decoded))throw new RuntimeException('Ungültiges Base64 im Backup.');
+                    hash_update($hasher,$decoded);
+                    $remainder=substr($chunkToDecode,$validLen);
+                }else{
+                    $remainder=$chunkToDecode;
+                }
+            }
+            $actualSha=hash_final($hasher);
+            if(!hash_equals($expectedSha,$actualSha))throw new RuntimeException('Backup-Verifikation fehlgeschlagen.');
+        }finally{
+            fclose($in);
+        }
+    }
     public function restore(string $reference): void {
         $data=$this->decode($reference);
         $this->pdo->exec('SET FOREIGN_KEY_CHECKS=0');
@@ -55,8 +143,9 @@ final readonly class PdoLogicalBackupProvider implements DatabaseBackupProviderI
             $this->pdo->exec('SET FOREIGN_KEY_CHECKS=1');
         }
     }
-    private function decode(string $path): array {
+    public function decode(string $path): array {
         if(!is_file($path))throw new RuntimeException('Backup fehlt.');
+        @ini_set('memory_limit','1024M');
         $wrapper=json_decode((string)file_get_contents($path),true,8,JSON_THROW_ON_ERROR);
         $json=base64_decode((string)($wrapper['payload']??''),true);
         if(!is_string($json)||!hash_equals((string)($wrapper['sha256']??''),hash('sha256',$json)))throw new RuntimeException('Backup-Verifikation fehlgeschlagen.');

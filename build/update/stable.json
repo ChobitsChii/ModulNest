@@ -5,12 +5,12 @@
     "packages": {
         "source": {
             "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v2.2.2/modulnest-source-2.2.2.zip",
-            "sha256": "de4a94dbca583839517d6d26692f6f5039c614f5a5685c637780dee10fc0cec9",
+            "sha256": "f55b24e2806bb09ab654f9d042c1ddccfc8b4c04f357a53658bf96fe5a22f647",
             "needs_composer": true
         },
         "bundled": {
             "url": "https://github.com/ChobitsChii/ModulNest/releases/download/v2.2.2/modulnest-bundled-2.2.2.zip",
-            "sha256": "34cf7e0a6f0626b6ad408f6691446a447f05575ecd12e75abc969327158b451a",
+            "sha256": "a3d2245f552c63f84652d5c501f370569afda5802f22e7c505922379dab34778",
             "needs_composer": false
         }
     },
@@ -89,5 +89,5 @@
             "view_dir": null
         }
     ],
-    "generated_at": "2026-09-21T11:22:07+00:00"
+    "generated_at": "2026-09-21T11:31:08+00:00"
 }

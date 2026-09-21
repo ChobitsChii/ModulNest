@@ -5,7 +5,7 @@
     "version": "2.2.2",
     "channel": "stable",
     "requires_migrations": false,
-    "generated_at": "2026-09-21T11:21:56+00:00",
+    "generated_at": "2026-09-21T11:31:04+00:00",
     "required_modules": [
         "Admin",
         "Auth",
