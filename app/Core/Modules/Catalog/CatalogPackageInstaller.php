@@ -40,9 +40,9 @@ final class CatalogPackageInstaller
     }
 
     /** @return array<string,mixed> */
-    public function install(string $moduleId, bool $activate = false): array
+    public function install(string $moduleId, bool $activate = false, ?string $version = null): array
     {
-        [$release, $context] = $this->releaseContext($moduleId);
+        [$release, $context] = $this->releaseContext($moduleId, null, $version);
         $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
         try {
             return $this->lifecycle->install(
@@ -85,9 +85,17 @@ final class CatalogPackageInstaller
     }
 
     /** @return array<string,mixed> */
-    public function update(string $moduleId): array
+    public function update(string $moduleId, ?string $version = null): array
     {
-        [$release, $context] = $this->releaseContext($moduleId);
+        [$release, $context] = $this->releaseContext($moduleId, null, $version);
+        $current = $this->lifecycle->inspect($moduleId);
+        $installedVersion = $current['installed_version'] ?? null;
+        if ($installedVersion !== null) {
+            $comparison = SemVer::parse((string) $release['version'])->compare(SemVer::parse((string) $installedVersion));
+            if ($comparison <= 0) {
+                throw new RuntimeException('Ein Downgrade oder erneutes Installieren derselben Version per Update ist nicht erlaubt.');
+            }
+        }
         $path = $this->verifiedTemp($moduleId, $release, $context['loader'], $context['source']);
         try {
             return $this->lifecycle->update(
@@ -119,20 +127,35 @@ final class CatalogPackageInstaller
     }
 
     /** @return array{0:array<string,mixed>,1:array{record:array<string,mixed>,source:CatalogSourceInterface,loader:CatalogLoader,snapshot:CatalogSnapshot,module:array<string,mixed>}} */
-    private function releaseContext(string $id, ?string $sourceId = null): array
+    private function releaseContext(string $id, ?string $sourceId = null, ?string $targetVersion = null): array
     {
         $context = $this->context($id, $sourceId);
-        if ($sourceId === null) {
+        $module = $context['module'];
+        if ($targetVersion !== null && $targetVersion !== '') {
+            $candidate = null;
+            foreach ($module['releases'] ?? [] as $rel) {
+                if ((string) ($rel['version'] ?? '') === $targetVersion) {
+                    $candidate = $rel;
+                    break;
+                }
+            }
+            if (!is_array($candidate)) {
+                throw new RuntimeException("Version {$targetVersion} ist für Modul {$id} im Katalog nicht vorhanden.");
+            }
+            if (!$this->catalog->isReleaseCompatible($candidate)) {
+                throw new RuntimeException($this->catalog->incompatibility($candidate));
+            }
+            $release = $candidate;
+        } elseif ($sourceId === null) {
             $item = $this->catalog->module($id);
             $release = is_array($item) ? ($item['release'] ?? null) : null;
             $compatible = is_array($item) && !empty($item['compatible']);
             $reason = is_array($item) ? ($item['incompatibility_reason'] ?? null) : null;
+            if (!$compatible || !is_array($release)) throw new RuntimeException((string) ($reason ?? 'Modul ist nicht kompatibel.'));
         } else {
             $release = $this->catalog->compatibleRelease($context['module']);
-            $compatible = is_array($release);
-            $reason = 'Modul ist in der Zielquelle nicht kompatibel.';
+            if (!is_array($release)) throw new RuntimeException('Modul ist in der Zielquelle nicht kompatibel.');
         }
-        if (!$compatible || !is_array($release)) throw new RuntimeException((string) ($reason ?? 'Modul ist nicht kompatibel.'));
         return [$release, $context];
     }
 

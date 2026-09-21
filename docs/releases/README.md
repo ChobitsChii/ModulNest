@@ -6,6 +6,7 @@ sind im [ModulNest-Repository](https://github.com/ChobitsChii/ModulNest/releases
 verfügbar.
 
 ## Stable
+- [2.2.2](2.2.2.md) — 21.09.2026 — c-client ErrorHandler-Optimierung und Modul-Katalog Versionsauswahl.
 - [2.1.0](2.1.0.md) — 14.09.2026 — flexibles Navigationslayout, Theme-Präferenzen, Favoriten, Avatare, Favicons und Katalog-Erweiterungen.
 
 - [2.0.1](2.0.1.md) — 09.09.2026 — offizielle Distribution-Endpunkte und kleinere Update-UX-Verbesserungen.

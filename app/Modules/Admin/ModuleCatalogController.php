@@ -209,11 +209,12 @@ final readonly class ModuleCatalogController
         }
 
         UpdateNotificationService::clearCache(dirname(__DIR__, 2) . '/storage/updates');
+        $targetVersion = trim((string) $request->input('version', '')) ?: null;
         try {
             $backgroundStarted = false;
             match ($action) {
-                'install' => $this->install($id),
-                'update' => $this->update($id),
+                'install' => $this->install($id, $targetVersion),
+                'update' => $this->update($id, $targetVersion),
                 'adopt' => $backgroundStarted = $this->adopt($id),
                 'reinstall' => $this->reinstall($request, $id),
                 'activate' => $this->lifecycle->activate($id),
@@ -547,7 +548,7 @@ final readonly class ModuleCatalogController
         return $modules;
     }
 
-    private function install(string $id): void
+    private function install(string $id, ?string $version = null): void
     {
         $module = $this->catalog->module($id);
         if ($module !== null && !empty($module['is_deprecated']) && empty($module['retained'])) {
@@ -556,7 +557,7 @@ final readonly class ModuleCatalogController
         if ($this->installer === null) {
             throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
         }
-        $this->installer->install($id);
+        $this->installer->install($id, false, $version);
     }
 
     private function adopt(string $id): bool
@@ -604,12 +605,12 @@ final readonly class ModuleCatalogController
         $this->legacyAdoption->reinstall($id);
     }
 
-    private function update(string $id): void
+    private function update(string $id, ?string $version = null): void
     {
         if ($this->installer === null) {
             throw new \RuntimeException('Aktuell ist kein verifizierter Katalog verfügbar.');
         }
-        $this->installer->update($id);
+        $this->installer->update($id, $version);
     }
 
     private function purge(Request $request, string $id): void

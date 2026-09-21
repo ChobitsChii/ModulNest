@@ -207,9 +207,35 @@ final readonly class CatalogService
     }
 
     /** @param array<string,mixed> $module @return array<string,mixed>|null */
-    public function compatibleRelease(array $module): ?array
+    public function compatibleRelease(array $module, ?string $targetVersion = null): ?array
     {
+        if ($targetVersion !== null && $targetVersion !== '') {
+            foreach ($module['releases'] ?? [] as $candidate) {
+                if ((string) ($candidate['version'] ?? '') === $targetVersion) {
+                    return $this->isReleaseCompatible($candidate) ? $candidate : null;
+                }
+            }
+            return null;
+        }
         return $this->latestCompatible($module);
+    }
+
+    /** @param array<string,mixed> $module @return list<array<string,mixed>> */
+    public function compatibleReleases(array $module): array
+    {
+        $valid = array_values(array_filter(
+            $module['releases'] ?? [],
+            fn (array $release): bool => $this->isReleaseCompatible($release),
+        ));
+        usort($valid, static fn (array $a, array $b): int => SemVer::parse((string) $b['version'])->compare(SemVer::parse((string) $a['version'])));
+        return $valid;
+    }
+
+    public function isReleaseCompatible(array $release): bool
+    {
+        return VersionConstraint::parse((string) ($release['core'] ?? ''))->matches($this->coreVersion)
+            && VersionConstraint::parse((string) ($release['php'] ?? ''))->matches(PHP_VERSION)
+            && $this->depsSatisfied((array) ($release['dependencies'] ?? []));
     }
 
     private function catalogView(array $module, ?array $current, ?array $adoptionRow, ?array $release, ?array $latest, ?string $reason): array
@@ -234,6 +260,21 @@ final readonly class CatalogService
         $isBeta = ($channel === 'beta')
             || ($channel === 'alpha')
             || (bool) preg_match('/-(?:beta|alpha|rc|dev)\b/i', $checkVer);
+
+        $allCompatible = $this->compatibleReleases($module);
+        $selectableReleases = [];
+        foreach ($allCompatible as $idx => $rel) {
+            $ver = (string) $rel['version'];
+            if ($installedVersion !== null && SemVer::parse($ver)->compare(SemVer::parse((string) $installedVersion)) <= 0) {
+                continue;
+            }
+            $selectableReleases[] = [
+                'version' => $ver,
+                'published_at' => (string) ($rel['published_at'] ?? ''),
+                'channel' => (string) ($rel['channel'] ?? 'stable'),
+                'is_latest' => $idx === 0,
+            ];
+        }
 
         return [
             'is_deprecated' => $isDeprecated,
@@ -270,6 +311,8 @@ final readonly class CatalogService
             'adoptable' => $isAdoption,
             'required' => false,
             'core_version' => $this->coreVersion,
+            'compatible_releases' => $allCompatible,
+            'selectable_releases' => $selectableReleases,
         ];
     }
 
@@ -389,13 +432,7 @@ final readonly class CatalogService
 
     private function latestCompatible(array $module): ?array
     {
-        $valid = array_values(array_filter(
-            $module['releases'],
-            fn (array $release): bool => VersionConstraint::parse($release['core'])->matches($this->coreVersion)
-                && VersionConstraint::parse($release['php'])->matches(PHP_VERSION)
-                && $this->depsSatisfied($release['dependencies']),
-        ));
-        usort($valid, static fn (array $a, array $b): int => SemVer::parse($b['version'])->compare(SemVer::parse($a['version'])));
+        $valid = $this->compatibleReleases($module);
         return $valid[0] ?? null;
     }
 
@@ -406,7 +443,7 @@ final readonly class CatalogService
         return $all[0] ?? null;
     }
 
-    private function incompatibility(?array $release): string
+    public function incompatibility(?array $release): string
     {
         if ($release === null) return 'Kein Release verfügbar.';
         if (!VersionConstraint::parse($release['core'])->matches($this->coreVersion)) return 'Benötigt ModulNest ' . $release['core'] . '.';

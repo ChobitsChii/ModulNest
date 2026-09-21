@@ -46,6 +46,13 @@ final class ErrorHandler
             return true;
         }
 
+        // IMAP c-client / ext-imap notices on shutdown (errflg=3: WARN, errflg=2: ALERT, errflg=1: ERROR)
+        // dürfen nicht in ErrorException eskalieren und den Request abbrechen
+        if (str_contains($message, "(errflg=")) {
+            self::logPhpIssue($severity, $message, $file, $line);
+            return true;
+        }
+
         throw new ErrorException($message, 0, $severity, $file, $line);
     }
 
